@@ -1,115 +1,152 @@
-import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import Link from 'next/link';
+import StarBackground from '@/components/StarBackground';
+import Navbar from '@/components/Navbar';
+import CountdownTimer from '@/components/CountdownTimer';
+import FeatureCards from '@/components/FeatureCards';
+import Image from 'next/image';
+import { FaRocket, FaHandshake, FaUserPlus, FaSignInAlt } from 'react-icons/fa';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+const Home = () => {
+  const [isBoostHovered, setIsBoostHovered] = useState(false);
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export default function Home() {
   return (
-    <div
-      className={`${geistSans.className} ${geistMono.className} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]`}
-    >
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/pages/index.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="relative min-h-screen overflow-hidden">
+      {/* Star Background */}
+      <StarBackground />
+
+      {/* Navbar */}
+      <Navbar />
+
+      {/* Hero Section */}
+      <section
+        id="beranda"
+        className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-24"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="text-center max-w-4xl mx-auto"
+        >
+          <h1 className="text-white text-5xl md:text-6xl font-bold mb-6">
+            <span
+              className="text-[#0080FF]"
+              onMouseEnter={() => setIsBoostHovered(true)}
+              onMouseLeave={() => setIsBoostHovered(false)}
+            >
+              {isBoostHovered ? 'Tingkatkan' : <i>Boost</i>}
+            </span>{' '}
+            Pengetahuan Kamu Setiap Hari!
+          </h1>
+          <p className="text-gray-300 text-lg md:text-xl mb-8 max-w-2xl mx-auto">LMS WeBoost akan membantu proses belajar kamu menjadi 100% lebih mudah dan menyenangkan. Mulai dan terus belajar bersama kami!</p>
+          {/* CTA Buttons */}
+          <div className="flex items-center justify-center gap-4 mb-12">
+            <Link href="/register">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="mana-btn mana-btn--primary px-8 py-3 font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(0,128,255,0.5)] flex items-center gap-2"
+              >
+                <FaUserPlus size={18} />
+                Daftar
+              </motion.button>
+            </Link>
+            <Link href="/login">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="mana-btn mana-btn--neutral px-8 py-3 font-semibold rounded-xl border border-white/20 transition-all duration-300 flex items-center gap-2"
+              >
+                <FaSignInAlt size={18} />
+                Masuk
+              </motion.button>
+            </Link>
+          </div>
+
+          {/* Countdown Timer */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="flex justify-center"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <CountdownTimer />
+          </motion.div>
+        </motion.div>
+      </section>
+
+      {/* Fitur Section */}
+      <section
+        id="fitur"
+        className="relative py-20 px-6"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="text-center mb-12"
+        >
+          <h2 className="text-white text-4xl md:text-5xl font-bold mb-4 flex items-center justify-center gap-3">
+            Fitur LMS WeBoost <FaRocket className="text-current" />
+          </h2>
+        </motion.div>
+
+        <FeatureCards />
+      </section>
+
+      {/* Mitra Section */}
+      <section
+        id="mitra"
+        className="relative py-20 px-6"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="text-center max-w-4xl mx-auto"
+        >
+          <h2 className="text-white text-4xl md:text-5xl font-bold mb-12 flex items-center justify-center gap-3">
+            Mitra Kami <FaHandshake className="text-current" />
+          </h2>
+
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="inline-block bg-black/30 backdrop-blur-md border border-white/10 rounded-2xl p-8 hover:shadow-[0_0_40px_rgba(0,229,255,0.4)] transition-all duration-300"
           >
-            Read our docs
-          </a>
+            <div className="w-55 h-55 relative">
+              <Image
+                src="/logo_smkypm4taman.png"
+                alt="SMK YPM 4 Taman Logo"
+                fill
+                className="object-contain"
+              />
+            </div>
+          </motion.div>
+        </motion.div>
+      </section>
+
+      {/* Footer */}
+      <footer className="relative py-8 px-6 border-t border-white/10">
+        <div className="max-w-7xl mx-auto text-center">
+          <p className="text-gray-400 text-sm">
+            Copyright © 2026 All right reserved | This website is made with ❤️ by{' '}
+            <a
+              href="https://instagram.com/imrendieko"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#0080FF] hover:underline"
+            >
+              @rendi
+            </a>
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
       </footer>
     </div>
   );
-}
+};
+
+export default Home;
