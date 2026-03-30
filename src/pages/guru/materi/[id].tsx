@@ -315,15 +315,17 @@ export default function DetailMateri() {
             </div>
 
             {/* Clock Timer */}
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
 
           {/* Back Button */}
           <button
+            type="button"
             onClick={() => router.back()}
-            className="mb-6 flex items-center gap-2 bg-gray-800/50 hover:bg-gray-700/50 border border-white/10 px-4 py-2 rounded-lg text-gray-300 hover:text-white transition-all"
+            className="mb-6 flex items-center gap-2 rounded-lg border border-white/10 bg-gray-800/50 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-300 transition-all hover:bg-gray-700/50 hover:text-white"
           >
-            <span>←</span> Kembali
+            <FaArrowLeft />
+            Kembali
           </button>
 
           {/* Content */}

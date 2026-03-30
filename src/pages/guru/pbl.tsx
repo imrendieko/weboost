@@ -11,6 +11,7 @@ import {
   FaCheck,
   FaClock,
   FaCommentAlt,
+  FaEllipsisV,
   FaExclamationCircle,
   FaFileAlt,
   FaLink,
@@ -353,6 +354,7 @@ export default function PBLGuru() {
   } | null>(null);
   const [gradingDrafts, setGradingDrafts] = useState<Record<number, { nilai: string; komentar: string }>>({});
   const [savingGradingMap, setSavingGradingMap] = useState<Record<number, boolean>>({});
+  const [openCommentMenu, setOpenCommentMenu] = useState<number | null>(null);
   const notificationTimerRef = useRef<number | null>(null);
   const startDateTimeRef = useRef<HTMLInputElement>(null);
   const endDateTimeRef = useRef<HTMLInputElement>(null);
@@ -672,24 +674,43 @@ export default function PBLGuru() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleReply(reply)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
-                >
-                  <FaCommentAlt />
-                  Balas
-                </button>
-                {canGuruDeleteComment(reply) && (
+                <div className="relative">
                   <button
                     type="button"
-                    onClick={() => handleDeleteComment(reply.id_komentar)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300 transition hover:bg-red-500/20"
+                    onClick={() => setOpenCommentMenu(openCommentMenu === reply.id_komentar ? null : reply.id_komentar)}
+                    className="inline-flex items-center justify-center rounded-lg border border-white/10 p-2 text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
                   >
-                    <FaTrash />
-                    Hapus
+                    <FaEllipsisV />
                   </button>
-                )}
+                  {openCommentMenu === reply.id_komentar && (
+                    <div className="absolute right-0 top-full mt-1 w-36 overflow-hidden rounded-lg border border-white/10 bg-gray-900/95 backdrop-blur-md shadow-xl z-40">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleReply(reply);
+                          setOpenCommentMenu(null);
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2.5 text-xs sm:text-sm text-gray-200 transition hover:bg-white/10 hover:text-white"
+                      >
+                        <FaCommentAlt />
+                        Balas
+                      </button>
+                      {canGuruDeleteComment(reply) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleDeleteComment(reply.id_komentar);
+                            setOpenCommentMenu(null);
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2.5 text-xs sm:text-sm text-red-300 transition hover:bg-red-500/20"
+                        >
+                          <FaTrash />
+                          Hapus
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <p className="mt-2 text-sm leading-6 text-gray-200">{reply.isi_komentar}</p>
@@ -1151,7 +1172,7 @@ export default function PBLGuru() {
               </h1>
               <p className="text-gray-400">{getCurrentDate()}</p>
             </div>
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
 
           {notification.show && (
@@ -1178,9 +1199,16 @@ export default function PBLGuru() {
                     >
                       <div className="card">
                         <div
-                          className="card-front bg-gradient-to-br from-gray-900 to-gray-800 border border-white/20 rounded-xl overflow-hidden shadow-lg hover:shadow-[0_0_30px_rgba(0,128,255,0.3)] transition-all duration-300"
+                          className="card-front bg-gradient-to-br from-gray-900 to-gray-800 border border-white/20 rounded-xl overflow-hidden shadow-lg hover:shadow-[0_0_30px_rgba(0,128,255,0.3)] transition-all duration-300 cursor-pointer"
                           role="button"
                           tabIndex={0}
+                          onClick={() => router.push(`/guru/pbl?elemen=${option.id_elemen}`)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              router.push(`/guru/pbl?elemen=${option.id_elemen}`);
+                            }
+                          }}
                         >
                           <div className="relative h-48 w-full bg-gray-900 pointer-events-none">
                             <Image
@@ -1214,7 +1242,7 @@ export default function PBLGuru() {
                                     router.push(`/guru/pbl?elemen=${option.id_elemen}&sintak=1`);
                                   }
                                 }}
-                                className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 transition-colors hover:bg-white/20 cursor-pointer"
+                                className="rounded-lg border border-white/30 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm transition-colors hover:bg-white/20 cursor-pointer"
                                 role="button"
                                 tabIndex={0}
                               >
@@ -1228,7 +1256,7 @@ export default function PBLGuru() {
                                     router.push(`/guru/pbl?elemen=${option.id_elemen}&sintak=2`);
                                   }
                                 }}
-                                className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 transition-colors hover:bg-white/20 cursor-pointer"
+                                className="rounded-lg border border-white/30 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm transition-colors hover:bg-white/20 cursor-pointer"
                                 role="button"
                                 tabIndex={0}
                               >
@@ -1242,7 +1270,7 @@ export default function PBLGuru() {
                                     router.push(`/guru/pbl?elemen=${option.id_elemen}&sintak=3`);
                                   }
                                 }}
-                                className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 transition-colors hover:bg-white/20 cursor-pointer"
+                                className="rounded-lg border border-white/30 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm transition-colors hover:bg-white/20 cursor-pointer"
                                 role="button"
                                 tabIndex={0}
                               >
@@ -1256,7 +1284,7 @@ export default function PBLGuru() {
                                     router.push(`/guru/pbl?elemen=${option.id_elemen}&sintak=4`);
                                   }
                                 }}
-                                className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 transition-colors hover:bg-white/20 cursor-pointer"
+                                className="rounded-lg border border-white/30 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm transition-colors hover:bg-white/20 cursor-pointer"
                                 role="button"
                                 tabIndex={0}
                               >
@@ -1270,7 +1298,7 @@ export default function PBLGuru() {
                                     router.push(`/guru/pbl?elemen=${option.id_elemen}&sintak=5`);
                                   }
                                 }}
-                                className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 transition-colors hover:bg-white/20 cursor-pointer"
+                                className="rounded-lg border border-white/30 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm transition-colors hover:bg-white/20 cursor-pointer"
                                 role="button"
                                 tabIndex={0}
                               >
@@ -1290,7 +1318,7 @@ export default function PBLGuru() {
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="mb-6 flex items-center gap-2 rounded-lg border border-white/10 bg-gray-800/50 px-4 py-2 text-gray-300 transition-all hover:bg-gray-700/50 hover:text-white"
+                className="mb-6 flex items-center gap-2 rounded-lg border border-white/10 bg-gray-800/50 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-300 transition-all hover:bg-gray-700/50 hover:text-white"
               >
                 <FaArrowLeft />
                 Kembali
@@ -1337,7 +1365,7 @@ export default function PBLGuru() {
                         key={option.key}
                         type="button"
                         onClick={() => handleDraftTypeChange(activeSintakState.order, option.key)}
-                        className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 transition-all ${activeSintakState.draftType === option.key ? 'bg-[#0E5BFF] text-white' : 'text-black/70 hover:bg-black/5'}`}
+                        className={`flex items-center justify-center gap-2 rounded-xl px-3 sm:px-4 py-2 sm:py-3 transition-all ${activeSintakState.draftType === option.key ? 'bg-[#0E5BFF] text-white' : 'text-black/70 hover:bg-black/5'}`}
                       >
                         {option.icon}
                         {option.label}
@@ -1347,7 +1375,7 @@ export default function PBLGuru() {
 
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_auto]">
                     {activeSintakState.draftType === 'dokumen' ? (
-                      <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-white/20 bg-black/20 px-4 py-3 text-gray-300 transition hover:border-[#0080FF]/50">
+                      <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-white/20 bg-black/20 px-3 sm:px-4 py-2 sm:py-3 text-gray-300 transition hover:border-[#0080FF]/50">
                         <input
                           type="file"
                           className="hidden"
@@ -1379,7 +1407,7 @@ export default function PBLGuru() {
                     <button
                       type="button"
                       onClick={() => handleAddLampiran(activeSintakState.order)}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0E5BFF] px-5 py-3 font-semibold text-white transition hover:bg-[#0B49CB]"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0E5BFF] px-4 sm:px-5 py-2 sm:py-3 font-semibold text-white transition hover:bg-[#0B49CB]"
                     >
                       <FaPlus />
                       Tambah
@@ -1408,7 +1436,7 @@ export default function PBLGuru() {
                                 href={attachment.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 rounded-lg bg-[#0E5BFF] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#0B49CB]"
+                                className="inline-flex items-center gap-2 rounded-lg bg-[#0E5BFF] px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-white transition hover:bg-[#0B49CB]"
                               >
                                 <FaLink />
                                 Lihat Lampiran PBL
@@ -1417,7 +1445,7 @@ export default function PBLGuru() {
                             <button
                               type="button"
                               onClick={() => updateSintak(activeSintakState.order, (current) => ({ ...current, lampiran: current.lampiran.filter((_, itemIndex) => itemIndex !== index) }))}
-                              className="inline-flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300 transition hover:bg-red-500/20"
+                              className="inline-flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-red-300 transition hover:bg-red-500/20"
                             >
                               <FaTrash />
                               Hapus
@@ -1440,62 +1468,62 @@ export default function PBLGuru() {
                   />
                 </section>
 
-                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-                  <section className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-                    <h3 className="mb-5 flex items-center gap-2 text-xl font-bold">
-                      <FaClock className="text-white" />
+                <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
+                  <section className="rounded-2xl sm:rounded-3xl border border-white/10 bg-white/5 p-4 sm:p-6 backdrop-blur-xl">
+                    <h3 className="mb-3 sm:mb-5 flex items-center gap-2 text-lg sm:text-xl font-bold">
+                      <FaClock className="text-base sm:text-lg" />
                       Waktu
                     </h3>
-                    <div className="space-y-5">
+                    <div className="space-y-3 sm:space-y-5">
                       <div>
-                        <label className="mb-2 block text-sm font-semibold text-gray-300">Waktu Mulai</label>
+                        <label className="mb-1.5 sm:mb-2 block text-xs sm:text-sm font-semibold text-gray-300">Waktu Mulai</label>
                         <div className="relative">
                           <input
                             ref={startDateTimeRef}
                             type="datetime-local"
                             value={activeSintakState.waktu_mulai}
                             onChange={(event) => updateSintak(activeSintakState.order, (current) => ({ ...current, waktu_mulai: event.target.value }))}
-                            className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition focus:border-[#0080FF]"
+                            className="w-full rounded-lg sm:rounded-xl border border-white/10 bg-black/20 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-[#0080FF]"
                           />
                           <button
                             type="button"
                             onClick={() => openDateTimePicker(startDateTimeRef.current)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-400 transition hover:text-white"
+                            className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-400 transition hover:text-white"
                             aria-label="Buka picker waktu mulai"
                           >
-                            <FaClock />
+                            <FaClock className="text-sm sm:text-base" />
                           </button>
                         </div>
                       </div>
                       <div>
-                        <label className="mb-2 block text-sm font-semibold text-gray-300">Waktu Terakhir</label>
+                        <label className="mb-1.5 sm:mb-2 block text-xs sm:text-sm font-semibold text-gray-300">Waktu Terakhir</label>
                         <div className="relative">
                           <input
                             ref={endDateTimeRef}
                             type="datetime-local"
                             value={activeSintakState.waktu_selesai}
                             onChange={(event) => updateSintak(activeSintakState.order, (current) => ({ ...current, waktu_selesai: event.target.value }))}
-                            className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition focus:border-[#0080FF]"
+                            className="w-full rounded-lg sm:rounded-xl border border-white/10 bg-black/20 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-[#0080FF]"
                           />
                           <button
                             type="button"
                             onClick={() => openDateTimePicker(endDateTimeRef.current)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-400 transition hover:text-white"
+                            className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-400 transition hover:text-white"
                             aria-label="Buka picker waktu terakhir"
                           >
-                            <FaClock />
+                            <FaClock className="text-sm sm:text-base" />
                           </button>
                         </div>
                       </div>
                     </div>
                   </section>
 
-                  <section className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-                    <h3 className="mb-5 flex items-center gap-2 text-xl font-bold">
-                      <FaFileAlt className="text-white" />
+                  <section className="rounded-2xl sm:rounded-3xl border border-white/10 bg-white/5 p-4 sm:p-6 backdrop-blur-xl">
+                    <h3 className="mb-3 sm:mb-5 flex items-center gap-2 text-lg sm:text-xl font-bold">
+                      <FaFileAlt className="text-base sm:text-lg" />
                       File Pengumpulan
                     </h3>
-                    <div className="grid grid-cols-3 gap-3 rounded-2xl bg-white p-2 text-sm font-semibold text-black">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-white p-1.5 sm:p-2 text-xs sm:text-sm font-semibold text-black">
                       {(
                         [
                           { key: 'dokumen', label: 'Dokumen', icon: <FaFileAlt /> },
@@ -1532,7 +1560,7 @@ export default function PBLGuru() {
                     type="button"
                     onClick={handleSave}
                     disabled={saving}
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#0E5BFF] px-6 py-3 font-semibold text-white transition hover:bg-[#0B49CB] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#0E5BFF] px-4 sm:px-6 py-2 sm:py-3 font-semibold text-white transition hover:bg-[#0B49CB] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <FaSave />
                     {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
@@ -1797,24 +1825,43 @@ export default function PBLGuru() {
                             </div>
 
                             <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleReply(comment)}
-                                className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
-                              >
-                                <FaCommentAlt />
-                                Balas
-                              </button>
-                              {canGuruDeleteComment(comment) && (
+                              <div className="relative">
                                 <button
                                   type="button"
-                                  onClick={() => handleDeleteComment(comment.id_komentar)}
-                                  className="inline-flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300 transition hover:bg-red-500/20"
+                                  onClick={() => setOpenCommentMenu(openCommentMenu === comment.id_komentar ? null : comment.id_komentar)}
+                                  className="inline-flex items-center justify-center rounded-lg border border-white/10 p-2 text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
                                 >
-                                  <FaTrash />
-                                  Hapus
+                                  <FaEllipsisV />
                                 </button>
-                              )}
+                                {openCommentMenu === comment.id_komentar && (
+                                  <div className="absolute right-0 top-full mt-1 w-36 overflow-hidden rounded-lg border border-white/10 bg-gray-900/95 backdrop-blur-md shadow-xl z-40">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        handleReply(comment);
+                                        setOpenCommentMenu(null);
+                                      }}
+                                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-gray-200 transition hover:bg-white/10 hover:text-white"
+                                    >
+                                      <FaCommentAlt />
+                                      Balas
+                                    </button>
+                                    {canGuruDeleteComment(comment) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          handleDeleteComment(comment.id_komentar);
+                                          setOpenCommentMenu(null);
+                                        }}
+                                        className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-red-300 transition hover:bg-red-500/20"
+                                      >
+                                        <FaTrash />
+                                        Hapus
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
 
@@ -1826,20 +1873,20 @@ export default function PBLGuru() {
 
                   <div className="mt-6 rounded-2xl border border-white/10 bg-white/10 p-3">
                     {activeSintakState.replyingTo && (
-                      <div className="mb-3 flex items-center justify-between rounded-xl border border-[#0080FF]/30 bg-[#0080FF]/10 px-4 py-3 text-sm text-[#c9e0ff]">
-                        <span>Membalas komentar {activeSintakState.replyingTo.siswa?.nama_siswa || activeSintakState.replyingTo.guru?.nama_guru || 'pengguna'}</span>
+                      <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-xl border border-[#0080FF]/30 bg-[#0080FF]/10 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-[#c9e0ff]">
+                        <span className="break-words">Membalas komentar {activeSintakState.replyingTo.siswa?.nama_siswa || activeSintakState.replyingTo.guru?.nama_guru || 'pengguna'}</span>
                         <button
                           type="button"
                           onClick={() => updateSintak(activeSintakState.order, (current) => ({ ...current, replyingTo: null, commentInput: '' }))}
-                          className="text-white/80 transition hover:text-white"
+                          className="text-white/80 transition hover:text-white font-medium whitespace-nowrap"
                         >
                           Batal
                         </button>
                       </div>
                     )}
 
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/10">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                      <div className="hidden sm:flex h-10 sm:h-12 items-center justify-center rounded-full border border-white/10 bg-white/10 flex-shrink-0">
                         <FaCommentAlt className="text-sm text-white" />
                       </div>
                       <input
@@ -1847,15 +1894,16 @@ export default function PBLGuru() {
                         value={activeSintakState.commentInput}
                         onChange={(event) => updateSintak(activeSintakState.order, (current) => ({ ...current, commentInput: event.target.value }))}
                         placeholder="Tambahkan komentar..."
-                        className="flex-1 rounded-xl border border-transparent bg-transparent px-2 py-3 text-white outline-none placeholder:text-gray-300"
+                        className="flex-1 rounded-xl border border-transparent bg-transparent px-3 py-2 sm:py-3 text-sm text-white outline-none placeholder:text-gray-300"
                       />
                       <button
                         type="button"
                         onClick={handleSubmitComment}
                         disabled={commentSubmitting}
-                        className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-[#0E5BFF] text-white transition hover:bg-[#0B49CB] disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#0E5BFF] px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-white transition hover:bg-[#0B49CB] disabled:cursor-not-allowed disabled:opacity-60 flex-shrink-0"
                       >
-                        <FaPaperPlane />
+                        <FaPaperPlane className="text-xs sm:text-sm" />
+                        <span className="hidden sm:inline">Kirim</span>
                       </button>
                     </div>
                   </div>

@@ -72,6 +72,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(404).json({ error: 'Data pengerjaan tidak ditemukan' });
       }
 
+      // Delete validasi_nilai records first (child records) to avoid foreign key constraint
+      const { error: deleteValidasiError } = await supabaseAdmin.from('validasi_nilai').delete().eq('id_attempt', idAttempt);
+      if (deleteValidasiError) {
+        console.warn('Warning deleting validasi_nilai:', deleteValidasiError);
+        // Don't throw error, continue to delete attempt anyway
+      }
+
+      // Now delete the asesmen_attempt record
       const { error: deleteError } = await supabaseAdmin.from('asesmen_attempt').delete().eq('id_attempt', idAttempt);
       if (deleteError) {
         return res.status(500).json({ error: deleteError.message });

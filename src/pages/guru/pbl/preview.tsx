@@ -34,12 +34,43 @@ function getCurrentDate() {
 
 const OFFICE_VIEWER_EXTENSIONS = new Set(['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']);
 
+function extractGoogleDriveFileId(url: string): string | null {
+  // Pattern 1: /file/d/FILE_ID/view
+  const pattern1 = /\/file\/d\/([a-zA-Z0-9-_]+)/;
+  const match1 = url.match(pattern1);
+  if (match1) return match1[1];
+
+  // Pattern 2: ?id=FILE_ID
+  const pattern2 = /[?&]id=([a-zA-Z0-9-_]+)/;
+  const match2 = url.match(pattern2);
+  if (match2) return match2[1];
+
+  // Pattern 3: /open?id=FILE_ID
+  const pattern3 = /\/open\?id=([a-zA-Z0-9-_]+)/;
+  const match3 = url.match(pattern3);
+  if (match3) return match3[1];
+
+  return null;
+}
+
+function isGoogleDriveUrl(url: string): boolean {
+  return url.includes('drive.google.com') || url.includes('docs.google.com');
+}
+
 function getFileExtensionFromUrl(rawUrl: string): string {
   const match = rawUrl.toLowerCase().match(/\.([^.?#]+)(?:[?#].*)?$/);
   return match ? match[1] : '';
 }
 
 function getDocumentPreviewUrl(rawUrl: string): string {
+  // Check if it's a Google Drive URL
+  if (isGoogleDriveUrl(rawUrl)) {
+    const fileId = extractGoogleDriveFileId(rawUrl);
+    if (fileId) {
+      return `https://drive.google.com/file/d/${fileId}/preview`;
+    }
+  }
+
   const extension = getFileExtensionFromUrl(rawUrl);
 
   if (extension === 'pdf') {
@@ -113,7 +144,7 @@ export default function PblPreviewPage() {
               <h1 className="mb-2 text-4xl font-bold">Preview File Pengumpulan</h1>
               <p className="text-gray-400">{getCurrentDate()}</p>
             </div>
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
 
           <button
@@ -156,7 +187,10 @@ export default function PblPreviewPage() {
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+            <div
+              className="overflow-hidden rounded-2xl border border-white/10 bg-black/30"
+              suppressHydrationWarning
+            >
               {fileType === 'video' ? (
                 <div className="aspect-video w-full">
                   {url.includes('youtube.com') || url.includes('youtu.be') ? (
@@ -166,6 +200,7 @@ export default function PblPreviewPage() {
                       title={fileName}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
+                      sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
                     />
                   ) : (
                     <video
@@ -193,12 +228,14 @@ export default function PblPreviewPage() {
                   src={url}
                   className="h-[780px] w-full"
                   title={fileName}
+                  sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
                 />
               ) : (
                 <iframe
                   src={getDocumentPreviewUrl(url)}
                   className="h-[780px] w-full"
                   title={fileName}
+                  sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-presentation"
                 />
               )}
             </div>

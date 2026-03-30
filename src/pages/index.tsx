@@ -65,7 +65,7 @@ const Home = () => {
             </Link>
           </div>
 
-          {/* Countdown Timer */}
+          {/* Countdown Timer with Date */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -89,8 +89,8 @@ const Home = () => {
           transition={{ duration: 0.8 }}
           className="text-center mb-12"
         >
-          <h2 className="text-white text-4xl md:text-5xl font-bold mb-4 flex items-center justify-center gap-3">
-            Fitur LMS WeBoost <FaRocket className="text-current" />
+          <h2 className="text-white text-4xl md:text-5xl font-bold mb-4 flex items-center justify-center gap-3 flex-wrap">
+            Fitur WeBoost <FaRocket className="text-current h-10 w-10" />
           </h2>
         </motion.div>
 

@@ -111,6 +111,12 @@ export default function SiswaKerjakanAsesmen() {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [showIntro, setShowIntro] = useState(true);
   const [startCountdown, setStartCountdown] = useState<number | null>(null);
+  const [notification, setNotification] = useState<{ show: boolean; message: string; type: 'info' | 'error' | 'success' | 'warning'; onConfirm?: () => void }>({
+    show: false,
+    message: '',
+    type: 'info',
+  });
+  const [showTimeoutNotification, setShowTimeoutNotification] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -268,7 +274,11 @@ export default function SiswaKerjakanAsesmen() {
     }
 
     if (!autoSubmit && unansweredCount > 0) {
-      alert(`Masih ada ${unansweredCount} soal yang belum dijawab. Jawab semua soal dulu sebelum mengumpulkan.`);
+      setNotification({
+        show: true,
+        message: `Masih ada ${unansweredCount} soal yang belum dijawab. Jawab semua soal dulu sebelum mengumpulkan.`,
+        type: 'warning',
+      });
       return;
     }
 
@@ -292,21 +302,41 @@ export default function SiswaKerjakanAsesmen() {
         throw new Error(data.error || 'Gagal mengumpulkan asesmen');
       }
 
-      setQuizData((current) =>
-        current
-          ? {
-              ...current,
-              attempt: data.attempt,
-            }
-          : current,
-      );
-
       if (autoSubmit) {
-        alert('Waktu habis. Jawaban Anda telah dikumpulkan otomatis.');
+        setShowTimeoutNotification(true);
+        setNotification({
+          show: true,
+          message: 'Waktu habis. Jawaban Anda telah dikumpulkan otomatis.',
+          type: 'success',
+        });
+        // Delay update attempt saat auto submit agar notifikasi bisa terlihat dulu
+        setTimeout(() => {
+          setQuizData((current) =>
+            current
+              ? {
+                  ...current,
+                  attempt: data.attempt,
+                }
+              : current,
+          );
+        }, 2000);
+      } else {
+        setQuizData((current) =>
+          current
+            ? {
+                ...current,
+                attempt: data.attempt,
+              }
+            : current,
+        );
       }
     } catch (error) {
       console.error(error);
-      alert(error instanceof Error ? error.message : 'Terjadi kesalahan saat submit asesmen');
+      setNotification({
+        show: true,
+        message: error instanceof Error ? error.message : 'Terjadi kesalahan saat submit asesmen',
+        type: 'error',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -336,7 +366,7 @@ export default function SiswaKerjakanAsesmen() {
             <button
               type="button"
               onClick={() => router.back()}
-              className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 hover:bg-white/20"
+              className="mb-6 flex items-center gap-2 rounded-lg border border-white/10 bg-gray-800/50 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-300 transition-all hover:bg-gray-700/50 hover:text-white"
             >
               <FaArrowLeft />
               Kembali
@@ -362,11 +392,23 @@ export default function SiswaKerjakanAsesmen() {
             <button
               type="button"
               onClick={() => router.back()}
-              className="mb-6 flex items-center gap-2 rounded-lg border border-white/10 bg-gray-800/50 px-4 py-2 text-gray-300 transition-all hover:bg-gray-700/50 hover:text-white"
+              className="mb-6 flex items-center gap-2 rounded-lg border border-white/10 bg-gray-800/50 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-300 transition-all hover:bg-gray-700/50 hover:text-white"
             >
               <FaArrowLeft />
               Kembali
             </button>
+
+            {showTimeoutNotification && (
+              <div className="mb-6 rounded-2xl border border-green-400/40 bg-green-500/15 p-6">
+                <div className="flex items-start gap-4">
+                  <div className="text-3xl text-green-300">✓</div>
+                  <div>
+                    <p className="text-base font-semibold text-green-100 mb-2">Waktu Pengerjaan Habis</p>
+                    <p className="text-sm text-green-50">Jawaban Anda telah dikumpulkan otomatis. Terima kasih telah fokus dalam mengerjakan asesmen ini.</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="rounded-2xl border border-green-400/40 bg-green-500/15 p-8 text-center">
               <FaCheckCircle className="mx-auto text-5xl text-green-300 mb-4" />
@@ -629,6 +671,52 @@ export default function SiswaKerjakanAsesmen() {
           )}
         </div>
       </div>
+
+      {/* Notification Modal */}
+      {notification.show && (
+        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center px-6">
+          <div
+            className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-300 ${
+              notification.type === 'success'
+                ? 'border-green-400/40 bg-gradient-to-b from-green-500/20 to-green-500/10'
+                : notification.type === 'error'
+                  ? 'border-red-400/40 bg-gradient-to-b from-red-500/20 to-red-500/10'
+                  : notification.type === 'warning'
+                    ? 'border-yellow-400/40 bg-gradient-to-b from-yellow-500/20 to-yellow-500/10'
+                    : 'border-blue-400/40 bg-gradient-to-b from-blue-500/20 to-blue-500/10'
+            }`}
+          >
+            <div className="flex items-start gap-4">
+              <div className={`flex-shrink-0 text-3xl ${notification.type === 'success' ? 'text-green-300' : notification.type === 'error' ? 'text-red-300' : notification.type === 'warning' ? 'text-yellow-300' : 'text-blue-300'}`}>
+                {notification.type === 'success' ? '✓' : notification.type === 'error' ? '✕' : notification.type === 'warning' ? '⚠' : 'ℹ'}
+              </div>
+              <div className="flex-1">
+                <p className={`text-base font-semibold mb-4 ${notification.type === 'success' ? 'text-green-100' : notification.type === 'error' ? 'text-red-100' : notification.type === 'warning' ? 'text-yellow-100' : 'text-blue-100'}`}>
+                  {notification.message}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotification({ ...notification, show: false });
+                    notification.onConfirm?.();
+                  }}
+                  className={`w-full rounded-lg px-4 py-2.5 font-semibold transition ${
+                    notification.type === 'success'
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : notification.type === 'error'
+                        ? 'bg-red-600 hover:bg-red-700 text-white'
+                        : notification.type === 'warning'
+                          ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

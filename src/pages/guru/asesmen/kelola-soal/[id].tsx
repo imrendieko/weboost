@@ -703,31 +703,32 @@ export default function KelolaSoalAsesmen() {
 
       {guruData && <GuruNavbar guruName={guruData.nama_guru} />}
 
-      <div className="relative z-10 pt-24 pb-12 px-6">
+      <div className="relative z-10 pt-24 pb-12 px-3 sm:px-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
               <button
+                type="button"
                 onClick={() => router.back()}
-                className="flex items-center gap-2 bg-gray-800/50 hover:bg-gray-700/50 border border-white/10 px-4 py-2 rounded-lg text-gray-300 hover:text-white transition-all"
+                className="mb-6 flex items-center gap-2 rounded-lg border border-white/10 bg-gray-800/50 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-300 transition-all hover:bg-gray-700/50 hover:text-white"
               >
-                <FaArrowLeft size={16} />
+                <FaArrowLeft />
                 Kembali
               </button>
               <div>
-                <h1 className="text-2xl font-bold">Kelola Soal</h1>
-                <p className="text-sm text-gray-400">{asesmenData?.judul_asesmen || 'Asesmen'}</p>
+                <h1 className="text-xl sm:text-2xl font-bold">Kelola Soal</h1>
+                <p className="text-xs sm:text-sm text-gray-400">{asesmenData?.judul_asesmen || 'Asesmen'}</p>
               </div>
             </div>
           </div>
 
           {/* Main Content: 3-column layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-[calc(100vh-280px)]">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 h-auto lg:h-[calc(100vh-280px)]">
             {/* Sidebar Kiri: Daftar Soal */}
-            <div className="soal-sidebar lg:col-span-1 bg-gray-900/50 border border-white/10 rounded-xl overflow-hidden flex flex-col">
-              <div className="bg-gray-800/50 border-b border-white/10 px-4 py-3 flex items-center justify-between">
-                <h3 className="font-bold">Daftar Soal</h3>
+            <div className="soal-sidebar lg:col-span-1 bg-gray-900/50 border border-white/10 rounded-xl overflow-hidden flex flex-col max-h-96 sm:max-h-[500px] lg:max-h-none">
+              <div className="bg-gray-800/50 border-b border-white/10 px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
+                <h3 className="font-bold text-sm sm:text-base">Daftar Soal</h3>
                 <button
                   onClick={handleAddSoal}
                   className="p-1 hover:bg-gray-700 rounded transition-all"
@@ -739,9 +740,9 @@ export default function KelolaSoalAsesmen() {
 
               <div className="flex-1 overflow-y-auto">
                 {soalList.length === 0 ? (
-                  <div className="p-4 text-center text-gray-400 text-sm">Belum ada soal. Klik + untuk menambah.</div>
+                  <div className="p-3 sm:p-4 text-center text-gray-400 text-xs sm:text-sm">Belum ada soal. Klik + untuk menambah.</div>
                 ) : (
-                  <div className="p-2 space-y-2">
+                  <div className="p-2 sm:p-3 space-y-2">
                     {soalList.map((soal, idx) => (
                       <div
                         key={soal.id_soal}
@@ -750,16 +751,16 @@ export default function KelolaSoalAsesmen() {
                         onDragOver={handleDragOver}
                         onDrop={() => handleDrop(soal.id_soal)}
                         onClick={() => handleSelectSoal(soal)}
-                        className={`p-3 rounded-lg cursor-move transition-all border ${selectedSoalId === soal.id_soal ? 'bg-blue-600/30 border-blue-500' : 'bg-gray-800/50 border-white/10 hover:border-blue-500/50'}`}
+                        className={`p-2 sm:p-3 rounded-lg cursor-move transition-all border ${selectedSoalId === soal.id_soal ? 'bg-blue-600/30 border-blue-500' : 'bg-gray-800/50 border-white/10 hover:border-blue-500/50'}`}
                       >
                         <div className="flex items-start gap-2">
                           <FaGripVertical
-                            className="text-gray-500 mt-1 flex-shrink-0"
-                            size={12}
+                            className="text-gray-500 mt-0.5 flex-shrink-0"
+                            size={11}
                           />
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs text-gray-400 mb-1">Soal {idx + 1}</p>
-                            <p className="text-sm font-medium truncate">{(soal.teks_soal || '').trim() ? `${soal.teks_soal.substring(0, 40)}${soal.teks_soal.length > 40 ? '...' : ''}` : 'Buat soal'}</p>
+                            <p className="text-xs text-gray-400 mb-0.5">Soal {idx + 1}</p>
+                            <p className="text-xs sm:text-sm font-medium truncate">{(soal.teks_soal || '').trim() ? `${soal.teks_soal.substring(0, 40)}${soal.teks_soal.length > 40 ? '...' : ''}` : 'Buat soal'}</p>
                             <p className="text-xs text-gray-500">{soal.nilai_soal} poin</p>
                           </div>
                         </div>
@@ -773,25 +774,25 @@ export default function KelolaSoalAsesmen() {
             {/* Area Tengah: Editor Soal */}
             {editorState ? (
               <div className="lg:col-span-2 bg-gray-900/50 border border-white/10 rounded-xl overflow-hidden flex flex-col">
-                <div className="bg-gray-800/50 border-b border-white/10 px-4 py-3 flex items-center justify-between">
-                  <h3 className="font-bold text-[1.45rem] leading-[1.35]">Editor Soal</h3>
-                  <div className="flex gap-2">
+                <div className="bg-gray-800/50 border-b border-white/10 px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
+                  <h3 className="font-bold text-base sm:text-lg md:text-xl">Editor Soal</h3>
+                  <div className="flex gap-1 sm:gap-2">
                     <button
                       onClick={() => {
                         const soal = soalList.find((s) => s.id_soal === selectedSoalId);
                         if (soal) handleDuplicateSoal(soal);
                       }}
-                      className="p-2 hover:bg-gray-700 rounded transition-all"
+                      className="p-1.5 sm:p-2 hover:bg-gray-700 rounded transition-all"
                       title="Duplikat soal"
                     >
-                      <FaCopy size={14} />
+                      <FaCopy size={13} />
                     </button>
                     <button
                       onClick={() => handleDeleteSoal(editorState.id_soal)}
-                      className="p-2 hover:bg-red-600/20 rounded transition-all text-red-400"
+                      className="p-1.5 sm:p-2 hover:bg-red-600/20 rounded transition-all text-red-400"
                       title="Hapus soal"
                     >
-                      <FaTrash size={14} />
+                      <FaTrash size={13} />
                     </button>
                   </div>
                 </div>
@@ -1050,12 +1051,12 @@ export default function KelolaSoalAsesmen() {
 
             {/* Sidebar Kanan: Properti */}
             {editorState ? (
-              <div className="properti-sidebar lg:col-span-1 bg-gray-900/50 border border-white/10 rounded-xl overflow-hidden flex flex-col">
-                <div className="bg-gray-800/50 border-b border-white/10 px-4 py-3">
-                  <h3 className="font-bold">Properti Soal</h3>
+              <div className="properti-sidebar lg:col-span-1 bg-gray-900/50 border border-white/10 rounded-xl overflow-hidden flex flex-col max-h-96 sm:max-h-[500px] lg:max-h-none">
+                <div className="bg-gray-800/50 border-b border-white/10 px-3 sm:px-4 py-2 sm:py-3">
+                  <h3 className="font-bold text-sm sm:text-base">Properti Soal</h3>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+                <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 sm:py-4 space-y-4">
                   {/* Tipe Soal */}
                   <div>
                     <label className="block text-sm font-medium mb-2">Tipe Soal</label>
@@ -1177,9 +1178,9 @@ export default function KelolaSoalAsesmen() {
       </div>
 
       {/* Footer */}
-      <footer className="relative py-8 px-6 border-t border-white/10 mt-8">
+      <footer className="relative py-6 sm:py-8 px-3 sm:px-6 border-t border-white/10 mt-8">
         <div className="max-w-7xl mx-auto text-center">
-          <p className="text-gray-400 text-sm">
+          <p className="text-gray-400 text-xs sm:text-sm">
             Copyright © 2026 All right reserved | This website is made with ❤️ by{' '}
             <a
               href="https://instagram.com/imrendieko"

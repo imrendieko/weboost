@@ -34,14 +34,6 @@ interface Notification {
   message: string;
   type: NotificationType;
 }
-
-function getCurrentDate() {
-  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-  const now = new Date();
-  return `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
-}
-
 export default function ProfilSiswa() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -63,6 +55,19 @@ export default function ProfilSiswa() {
     setTimeout(() => {
       setNotification({ show: false, message: '', type: 'success' });
     }, 3000);
+  };
+
+  const getCurrentDate = () => {
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+    const now = new Date();
+    const dayName = days[now.getDay()];
+    const day = now.getDate();
+    const month = months[now.getMonth()];
+    const year = now.getFullYear();
+
+    return `${dayName}, ${day} ${month} ${year}`;
   };
 
   useEffect(() => {
@@ -175,7 +180,7 @@ export default function ProfilSiswa() {
               <h1 className="text-3xl sm:text-4xl font-bold mb-2">Selamat Datang, {siswaData.nama_siswa.split(' ')[0]}!</h1>
               <p className="text-gray-400">{getCurrentDate()}</p>
             </div>
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
 
           <div className="mb-6 flex items-center gap-2 text-gray-400">
@@ -270,7 +275,7 @@ export default function ProfilSiswa() {
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password_siswa}
                     onChange={(event) => setFormData((current) => ({ ...current, password_siswa: event.target.value }))}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#0080FF]"
+                    className="w-full px-4 py-3 pr-12 bg-gray-800/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#0080FF]"
                     required
                   />
                   <button

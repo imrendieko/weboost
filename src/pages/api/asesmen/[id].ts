@@ -107,21 +107,54 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === 'DELETE') {
     try {
-      // Delete all soal_asesmen first
-      await supabaseAdmin.from('soal_asesmen').delete().eq('id_asesmen', idAsesmen);
+      console.log(`[DELETE ASESMEN] Starting deletion for idAsesmen: ${idAsesmen}`);
 
-      // Delete asesmen
+      // 1. Delete analisis_siswa (uses nama_asesmen as FK, not id_asesmen)
+      console.log('[DELETE ASESMEN] Deleting analisis_siswa...');
+      const del1 = await supabaseAdmin.from('analisis_siswa').delete().eq('nama_asesmen', idAsesmen);
+      if (del1.error) {
+        console.warn('[DELETE ASESMEN] Warning deleting analisis_siswa:', del1.error.message);
+        // Continue even if this fails (table might not exist or might not have records)
+      }
+
+      // 2. Delete analisis_guru (uses nama_asesmen as FK, not id_asesmen)
+      console.log('[DELETE ASESMEN] Deleting analisis_guru...');
+      const del2 = await supabaseAdmin.from('analisis_guru').delete().eq('nama_asesmen', idAsesmen);
+      if (del2.error) {
+        console.warn('[DELETE ASESMEN] Warning deleting analisis_guru:', del2.error.message);
+        // Continue even if this fails (table might not exist or might not have records)
+      }
+
+      // 3. Delete asesmen_attempt (references asesmen)
+      console.log('[DELETE ASESMEN] Deleting asesmen_attempt...');
+      const del3 = await supabaseAdmin.from('asesmen_attempt').delete().eq('id_asesmen', idAsesmen);
+      if (del3.error) {
+        console.error('[DELETE ASESMEN] Error deleting asesmen_attempt:', del3.error);
+        return res.status(500).json({ error: 'Gagal menghapus attempt asesmen: ' + del3.error.message });
+      }
+
+      // 4. Delete soal_asesmen (references asesmen)
+      console.log('[DELETE ASESMEN] Deleting soal_asesmen...');
+      const del4 = await supabaseAdmin.from('soal_asesmen').delete().eq('id_asesmen', idAsesmen);
+      if (del4.error) {
+        console.error('[DELETE ASESMEN] Error deleting soal_asesmen:', del4.error);
+        return res.status(500).json({ error: 'Gagal menghapus soal asesmen: ' + del4.error.message });
+      }
+
+      // 5. Finally, delete the asesmen itself
+      console.log('[DELETE ASESMEN] Deleting asesmen...');
       const { error } = await supabaseAdmin.from('asesmen').delete().eq('id_asesmen', idAsesmen);
 
       if (error) {
-        console.error('Error deleting asesmen:', error);
-        return res.status(500).json({ error: error.message });
+        console.error('[DELETE ASESMEN] Error deleting asesmen:', error);
+        return res.status(500).json({ error: 'Gagal menghapus asesmen: ' + error.message });
       }
 
+      console.log(`[DELETE ASESMEN] Successfully deleted asesmen ${idAsesmen}`);
       return res.status(200).json({ message: 'Asesmen berhasil dihapus' });
     } catch (error) {
-      console.error('Error in DELETE /api/asesmen/[id]:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      console.error('[DELETE ASESMEN] Exception error:', error);
+      return res.status(500).json({ error: 'Internal server error: ' + String(error) });
     }
   } else {
     return res.status(405).json({ error: 'Method not allowed' });

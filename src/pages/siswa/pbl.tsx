@@ -6,7 +6,7 @@ import StarBackground from '@/components/StarBackground';
 import SiswaNavbar from '@/components/SiswaNavbar';
 import supabase from '@/lib/db';
 import { LampiranType, parseLampiran, serializeLampiran } from '@/lib/pbl';
-import { FaArrowLeft, FaCheck, FaClock, FaCommentAlt, FaExclamationCircle, FaFileAlt, FaLink, FaPaperPlane, FaProjectDiagram, FaSave, FaTrash, FaUser, FaVideo } from 'react-icons/fa';
+import { FaArrowLeft, FaCheck, FaClock, FaCommentAlt, FaEllipsisV, FaExclamationCircle, FaFileAlt, FaLink, FaPaperPlane, FaProjectDiagram, FaSave, FaTrash, FaUser, FaVideo } from 'react-icons/fa';
 
 interface SiswaSession {
   id_siswa: number;
@@ -227,6 +227,7 @@ export default function PBLSiswa() {
   const [activeSintak, setActiveSintak] = useState(1);
   const [sintakState, setSintakState] = useState<ApiSintak[]>([]);
   const [notification, setNotification] = useState<NotificationState>({ show: false, type: 'success', message: '' });
+  const [openCommentMenu, setOpenCommentMenu] = useState<number | null>(null);
   const notificationTimerRef = useRef<number | null>(null);
 
   const showNotification = (message: string, type: NotificationType) => {
@@ -409,41 +410,56 @@ export default function PBLSiswa() {
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateSintak(activeSintakState.order, (current) => ({
-                      ...current,
-                      replyingTo: reply,
-                      commentInput: `@${reply.siswa?.nama_siswa || reply.guru?.nama_guru || 'pengguna'} `,
-                    }))
-                  }
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
-                >
-                  <FaCommentAlt />
-                  Balas
-                </button>
-                {reply.id_siswa === currentSiswaId && (
+                <div className="relative">
                   <button
                     type="button"
-                    onClick={async () => {
-                      const response = await fetch(`/api/pbl/comment/${reply.id_komentar}`, { method: 'DELETE' });
-                      const result = await response.json();
-                      if (!response.ok) {
-                        showNotification(result.error || 'Gagal menghapus komentar', 'error');
-                        return;
-                      }
-                      if (elemenId) {
-                        await fetchPblData(currentSiswaId, elemenId);
-                      }
-                      showNotification('Komentar berhasil dihapus.', 'success');
-                    }}
-                    className="inline-flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300 transition hover:bg-red-500/20"
+                    onClick={() => setOpenCommentMenu(openCommentMenu === reply.id_komentar ? null : reply.id_komentar)}
+                    className="inline-flex items-center justify-center rounded-lg border border-white/10 p-2 text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
                   >
-                    <FaTrash />
-                    Hapus
+                    <FaEllipsisV />
                   </button>
-                )}
+                  {openCommentMenu === reply.id_komentar && (
+                    <div className="absolute right-0 top-full mt-1 w-36 overflow-hidden rounded-lg border border-white/10 bg-gray-900/95 backdrop-blur-md shadow-xl z-40">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          updateSintak(activeSintakState.order, (current) => ({
+                            ...current,
+                            replyingTo: reply,
+                            commentInput: `@${reply.siswa?.nama_siswa || reply.guru?.nama_guru || 'pengguna'} `,
+                          }));
+                          setOpenCommentMenu(null);
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2.5 text-xs sm:text-sm text-gray-200 transition hover:bg-white/10 hover:text-white"
+                      >
+                        <FaCommentAlt />
+                        Balas
+                      </button>
+                      {reply.id_siswa === currentSiswaId && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const response = await fetch(`/api/pbl/comment/${reply.id_komentar}`, { method: 'DELETE' });
+                            const result = await response.json();
+                            if (!response.ok) {
+                              showNotification(result.error || 'Gagal menghapus komentar', 'error');
+                              return;
+                            }
+                            if (elemenId) {
+                              await fetchPblData(currentSiswaId, elemenId);
+                            }
+                            showNotification('Komentar berhasil dihapus.', 'success');
+                            setOpenCommentMenu(null);
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2.5 text-xs sm:text-sm text-red-300 transition hover:bg-red-500/20"
+                        >
+                          <FaTrash />
+                          Hapus
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             {renderReplyThread(reply.id_komentar)}
@@ -611,7 +627,7 @@ export default function PBLSiswa() {
               </h1>
               <p className="text-gray-400">{getCurrentDate()}</p>
             </div>
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
 
           {notification.show && (
@@ -694,7 +710,7 @@ export default function PBLSiswa() {
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="mb-6 flex items-center gap-2 rounded-lg border border-white/10 bg-gray-800/50 px-4 py-2 text-gray-300 transition-all hover:bg-gray-700/50 hover:text-white"
+                className="mb-6 flex items-center gap-2 rounded-lg border border-white/10 bg-gray-800/50 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-300 transition-all hover:bg-gray-700/50 hover:text-white"
               >
                 <FaArrowLeft />
                 Kembali
@@ -751,7 +767,7 @@ export default function PBLSiswa() {
                               href={parsed.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 rounded-lg bg-[#0E5BFF] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#0B49CB]"
+                              className="inline-flex items-center gap-2 rounded-lg bg-[#0E5BFF] px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-white transition hover:bg-[#0B49CB]"
                             >
                               <FaLink />
                               Lihat Lampiran PBL
@@ -835,7 +851,7 @@ export default function PBLSiswa() {
                                 <button
                                   type="button"
                                   onClick={() => openSubmissionPreview(activeSintakState.mySubmission!.file_pengumpulan)}
-                                  className="inline-flex items-center gap-2 rounded-lg border border-[#0E5BFF]/40 bg-[#0E5BFF]/20 px-3 py-2 font-medium text-[#AED0FF] transition hover:bg-[#0E5BFF]/30"
+                                  className="inline-flex items-center gap-2 rounded-lg border border-[#0E5BFF]/40 bg-[#0E5BFF]/20 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-[#AED0FF] transition hover:bg-[#0E5BFF]/30"
                                 >
                                   <FaFileAlt />
                                   {parsedSubmissionFile?.label || 'Lihat File Pengumpulan'}
@@ -871,7 +887,7 @@ export default function PBLSiswa() {
                               type="button"
                               onClick={() => updateSintak(activeSintakState.order, (current) => ({ ...current, draftType: option.key, draftUrl: '', draftFile: null }))}
                               disabled={!isSubmissionTimeConfigured}
-                              className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 transition-all ${activeSintakState.draftType === option.key ? 'bg-[#0E5BFF] text-white' : 'text-black/70 hover:bg-black/5'}`}
+                              className={`flex items-center justify-center gap-2 rounded-xl px-3 sm:px-4 py-2 sm:py-3 transition-all ${activeSintakState.draftType === option.key ? 'bg-[#0E5BFF] text-white' : 'text-black/70 hover:bg-black/5'}`}
                             >
                               {option.icon}
                               {option.label}
@@ -952,41 +968,56 @@ export default function PBLSiswa() {
                             </div>
 
                             <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  updateSintak(activeSintakState.order, (current) => ({
-                                    ...current,
-                                    replyingTo: comment,
-                                    commentInput: `@${comment.siswa?.nama_siswa || comment.guru?.nama_guru || 'pengguna'} `,
-                                  }))
-                                }
-                                className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
-                              >
-                                <FaCommentAlt />
-                                Balas
-                              </button>
-                              {comment.id_siswa === currentSiswaId && (
+                              <div className="relative">
                                 <button
                                   type="button"
-                                  onClick={async () => {
-                                    const response = await fetch(`/api/pbl/comment/${comment.id_komentar}`, { method: 'DELETE' });
-                                    const result = await response.json();
-                                    if (!response.ok) {
-                                      showNotification(result.error || 'Gagal menghapus komentar', 'error');
-                                      return;
-                                    }
-                                    if (elemenId) {
-                                      await fetchPblData(currentSiswaId, elemenId);
-                                    }
-                                    showNotification('Komentar berhasil dihapus.', 'success');
-                                  }}
-                                  className="inline-flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300 transition hover:bg-red-500/20"
+                                  onClick={() => setOpenCommentMenu(openCommentMenu === comment.id_komentar ? null : comment.id_komentar)}
+                                  className="inline-flex items-center justify-center rounded-lg border border-white/10 p-2 text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
                                 >
-                                  <FaTrash />
-                                  Hapus
+                                  <FaEllipsisV />
                                 </button>
-                              )}
+                                {openCommentMenu === comment.id_komentar && (
+                                  <div className="absolute right-0 top-full mt-1 w-36 overflow-hidden rounded-lg border border-white/10 bg-gray-900/95 backdrop-blur-md shadow-xl z-40">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        updateSintak(activeSintakState.order, (current) => ({
+                                          ...current,
+                                          replyingTo: comment,
+                                          commentInput: `@${comment.siswa?.nama_siswa || comment.guru?.nama_guru || 'pengguna'} `,
+                                        }));
+                                        setOpenCommentMenu(null);
+                                      }}
+                                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-gray-200 transition hover:bg-white/10 hover:text-white"
+                                    >
+                                      <FaCommentAlt />
+                                      Balas
+                                    </button>
+                                    {comment.id_siswa === currentSiswaId && (
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          const response = await fetch(`/api/pbl/comment/${comment.id_komentar}`, { method: 'DELETE' });
+                                          const result = await response.json();
+                                          if (!response.ok) {
+                                            showNotification(result.error || 'Gagal menghapus komentar', 'error');
+                                            return;
+                                          }
+                                          if (elemenId) {
+                                            await fetchPblData(currentSiswaId, elemenId);
+                                          }
+                                          showNotification('Komentar berhasil dihapus.', 'success');
+                                          setOpenCommentMenu(null);
+                                        }}
+                                        className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-red-300 transition hover:bg-red-500/20"
+                                      >
+                                        <FaTrash />
+                                        Hapus
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
 
@@ -998,20 +1029,20 @@ export default function PBLSiswa() {
 
                   <div className="mt-6 rounded-2xl border border-white/10 bg-white/10 p-3">
                     {activeSintakState.replyingTo && (
-                      <div className="mb-3 flex items-center justify-between rounded-xl border border-[#0080FF]/30 bg-[#0080FF]/10 px-4 py-3 text-sm text-[#c9e0ff]">
-                        <span>Membalas komentar {activeSintakState.replyingTo.siswa?.nama_siswa || activeSintakState.replyingTo.guru?.nama_guru || 'pengguna'}</span>
+                      <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-xl border border-[#0080FF]/30 bg-[#0080FF]/10 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-[#c9e0ff]">
+                        <span className="break-words">Membalas komentar {activeSintakState.replyingTo.siswa?.nama_siswa || activeSintakState.replyingTo.guru?.nama_guru || 'pengguna'}</span>
                         <button
                           type="button"
                           onClick={() => updateSintak(activeSintakState.order, (current) => ({ ...current, replyingTo: null, commentInput: '' }))}
-                          className="text-white/80 transition hover:text-white"
+                          className="text-white/80 transition hover:text-white font-medium whitespace-nowrap"
                         >
                           Batal
                         </button>
                       </div>
                     )}
 
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/10">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                      <div className="hidden sm:flex h-10 sm:h-12 items-center justify-center rounded-full border border-white/10 bg-white/10 flex-shrink-0">
                         <FaCommentAlt className="text-sm text-white" />
                       </div>
                       <input
@@ -1019,15 +1050,16 @@ export default function PBLSiswa() {
                         value={activeSintakState.commentInput}
                         onChange={(event) => updateSintak(activeSintakState.order, (current) => ({ ...current, commentInput: event.target.value }))}
                         placeholder="Tambahkan komentar..."
-                        className="flex-1 rounded-xl border border-transparent bg-transparent px-2 py-3 text-white outline-none placeholder:text-gray-300"
+                        className="flex-1 rounded-xl border border-transparent bg-transparent px-3 py-2 sm:py-3 text-sm text-white outline-none placeholder:text-gray-300"
                       />
                       <button
                         type="button"
                         onClick={handleSubmitComment}
                         disabled={commentSubmitting}
-                        className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-[#0E5BFF] text-white transition hover:bg-[#0B49CB] disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#0E5BFF] px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-white transition hover:bg-[#0B49CB] disabled:cursor-not-allowed disabled:opacity-60 flex-shrink-0"
                       >
-                        <FaPaperPlane />
+                        <FaPaperPlane className="text-xs sm:text-sm" />
+                        <span className="hidden sm:inline">Kirim</span>
                       </button>
                     </div>
                   </div>

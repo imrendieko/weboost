@@ -770,20 +770,20 @@ export default function KelolaElemen() {
                   {newElemen.tujuan_pembelajaran.map((tp, index) => (
                     <div
                       key={index}
-                      className="flex gap-2"
+                      className="flex gap-1 sm:gap-2 items-stretch"
                     >
-                      <div className="flex-shrink-0 w-8 h-12 flex items-center justify-center text-white font-semibold">{index + 1}.</div>
+                      <div className="flex-shrink-0 w-6 sm:w-8 flex items-center justify-center text-white font-semibold text-sm sm:text-base">{index + 1}.</div>
                       <input
                         type="text"
                         value={tp}
                         onChange={(e) => handleTujuanPembelajaranChange(index, e.target.value, false)}
-                        className="flex-1 px-4 py-3 bg-gray-800 border-none rounded-lg text-white"
+                        className="flex-1 px-2 sm:px-4 py-2 sm:py-3 bg-gray-800 border-none rounded-lg text-white text-sm sm:text-base"
                         placeholder={`Tujuan pembelajaran ${index + 1}`}
                       />
                       {newElemen.tujuan_pembelajaran.length > 1 && (
                         <button
                           onClick={() => handleRemoveTujuanPembelajaran(index, false)}
-                          className="p-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                          className="flex-shrink-0 p-2 sm:p-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                           title="Hapus"
                         >
                           <FaMinus />
@@ -959,20 +959,20 @@ export default function KelolaElemen() {
                   {editingElemen.tujuan_pembelajaran.map((tp, index) => (
                     <div
                       key={index}
-                      className="flex gap-2"
+                      className="flex gap-1 sm:gap-2 items-stretch"
                     >
-                      <div className="flex-shrink-0 w-8 h-12 flex items-center justify-center text-white font-semibold">{index + 1}.</div>
+                      <div className="flex-shrink-0 w-6 sm:w-8 flex items-center justify-center text-white font-semibold text-sm sm:text-base">{index + 1}.</div>
                       <input
                         type="text"
                         value={tp}
                         onChange={(e) => handleTujuanPembelajaranChange(index, e.target.value, true)}
-                        className="flex-1 px-4 py-3 bg-gray-800 border-none rounded-lg text-white"
+                        className="flex-1 px-2 sm:px-4 py-2 sm:py-3 bg-gray-800 border-none rounded-lg text-white text-sm sm:text-base"
                         placeholder={`Tujuan pembelajaran ${index + 1}`}
                       />
                       {editingElemen.tujuan_pembelajaran.length > 1 && (
                         <button
                           onClick={() => handleRemoveTujuanPembelajaran(index, true)}
-                          className="p-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                          className="flex-shrink-0 p-2 sm:p-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                           title="Hapus"
                         >
                           <FaMinus />
@@ -1044,7 +1044,7 @@ export default function KelolaElemen() {
       )}
 
       {/* Main Content */}
-      <div className="relative pt-32 pb-12 px-6 max-w-7xl mx-auto">
+      <div className="relative pt-24 sm:pt-28 md:pt-32 pb-12 px-3 sm:px-6 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
           <div>
             <h1 className="text-white text-3xl md:text-4xl font-bold mb-2">Kelola Elemen</h1>
@@ -1052,7 +1052,7 @@ export default function KelolaElemen() {
           </div>
 
           <div className="flex justify-start md:justify-end">
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
         </div>
 
@@ -1078,17 +1078,19 @@ export default function KelolaElemen() {
 
         {/* Content Card */}
         <div className="admin-elemen-content-card bg-gray-800/30 backdrop-blur-sm border border-white/10 rounded-xl p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-white text-xl font-bold flex items-center gap-2">
-              <FaBook />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+            <h2 className="text-white text-lg sm:text-xl font-bold flex items-center gap-2 flex-shrink-0">
+              <FaBook className="flex-shrink-0" />
               Elemen yang Terdaftar
             </h2>
             <button
               onClick={handleOpenAddModal}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              className="px-2 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2 text-xs sm:text-sm font-medium w-full sm:w-auto justify-center sm:justify-start"
             >
-              <FaPlus />
-              Tambah Data Elemen
+              <FaBook />
+              <span className="hidden sm:inline">Tambah Data</span>
+              <span className="sm:hidden">Tambah</span>
+              <span className="hidden sm:inline">Elemen</span>
             </button>
           </div>
 
@@ -1097,7 +1099,7 @@ export default function KelolaElemen() {
       </div>
 
       {/* Footer */}
-      <footer className="relative py-8 px-6 border-t border-white/10">
+      <footer className="relative py-6 sm:py-8 px-3 sm:px-6 border-t border-white/10">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-gray-400 text-sm">
             Copyright © 2026 All right reserved | This website is made with ❤️ by{' '}

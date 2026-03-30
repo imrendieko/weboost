@@ -204,55 +204,61 @@ export default function ProgresPengerjaanAsesmenAdminPage() {
 
       <div className="relative z-10 pt-32 pb-12 px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-6 flex items-center justify-between gap-4">
+          <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
             <div>
-              <h1 className="text-2xl font-bold flex items-center gap-3">
-                <FaChartBar className="text-white" />
-                Progres Pengerjaan Asesmen
+              <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2 sm:gap-3 flex-wrap">
+                <FaChartBar className="text-white flex-shrink-0" />
+                <span>Progres Pengerjaan Asesmen</span>
               </h1>
-              <p className="text-sm text-gray-400">Daftar siswa yang sudah mengumpulkan pengerjaan.</p>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">Daftar siswa yang sudah mengumpulkan pengerjaan.</p>
             </div>
           </div>
 
-          <div className="mb-4 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className={neutralButtonClass}
-            >
-              <FaArrowLeft />
-              Kembali
-            </button>
+          <div className="mb-4 flex flex-col gap-2 sm:gap-3">
+            {/* Row 1: Back button and Search */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className={neutralButtonClass + ' !px-3 !py-1 text-xs'}
+              >
+                <FaArrowLeft />
+                Kembali
+              </button>
 
-            <div className="relative max-w-sm flex-1">
-              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Cari nama/kelas/lembaga"
-                className="w-full rounded-lg border border-white/10 bg-gray-800/60 pl-10 pr-4 py-2 text-white focus:outline-none focus:border-blue-500"
-              />
+              <div className="relative flex-1">
+                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cari nama/kelas/lembaga"
+                  className="w-full rounded-lg border border-white/10 bg-gray-800/60 pl-10 pr-4 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
             </div>
 
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortType)}
-              className="px-4 py-2 bg-gray-800/50 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#0080FF]/50"
-            >
-              <option value="default">Urutkan: Nilai</option>
-              <option value="nilai_desc">Nilai Tertinggi</option>
-              <option value="nilai_asc">Nilai Terendah</option>
-            </select>
+            {/* Row 2: Sort dropdowns */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortType)}
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-gray-800/50 border border-white/10 rounded-lg text-xs sm:text-sm text-white focus:outline-none focus:border-[#0080FF]/50"
+              >
+                <option value="default">Urutkan: Nilai</option>
+                <option value="nilai_desc">Nilai Tertinggi</option>
+                <option value="nilai_asc">Nilai Terendah</option>
+              </select>
 
-            <select
-              value={sortBy === 'nama_asc' || sortBy === 'nama_desc' ? sortBy : 'nama_asc'}
-              onChange={(e) => setSortBy(e.target.value as SortType)}
-              className="px-4 py-2 bg-gray-800/50 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#0080FF]/50"
-            >
-              <option value="nama_asc">Urutkan: Nama A-Z</option>
-              <option value="nama_desc">Nama Z-A</option>
-            </select>
+              <select
+                value={sortBy === 'nama_asc' || sortBy === 'nama_desc' ? sortBy : 'nama_asc'}
+                onChange={(e) => setSortBy(e.target.value as SortType)}
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-gray-800/50 border border-white/10 rounded-lg text-xs sm:text-sm text-white focus:outline-none focus:border-[#0080FF]/50"
+              >
+                <option value="nama_asc">Urutkan: Nama A-Z</option>
+                <option value="nama_desc">Nama Z-A</option>
+              </select>
+            </div>
           </div>
 
           <div className="rounded-xl border border-white/10 bg-gray-900/60 overflow-hidden">
@@ -293,8 +299,8 @@ export default function ProgresPengerjaanAsesmenAdminPage() {
                         <td className="px-4 py-3">
                           {item.skor_total} / {item.skor_maksimum}
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-2">
+                        <td className="px-2 sm:px-4 py-3">
+                          <div className="flex gap-1 sm:gap-2">
                             <button
                               type="button"
                               onClick={() => {
@@ -302,10 +308,11 @@ export default function ProgresPengerjaanAsesmenAdminPage() {
                                   router.push(`/admin/asesmen/analisis-siswa/${idAsesmen}?siswa_id=${item.siswa.id_siswa}`);
                                 }
                               }}
-                              className={primaryButtonClass}
+                              title="Hasil Analisis"
+                              className={primaryButtonClass + ' text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2'}
                             >
-                              <FaChartLine />
-                              Hasil Analisis
+                              <FaChartLine className="flex-shrink-0" />
+                              <span className="hidden sm:inline">Hasil Analisis</span>
                             </button>
                             <button
                               type="button"
@@ -315,10 +322,11 @@ export default function ProgresPengerjaanAsesmenAdminPage() {
                                   nama: item.siswa?.nama_siswa || 'Siswa',
                                 })
                               }
-                              className={dangerButtonClass}
+                              title="Hapus Pengerjaan"
+                              className={dangerButtonClass + ' text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2'}
                             >
-                              <FaTrash />
-                              Hapus Pengerjaan
+                              <FaTrash className="flex-shrink-0" />
+                              <span className="hidden sm:inline">Hapus Pengerjaan</span>
                             </button>
                           </div>
                         </td>

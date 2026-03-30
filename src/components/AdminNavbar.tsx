@@ -65,7 +65,17 @@ export default function AdminNavbar({ adminName }: AdminNavbarProps) {
             href="/admin"
             className="flex items-center group"
           >
-            <div className="relative w-45 h-16 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden">
+            {/* Mobile - Square Logo */}
+            <div className="relative w-12 h-12 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden md:hidden">
+              <Image
+                src="/logo_weboost_persegi.png"
+                alt="WeBoost Logo"
+                fill
+                className="object-contain"
+              />
+            </div>
+            {/* Desktop - Original Logo */}
+            <div className="relative w-45 h-16 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden hidden md:block">
               <Image
                 src="/logo_weboost.png"
                 alt="WeBoost Logo"
@@ -227,7 +237,7 @@ export default function AdminNavbar({ adminName }: AdminNavbarProps) {
               <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
                 <FaUserCircle
                   className="text-2xl"
-                  style={{ color: '#ffffff' }}
+                  style={{ color: isLightTheme ? '#000000' : '#ffffff' }}
                 />
               </div>
               <span className="font-medium">{firstName}</span>
@@ -242,7 +252,7 @@ export default function AdminNavbar({ adminName }: AdminNavbarProps) {
                 >
                   <FaUserCircle
                     className="text-xl"
-                    style={{ color: '#ffffff' }}
+                    style={{ color: isLightTheme ? '#000000' : '#ffffff' }}
                   />
                   <span>Profil</span>
                 </Link>
@@ -272,7 +282,7 @@ export default function AdminNavbar({ adminName }: AdminNavbarProps) {
           {/* Mobile Hamburger Button */}
           <button
             onClick={toggleMobileMenu}
-            className="admin-nav-link md:hidden text-2xl focus:outline-none z-50"
+            className="mana-btn mana-btn--neutral h-11 w-11 p-0 inline-flex items-center justify-center text-lg z-50 md:hidden"
             aria-label="Toggle menu"
           >
             {isMobileMenuOpen ? <FaTimes /> : <FaBars />}
@@ -428,7 +438,7 @@ export default function AdminNavbar({ adminName }: AdminNavbarProps) {
                 <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
                   <FaUserCircle
                     className="text-2xl"
-                    style={{ color: '#ffffff' }}
+                    style={{ color: isLightTheme ? '#000000' : '#ffffff' }}
                   />
                 </div>
                 <span className="font-medium">{firstName}</span>

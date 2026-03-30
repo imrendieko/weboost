@@ -149,7 +149,7 @@ export default function SiswaDaftarAsesmenByElemen() {
               </h1>
               <p className="text-gray-400">{getCurrentDate()}</p>
             </div>
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
 
           <button

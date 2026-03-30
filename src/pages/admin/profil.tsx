@@ -5,6 +5,7 @@ import AdminNavbar from '@/components/AdminNavbar';
 import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
 import { FaUser, FaEnvelope, FaLock, FaArrowLeft, FaSave, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { useAdminTheme } from '@/contexts/AdminThemeContext';
 
 interface AdminData {
   id_admin: number;
@@ -23,6 +24,7 @@ interface Notification {
 
 export default function ProfilAdmin() {
   const router = useRouter();
+  const { theme } = useAdminTheme();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -198,7 +200,7 @@ export default function ProfilAdmin() {
               <h1 className="text-3xl sm:text-4xl font-bold mb-2">Selamat Datang, {adminData.nama_admin.split(' ')[0]}!</h1>
               <p className="text-gray-400">{getCurrentDate()}</p>
             </div>
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
 
           {/* Breadcrumb */}
@@ -223,7 +225,7 @@ export default function ProfilAdmin() {
           {/* Profile Form */}
           <div className="bg-white/5 backdrop-blur-xl border border-white/20 rounded-2xl p-6 sm:p-8 shadow-2xl">
             <div className="flex items-center gap-3 mb-6">
-              <FaUser className="text-2xl text-[#FFFFFF]" />
+              <FaUser className={`text-2xl ${theme === 'light' ? 'text-gray-900' : 'text-[#FFFFFF]'}`} />
               <h2 className="text-2xl font-bold">Detail Personal</h2>
             </div>
 
@@ -241,7 +243,7 @@ export default function ProfilAdmin() {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaUser className="text-gray-400" />
+                    <FaUser className={theme === 'light' ? 'text-gray-600' : 'text-gray-400'} />
                   </div>
                   <input
                     type="text"
@@ -266,7 +268,7 @@ export default function ProfilAdmin() {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaEnvelope className="text-gray-400" />
+                    <FaEnvelope className={theme === 'light' ? 'text-gray-600' : 'text-gray-400'} />
                   </div>
                   <input
                     type="email"
@@ -297,7 +299,7 @@ export default function ProfilAdmin() {
                     name="password_admin"
                     value={formData.password_admin}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0080FF] focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 pr-12 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0080FF] focus:border-transparent transition-all"
                     placeholder="Masukkan password"
                     required
                   />
@@ -337,7 +339,7 @@ export default function ProfilAdmin() {
       </div>
 
       {/* Footer */}
-      <footer className="relative py-8 px-6 border-t border-white/10">
+      <footer className="relative py-6 sm:py-8 px-3 sm:px-6 border-t border-white/10">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-gray-400 text-sm">
             Copyright © 2026 All right reserved | This website is made with ❤️ by{' '}

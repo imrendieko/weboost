@@ -1592,6 +1592,7 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   background: color-mix(in srgb, var(--admin-surface) 80%, transparent);
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
   backdrop-filter: blur(18px);
+  overflow: visible;
 }
 
 .auth-page .auth-card::after {
@@ -1776,15 +1777,143 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   color: #0f172a;
 }
 
-@media (max-width: 767px) {
+/* Extra small screens (< 375px) */
+@media (max-width: 374px) {
+  /* Responsive header logo */
+  .auth-page header.admin-navbar {
+    padding: 0.5rem 1rem;
+    min-height: 50px;
+  }
+
+  .auth-page header.admin-navbar .relative {
+    width: 120px !important;
+    height: 40px !important;
+  }
+
+  .auth-page .auth-layout {
+    padding-top: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .auth-page .auth-card {
+    border-radius: 0.8rem;
+    min-height: auto;
+  }
+
   .auth-page .auth-card::after {
-    width: 120%;
-    right: -62%;
-    opacity: 0.35;
+    display: none;
   }
 
   .auth-page .auth-info-pane {
-    padding: 2rem 1.5rem;
+    padding: 3rem 1rem;
+    min-height: 320px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+  }
+
+  .auth-page .auth-form-pane {
+    padding: 1rem;
+  }
+
+  .auth-bb8-mascot {
+    width: min(100%, 220px);
+    height: min(100%, 220px);
+    margin-bottom: 1rem;
+  }
+
+  .auth-bb8-mascot .bb8 {
+    transform: scale(0.75);
+  }
+
+  .auth-bb8-bubble {
+    top: 2%;
+    left: 2%;
+    max-width: 60%;
+    font-size: 0.7rem;
+    padding: 0.3rem 0.5rem;
+  }
+
+  .auth-page .auth-field-input {
+    padding: 0.5rem 0.75rem;
+    font-size: 14px;
+  }
+
+  .auth-page .auth-field-label {
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .auth-page .auth-form {
+    gap: 0.75rem;
+  }
+
+  header.admin-navbar {
+    padding: 0.5rem 1rem;
+  }
+
+  .auth-page .mana-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .mana-btn {
+    font-size: 0.875rem;
+  }
+
+  .auth-page .auth-role-switch {
+    margin-bottom: 1rem;
+  }
+
+  .auth-page .auth-role-option {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    gap: 0.5rem;
+  }
+
+  .auth-page .auth-role-option svg {
+    width: 16px;
+    height: 16px;
+    display: none;
+  }
+}
+
+/* Small screens (375px - 640px) */
+@media (max-width: 640px) {
+  /* Responsive header logo */
+  .auth-page header.admin-navbar {
+    padding: 0.75rem 1rem;
+    min-height: 60px;
+  }
+
+  .auth-page header.admin-navbar .relative {
+    width: 140px !important;
+    height: 45px !important;
+  }
+
+  .auth-page .auth-layout {
+    padding-top: 1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  .auth-page .auth-card {
+    border-radius: 1rem;
+    min-height: auto;
+  }
+
+  .auth-page .auth-card::after {
+    width: 140%;
+    right: -80%;
+    opacity: 0.25;
+  }
+
+  .auth-page .auth-info-pane {
+    padding: 3rem 1.5rem;
+    min-height: 380px;
+    overflow: visible;
   }
 
   .auth-page .auth-form-pane {
@@ -1792,12 +1921,63 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   }
 
   .auth-bb8-mascot {
-    width: min(92%, 300px);
-    height: min(92%, 300px);
+    width: min(100%, 300px);
+    height: min(100%, 300px);
+    margin-bottom: 1rem;
   }
 
   .auth-bb8-mascot .bb8 {
-    transform: scale(0.86);
+    transform: scale(0.9);
+  }
+
+  .auth-bb8-bubble {
+    top: 3%;
+    left: 4%;
+    max-width: 66%;
+    font-size: 0.8rem;
+  }
+
+  .auth-page .auth-form {
+    space-y: 1rem;
+  }
+}
+
+/* Medium screens (641px - 767px) */
+@media (max-width: 767px) {
+  /* Responsive header logo */
+  .auth-page header.admin-navbar {
+    padding: 1rem;
+    min-height: 70px;
+  }
+
+  .auth-page header.admin-navbar .relative {
+    width: 160px !important;
+    height: 50px !important;
+  }
+
+  .auth-page .auth-card::after {
+    width: 120%;
+    right: -62%;
+    opacity: 0.35;
+  }
+
+  .auth-page .auth-info-pane {
+    padding: 3rem 1.5rem;
+    min-height: 420px;
+    overflow: visible;
+  }
+
+  .auth-page .auth-form-pane {
+    padding: 1.5rem;
+  }
+
+  .auth-bb8-mascot {
+    width: min(100%, 370px);
+    height: min(100%, 370px);
+  }
+
+  .auth-bb8-mascot .bb8 {
+    transform: scale(1);
   }
 
   .auth-bb8-bubble {
@@ -1808,12 +1988,13 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 }
 
 .auth-bb8-mascot {
-  width: min(92%, 420px);
-  height: min(92%, 420px);
+  width: min(95%, 420px);
+  height: min(95%, 420px);
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: visible;
 }
 
 .auth-bb8-bubble {

@@ -42,7 +42,17 @@ export default function Navbar() {
             href="/"
             className="flex items-center group"
           >
-            <div className="relative w-45 h-16 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden">
+            {/* Mobile - Square Logo */}
+            <div className="relative w-12 h-12 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden sm:hidden">
+              <Image
+                src="/logo_weboost_persegi.png"
+                alt="WeBoost Logo"
+                fill
+                className="object-contain"
+              />
+            </div>
+            {/* Tablet - Original Logo */}
+            <div className="relative w-45 h-16 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden hidden sm:block">
               <Image
                 src="/logo_weboost.png"
                 alt="WeBoost Logo"

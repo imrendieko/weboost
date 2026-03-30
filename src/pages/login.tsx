@@ -122,8 +122,7 @@ export default function Login() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="auth-card w-full max-w-5xl overflow-hidden flex flex-col md:flex-row"
-          style={{ minHeight: '500px' }}
+          className="auth-card w-full max-w-5xl overflow-hidden flex flex-col md:flex-row min-h-[auto] md:min-h-[500px]"
         >
           {/* Left Side - Welcome Message */}
           <div className="auth-info-pane w-full md:w-1/2 flex flex-col justify-center items-center text-center">
@@ -137,7 +136,7 @@ export default function Login() {
           </div>
 
           {/* Right Side - Login Form */}
-          <div className="auth-form-pane w-full md:w-1/2 p-12 flex flex-col justify-center">
+          <div className="auth-form-pane w-full md:w-1/2 p-6 md:p-12 flex flex-col justify-center">
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}

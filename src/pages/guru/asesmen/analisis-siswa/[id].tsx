@@ -2,7 +2,8 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import GuruNavbar from '@/components/GuruNavbar';
 import StarBackground from '@/components/StarBackground';
-import { FaArrowLeft, FaChartLine, FaClock, FaLightbulb, FaPoll, FaTrophy, FaUser } from 'react-icons/fa';
+import JawabanSiswaTable from '@/components/JawabanSiswaTable';
+import { FaArrowLeft, FaChartLine, FaClock, FaLightbulb, FaPoll, FaTrophy, FaUser, FaCheckCircle, FaHourglassEnd } from 'react-icons/fa';
 
 interface GuruSession {
   id_guru: number;
@@ -35,6 +36,19 @@ interface AnalisisResponse {
   attempt: AttemptData;
   analysis: TPAnalysis[];
   siswa?: SiswaInfo;
+}
+
+interface Jawaban {
+  id_soal: string;
+  urutan_soal: number;
+  teks_soal: string;
+  tipe_soal: string;
+  nilai_soal: number;
+  jawaban_siswa: string | null;
+  kunci_jawaban: string | null;
+  skor_asli: number;
+  skor_tervalidasi: number | null;
+  status_validasi: string | null;
 }
 
 function CircularProgress({ percentage, label }: { percentage: number; label: string }) {
@@ -98,6 +112,9 @@ export default function AnalisisSiswaAsesmenGuru() {
   const [analysisData, setAnalysisData] = useState<TPAnalysis[]>([]);
   const [overallPercentage, setOverallPercentage] = useState(0);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [jawabanList, setJawabanList] = useState<Jawaban[]>([]);
+  const [idAttempt, setIdAttempt] = useState<string | null>(null);
+  const [validasiLoading, setValidasiLoading] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -157,6 +174,22 @@ export default function AnalisisSiswaAsesmenGuru() {
           });
           setSuggestions(newSuggestions);
         }
+
+        // Fetch jawaban data
+        const jawabanResponse = await fetch(`/api/asesmen/jawaban-siswa?id_siswa=${siswaId}&id_asesmen=${asesmenId}`);
+        if (jawabanResponse.ok) {
+          const jawabanData = await jawabanResponse.json();
+          setJawabanList(jawabanData.jawaban || []);
+          setIdAttempt(jawabanData.id_attempt);
+          // Log debug info
+          console.log('=== DEBUG jawaban-siswa response ===');
+          console.log('pilihanGandaList count:', (jawabanData as any)._debug?.pilihanGandaListCount);
+          console.log('pilihanGandaList detailed:', (jawabanData as any)._debug?.pilihanGandaListDetailed);
+          console.log('pilihanGandaMap:', (jawabanData as any)._debug?.pilihanGandaMap);
+          console.log('answersJson:', (jawabanData as any)._debug?.answersJson);
+          console.log('==================================');
+          console.log('Jawaban list:', jawabanData.jawaban);
+        }
       } catch (error) {
         console.error('Error loading analysis:', error);
       }
@@ -177,6 +210,105 @@ export default function AnalisisSiswaAsesmenGuru() {
     );
   }
 
+  const handleValidasi = async (jawaban: Jawaban, skor: number) => {
+    if (!guruSession || !idAttempt) {
+      console.error('Missing data:', { guruSession, idAttempt });
+      throw new Error('Missing required data');
+    }
+
+    try {
+      setValidasiLoading(true);
+      const payload = {
+        id_attempt: idAttempt,
+        id_soal: jawaban.id_soal,
+        skor_tervalidasi: skor,
+        jawaban_siswa: jawaban.jawaban_siswa,
+        skor_asli: jawaban.skor_asli,
+      };
+
+      console.log('Sending validation payload:', payload);
+
+      const response = await fetch('/api/validasi-nilai', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const responseData = await response.json();
+      console.log('Validation response:', responseData);
+
+      if (!response.ok) {
+        throw new Error(responseData.details || 'Gagal menyimpan validasi');
+      }
+
+      // Refresh jawaban list
+      const jawabanResponse = await fetch(`/api/asesmen/jawaban-siswa?id_siswa=${siswaId}&id_asesmen=${asesmenId}`);
+      if (jawabanResponse.ok) {
+        const jawabanData = await jawabanResponse.json();
+        setJawabanList(jawabanData.jawaban || []);
+      }
+
+      setValidasiLoading(false);
+    } catch (error: any) {
+      console.error('Error saving validasi:', error);
+      setValidasiLoading(false);
+      throw error;
+    }
+  };
+
+  const handleValidasiSemua = async () => {
+    if (!guruSession || !idAttempt) {
+      console.error('Missing data:', { guruSession, idAttempt });
+      return;
+    }
+
+    try {
+      setValidasiLoading(true);
+
+      // Filter jawaban yang belum divalidasi (status_validasi !== 'validated')
+      const jawabanBelumValidasi = jawabanList.filter((j) => j.status_validasi !== 'validated');
+
+      if (jawabanBelumValidasi.length === 0) {
+        throw new Error('Semua jawaban sudah divalidasi');
+      }
+
+      // Validasi semua dengan skor_asli mereka
+      for (const jawaban of jawabanBelumValidasi) {
+        const payload = {
+          id_attempt: idAttempt,
+          id_soal: jawaban.id_soal,
+          skor_tervalidasi: jawaban.skor_asli, // Use skor_asli as skor_tervalidasi
+          jawaban_siswa: jawaban.jawaban_siswa,
+          skor_asli: jawaban.skor_asli,
+        };
+
+        const response = await fetch('/api/validasi-nilai', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const responseData = await response.json();
+          throw new Error(`Gagal validasi soal ${jawaban.urutan_soal}: ${responseData.details || responseData.error}`);
+        }
+      }
+
+      // Refresh jawaban list
+      const jawabanResponse = await fetch(`/api/asesmen/jawaban-siswa?id_siswa=${siswaId}&id_asesmen=${asesmenId}`);
+      if (jawabanResponse.ok) {
+        const jawabanData = await jawabanResponse.json();
+        setJawabanList(jawabanData.jawaban || []);
+      }
+
+      setValidasiLoading(false);
+    } catch (error: any) {
+      console.error('Error validasi semua:', error);
+      setValidasiLoading(false);
+      throw error; // Throw error so component can handle notification
+    }
+  };
+
   if (!guruSession || !attemptData) {
     return null;
   }
@@ -185,6 +317,24 @@ export default function AnalisisSiswaAsesmenGuru() {
   const durationMinutes = Math.floor((attemptData.durasi_detik % 3600) / 60);
   const durationSeconds = attemptData.durasi_detik % 60;
   const durationFormatted = `${String(durationHours).padStart(2, '0')}:${String(durationMinutes).padStart(2, '0')}:${String(durationSeconds).padStart(2, '0')}`;
+
+  // Calculate validation status
+  const hasUnvalidatedAnswers = jawabanList.some((jawaban) => jawaban.status_validasi !== 'validated');
+  const validationStatus = hasUnvalidatedAnswers ? 'Belum Divalidasi' : 'Sudah Divalidasi';
+  const isFullyValidated = !hasUnvalidatedAnswers;
+
+  // Calculate total score from jawabanList (real-time based on validations)
+  const calculateTotalScore = () => {
+    return jawabanList.reduce((total, jawaban) => {
+      if (jawaban.status_validasi === 'validated') {
+        return total + (jawaban.skor_tervalidasi || 0);
+      } else {
+        return total + (jawaban.skor_asli || 0);
+      }
+    }, 0);
+  };
+
+  const totalScoreSiswa = calculateTotalScore();
 
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
@@ -224,9 +374,28 @@ export default function AnalisisSiswaAsesmenGuru() {
                 Nilai Siswa
               </p>
               <div className="text-5xl font-bold text-white">
-                {attemptData.skor_total}/{attemptData.skor_maksimum}
+                {totalScoreSiswa}/{attemptData.skor_maksimum}
               </div>
               <div className="mt-2 h-1 bg-gradient-to-r from-[#0E5BFF] to-transparent rounded-full" />
+
+              {/* Validation Status Badge */}
+              <div
+                className={`mt-6 px-4 py-3 rounded-xl flex items-center gap-2 font-medium transition-all ${
+                  isFullyValidated ? 'bg-gradient-to-r from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30 text-emerald-300' : 'bg-gradient-to-r from-amber-500/20 to-amber-600/10 border border-amber-500/30 text-amber-300'
+                }`}
+              >
+                {isFullyValidated ? (
+                  <>
+                    <FaCheckCircle className="text-lg flex-shrink-0" />
+                    <span>{validationStatus}</span>
+                  </>
+                ) : (
+                  <>
+                    <FaHourglassEnd className="text-lg flex-shrink-0 animate-pulse" />
+                    <span>{validationStatus}</span>
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-gray-800/50 to-gray-900/50 p-8">
@@ -270,7 +439,7 @@ export default function AnalisisSiswaAsesmenGuru() {
             <FaLightbulb className="text-white" />
             Saran Pembelajaran
           </h2>
-          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-gray-800/50 to-gray-900/50 p-6 md:p-8">
+          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-gray-800/50 to-gray-900/50 p-6 md:p-8 mb-8">
             <div className="space-y-3">
               {suggestions.length > 0 ? (
                 suggestions.map((suggestion, index) => (
@@ -285,6 +454,21 @@ export default function AnalisisSiswaAsesmenGuru() {
                 <p className="text-base text-gray-400">Belum ada saran pembelajaran.</p>
               )}
             </div>
+          </div>
+
+          {/* Jawaban Siswa & Validasi Nilai */}
+          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+            <FaPoll className="text-white" />
+            Jawaban Siswa & Validasi Nilai
+          </h2>
+          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-gray-800/50 to-gray-900/50 p-6 md:p-8">
+            <JawabanSiswaTable
+              jawabanList={jawabanList}
+              isGuru={true}
+              onValidasi={handleValidasi}
+              onValidasiSemua={handleValidasiSemua}
+              isLoading={validasiLoading}
+            />
           </div>
         </div>
       </div>

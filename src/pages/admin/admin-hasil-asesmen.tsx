@@ -170,7 +170,7 @@ export default function AdminHasilAsesmen() {
       <StarBackground />
       <AdminNavbar adminName={adminData.nama_admin} />
 
-      <div className="relative pt-32 pb-12 px-6 max-w-7xl mx-auto">
+      <div className="relative pt-24 sm:pt-28 md:pt-32 pb-12 px-3 sm:px-6 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
           <div>
             <h1 className="text-white text-3xl md:text-4xl font-bold mb-2">Selamat Datang, {firstName}!</h1>
@@ -178,7 +178,7 @@ export default function AdminHasilAsesmen() {
           </div>
 
           <div className="flex justify-start md:justify-end">
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
         </div>
 
@@ -323,7 +323,7 @@ export default function AdminHasilAsesmen() {
         )}
       </div>
 
-      <footer className="relative py-8 px-6 border-t border-white/10">
+      <footer className="relative py-6 sm:py-8 px-3 sm:px-6 border-t border-white/10">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-gray-400 text-sm">
             Copyright © 2026 All right reserved | This website is made with ❤️ by{' '}

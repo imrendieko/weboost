@@ -112,12 +112,44 @@ function getFileNameFromUrl(url: string, fallback: string) {
 
 const OFFICE_VIEWER_EXTENSIONS = new Set(['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']);
 
+function extractGoogleDriveFileId(url: string): string | null {
+  // Pattern 1: /file/d/FILE_ID/view
+  const pattern1 = /\/file\/d\/([a-zA-Z0-9-_]+)/;
+  const match1 = url.match(pattern1);
+  if (match1) return match1[1];
+
+  // Pattern 2: ?id=FILE_ID
+  const pattern2 = /[?&]id=([a-zA-Z0-9-_]+)/;
+  const match2 = url.match(pattern2);
+  if (match2) return match2[1];
+
+  // Pattern 3: /open?id=FILE_ID in sharing URLs
+  const pattern3 = /\/open\?id=([a-zA-Z0-9-_]+)/;
+  const match3 = url.match(pattern3);
+  if (match3) return match3[1];
+
+  return null;
+}
+
+function isGoogleDriveUrl(url: string): boolean {
+  return url.includes('drive.google.com') || url.includes('docs.google.com');
+}
+
 function getDocumentPreviewUrl(url: string): string {
+  // Check if it's a Google Drive URL
+  if (isGoogleDriveUrl(url)) {
+    const fileId = extractGoogleDriveFileId(url);
+    if (fileId) {
+      return `https://drive.google.com/file/d/${fileId}/preview`;
+    }
+  }
+
   const match = url.toLowerCase().match(/\.([^.?#]+)(?:[?#].*)?$/);
   const extension = match ? match[1] : '';
 
   if (extension === 'pdf') {
-    return url;
+    // Wrap PDF URLs with Google Docs Viewer for better compatibility
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
   }
 
   if (OFFICE_VIEWER_EXTENSIONS.has(extension)) {
@@ -142,6 +174,7 @@ export default function MateriSiswa() {
   const [collapsedSubBabIds, setCollapsedSubBabIds] = useState<number[]>([]);
   const [completedMap, setCompletedMap] = useState<Record<number, boolean>>({});
   const [activeCelebrationSubBab, setActiveCelebrationSubBab] = useState<number | null>(null);
+  const [iframeErrors, setIframeErrors] = useState<Record<string, boolean>>({});
 
   const progressStorageKey = useMemo(() => {
     if (!siswaSession || !elemenId) {
@@ -492,7 +525,7 @@ export default function MateriSiswa() {
               </h1>
               <p className="text-gray-400">{getCurrentDate()}</p>
             </div>
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
 
           {!elemenId ? (
@@ -590,7 +623,7 @@ export default function MateriSiswa() {
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="mana-btn mana-btn--neutral mb-6 flex items-center gap-2 rounded-lg px-4 py-2 transition-all"
+                className="mana-btn mana-btn--neutral mb-6 flex items-center gap-2 rounded-lg px-3 sm:px-4 py-1.5 sm:py-2 transition-all"
               >
                 <FaArrowLeft />
                 Kembali
@@ -680,7 +713,7 @@ export default function MateriSiswa() {
                                                   <button
                                                     type="button"
                                                     onClick={() => toggleSelesai(subBab.id_sub_bab)}
-                                                    className={`mana-btn inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition ${selesai ? 'mana-btn--success' : 'mana-btn--primary'}`}
+                                                    className={`mana-btn inline-flex items-center gap-2 rounded-lg px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition ${selesai ? 'mana-btn--success' : 'mana-btn--primary'}`}
                                                   >
                                                     <FaCheck />
                                                     {selesai ? 'Sudah Selesai' : 'Tandai Selesai'}
@@ -719,12 +752,39 @@ export default function MateriSiswa() {
                                                       <FaFileAlt className="text-blue-400" />
                                                       Preview Dokumen
                                                     </div>
-                                                    <div className="h-[420px] w-full">
-                                                      <iframe
-                                                        src={getDocumentPreviewUrl(konten.url)}
-                                                        className="h-full w-full"
-                                                        title={subBab.judul_sub_bab}
-                                                      />
+                                                    <div
+                                                      className="relative h-[350px] sm:h-[420px] md:h-[500px] lg:h-[600px] w-full bg-black/70"
+                                                      suppressHydrationWarning
+                                                    >
+                                                      {iframeErrors[`doc-${subBab.id_sub_bab}`] ? (
+                                                        <div className="flex h-full items-center justify-center">
+                                                          <div className="text-center">
+                                                            <p className="mb-4 text-gray-400">Preview tidak tersedia</p>
+                                                            <a
+                                                              href={konten.url}
+                                                              target="_blank"
+                                                              rel="noopener noreferrer"
+                                                              className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg bg-[#0080FF]/20 text-[#0080FF] hover:bg-[#0080FF]/30 transition-colors"
+                                                            >
+                                                              <FaExternalLinkAlt size={14} />
+                                                              Buka di halaman baru
+                                                            </a>
+                                                          </div>
+                                                        </div>
+                                                      ) : (
+                                                        <iframe
+                                                          src={getDocumentPreviewUrl(konten.url)}
+                                                          className="h-full w-full"
+                                                          title={subBab.judul_sub_bab}
+                                                          onError={() => {
+                                                            setIframeErrors((prev) => ({
+                                                              ...prev,
+                                                              [`doc-${subBab.id_sub_bab}`]: true,
+                                                            }));
+                                                          }}
+                                                          sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-presentation allow-top-navigation-by-user-activation"
+                                                        />
+                                                      )}
                                                     </div>
                                                   </div>
                                                 )}
@@ -735,23 +795,58 @@ export default function MateriSiswa() {
                                                       <FaVideo className="text-red-400" />
                                                       Preview Video
                                                     </div>
-                                                    <div className="h-[420px] w-full">
-                                                      {konten.url.includes('youtube.com') || konten.url.includes('youtu.be') ? (
-                                                        <iframe
-                                                          src={convertYouTubeUrl(konten.url)}
-                                                          className="h-full w-full"
-                                                          title={subBab.judul_sub_bab}
-                                                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                          allowFullScreen
-                                                        />
+                                                    <div
+                                                      className="relative h-[350px] sm:h-[420px] md:h-[500px] lg:h-[600px] w-full bg-black/70"
+                                                      suppressHydrationWarning
+                                                    >
+                                                      {iframeErrors[`video-${subBab.id_sub_bab}`] ? (
+                                                        <div className="flex h-full items-center justify-center">
+                                                          <div className="text-center">
+                                                            <p className="mb-4 text-gray-400">Video tidak dapat dimainkan</p>
+                                                            <a
+                                                              href={konten.url}
+                                                              target="_blank"
+                                                              rel="noopener noreferrer"
+                                                              className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg bg-[#0080FF]/20 text-[#0080FF] hover:bg-[#0080FF]/30 transition-colors"
+                                                            >
+                                                              <FaExternalLinkAlt size={14} />
+                                                              Buka di halaman baru
+                                                            </a>
+                                                          </div>
+                                                        </div>
                                                       ) : (
-                                                        <video
-                                                          src={konten.url}
-                                                          controls
-                                                          className="h-full w-full"
-                                                        >
-                                                          Browser Anda tidak mendukung video.
-                                                        </video>
+                                                        <>
+                                                          {konten.url.includes('youtube.com') || konten.url.includes('youtu.be') ? (
+                                                            <iframe
+                                                              src={convertYouTubeUrl(konten.url)}
+                                                              className="h-full w-full"
+                                                              title={subBab.judul_sub_bab}
+                                                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                              allowFullScreen
+                                                              onError={() => {
+                                                                setIframeErrors((prev) => ({
+                                                                  ...prev,
+                                                                  [`video-${subBab.id_sub_bab}`]: true,
+                                                                }));
+                                                              }}
+                                                              sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
+                                                            />
+                                                          ) : (
+                                                            <video
+                                                              src={konten.url}
+                                                              controls
+                                                              className="h-full w-full"
+                                                              onError={() => {
+                                                                setIframeErrors((prev) => ({
+                                                                  ...prev,
+                                                                  [`video-${subBab.id_sub_bab}`]: true,
+                                                                }));
+                                                              }}
+                                                            >
+                                                              Browser Anda tidak mendukung video.
+                                                            </video>
+                                                          )}
+                                                        </>
                                                       )}
                                                     </div>
                                                   </div>
@@ -772,11 +867,11 @@ export default function MateriSiswa() {
                                                   </div>
                                                 )}
 
-                                                <div className="mt-3 flex gap-3">
+                                                <div className="mt-3 flex flex-wrap gap-2 sm:gap-3">
                                                   <button
                                                     type="button"
                                                     onClick={() => handleDownloadFile(konten.url, `${subBab.judul_sub_bab}.file`)}
-                                                    className="mana-btn mana-btn--success inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
+                                                    className="mana-btn mana-btn--success inline-flex items-center gap-2 rounded-lg px-4 sm:px-6 py-1.5 sm:py-2 text-sm sm:text-base font-semibold"
                                                   >
                                                     <FaDownload /> Download
                                                   </button>
@@ -784,7 +879,7 @@ export default function MateriSiswa() {
                                                     href={konten.url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="mana-btn mana-btn--primary inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
+                                                    className="mana-btn mana-btn--primary inline-flex items-center gap-2 rounded-lg px-4 sm:px-6 py-1.5 sm:py-2 text-sm sm:text-base font-semibold"
                                                   >
                                                     <FaExternalLinkAlt /> Buka di Tab Baru
                                                   </a>

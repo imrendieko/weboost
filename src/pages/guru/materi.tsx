@@ -4,8 +4,28 @@ import Image from 'next/image';
 import GuruNavbar from '@/components/GuruNavbar';
 import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
-import { FaBook, FaPlus, FaEdit, FaTrash, FaChevronDown, FaChevronUp, FaFileAlt, FaVideo, FaLink, FaChartBar, FaCheck, FaTimes, FaCompress, FaDownload, FaExternalLinkAlt, FaCloudUploadAlt, FaSave, FaUnderline } from 'react-icons/fa';
-import { FaBold, FaItalic, FaListUl } from 'react-icons/fa6';
+import {
+  FaBook,
+  FaPlus,
+  FaEdit,
+  FaTrash,
+  FaChevronDown,
+  FaChevronUp,
+  FaFileAlt,
+  FaVideo,
+  FaLink,
+  FaChartBar,
+  FaCheck,
+  FaTimes,
+  FaCompress,
+  FaDownload,
+  FaExternalLinkAlt,
+  FaCloudUploadAlt,
+  FaSave,
+  FaUnderline,
+  FaArrowLeft,
+} from 'react-icons/fa';
+import { FaBold, FaItalic, FaListUl, FaEllipsisVertical } from 'react-icons/fa6';
 import { compressFile, formatFileSize } from '@/lib/fileCompression';
 
 interface GuruData {
@@ -148,6 +168,8 @@ export default function MateriGuru() {
   const [compressionProgress, setCompressionProgress] = useState(0);
   const [compressionMessage, setCompressionMessage] = useState('');
   const [isCompressing, setIsCompressing] = useState(false);
+  const [openBabMenuId, setOpenBabMenuId] = useState<number | null>(null);
+  const [openSubBabMenuId, setOpenSubBabMenuId] = useState<number | null>(null);
   const [compressionInfo, setCompressionInfo] = useState<{
     originalSize: number;
     compressedSize: number;
@@ -926,6 +948,24 @@ export default function MateriGuru() {
   };
 
   const InlineFilePreview = ({ subBab }: { subBab: SubBab }) => {
+    const [previewHeight, setPreviewHeight] = useState('400px');
+
+    useEffect(() => {
+      const handleResize = () => {
+        if (window.innerWidth < 640) {
+          setPreviewHeight('350px');
+        } else if (window.innerWidth < 1024) {
+          setPreviewHeight('450px');
+        } else {
+          setPreviewHeight('600px');
+        }
+      };
+
+      handleResize();
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     const fileType = getFileTypeFromUrl(subBab.tautan_konten);
     const fileUrl = getFileUrlFromContent(subBab.tautan_konten);
     const description = getDescriptionFromContent(subBab.tautan_konten);
@@ -948,31 +988,51 @@ export default function MateriGuru() {
 
     const extension = getFileExtension(fileUrl);
     const isOfficeDocument = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension);
-    const previewUrl =
-      extension === 'pdf' ? fileUrl : isOfficeDocument ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}` : `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+
+    // Handle Google Drive URLs
+    let previewUrl: string;
+    if (fileUrl.includes('drive.google.com') || fileUrl.includes('docs.google.com')) {
+      const fileIdMatch = fileUrl.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+      if (fileIdMatch) {
+        previewUrl = `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
+      } else {
+        previewUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+      }
+    } else if (extension === 'pdf') {
+      // For direct PDF URLs, wrap with Google Docs Viewer for better compatibility
+      previewUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+    } else if (isOfficeDocument) {
+      previewUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
+    } else {
+      previewUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+    }
 
     return (
-      <div className="mt-4 border-t border-white/10 pt-4">
-        {description && <p className="text-gray-400 mb-3">{description}</p>}
+      <div className="mt-3 sm:mt-4 border-t border-white/10 pt-3 sm:pt-4">
+        {description && <p className="text-gray-400 mb-3 text-xs sm:text-sm">{description}</p>}
 
-        <div className="bg-gray-800 rounded-lg overflow-hidden">
+        <div
+          className="bg-gray-800 rounded-lg overflow-hidden"
+          suppressHydrationWarning
+        >
           {fileType === 'dokumen' && (
             <div
-              className="w-full"
-              style={{ height: '600px' }}
+              className="w-full bg-black/70"
+              style={{ height: previewHeight }}
             >
               <iframe
                 src={previewUrl}
                 className="w-full h-full"
                 title={subBab.judul_sub_bab}
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-presentation allow-top-navigation-by-user-activation"
               />
             </div>
           )}
 
           {fileType === 'video' && (
             <div
-              className="w-full"
-              style={{ height: '600px' }}
+              className="w-full bg-black/70"
+              style={{ height: previewHeight }}
             >
               {fileUrl.includes('youtube.com') || fileUrl.includes('youtu.be') ? (
                 <iframe
@@ -981,6 +1041,7 @@ export default function MateriGuru() {
                   title={subBab.judul_sub_bab}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
+                  sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
                 />
               ) : (
                 <video
@@ -995,21 +1056,21 @@ export default function MateriGuru() {
           )}
 
           {fileType === 'tautan' && (
-            <div className="p-8 text-center">
-              <FaLink className="text-6xl text-blue-400 mx-auto mb-4" />
-              <p className="text-gray-400 mb-4">Link Eksternal</p>
+            <div className="p-4 sm:p-6 md:p-8 text-center">
+              <FaLink className="text-4xl sm:text-6xl text-blue-400 mx-auto mb-3 sm:mb-4" />
+              <p className="text-gray-400 mb-3 sm:mb-4 text-sm sm:text-base">Link Eksternal</p>
               <a
                 href={fileUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-400 hover:underline break-all block mb-6"
+                className="text-blue-400 hover:underline break-all block mb-4 sm:mb-6 text-xs sm:text-sm"
               >
                 {fileUrl}
               </a>
-              <div className="flex gap-3 justify-center">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
                 <button
                   onClick={() => handleDownloadFile(fileUrl, getFileName(fileUrl))}
-                  className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                  className="inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-colors text-sm sm:text-base"
                 >
                   <FaDownload /> Download
                 </button>
@@ -1017,7 +1078,7 @@ export default function MateriGuru() {
                   href={fileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                  className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-colors text-sm sm:text-base"
                 >
                   <FaExternalLinkAlt /> Buka di Tab Baru
                 </a>
@@ -1027,10 +1088,10 @@ export default function MateriGuru() {
         </div>
 
         {fileType !== 'tautan' && (
-          <div className="mt-3 flex gap-3">
+          <div className="mt-2 sm:mt-3 flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">
             <button
               onClick={() => handleDownloadFile(fileUrl, getFileName(fileUrl))}
-              className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+              className="inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 sm:px-6 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-colors"
             >
               <FaDownload /> Download
             </button>
@@ -1038,7 +1099,7 @@ export default function MateriGuru() {
               href={fileUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+              className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-6 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-colors"
             >
               <FaExternalLinkAlt /> Buka di Tab Baru
             </a>
@@ -1074,16 +1135,18 @@ export default function MateriGuru() {
             </div>
 
             {/* Clock Timer */}
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
 
           {/* Back Button */}
           {router.query.id_materi && (
             <button
+              type="button"
               onClick={() => router.back()}
-              className="mb-6 flex items-center gap-2 bg-gray-800/50 hover:bg-gray-700/50 border border-white/10 px-4 py-2 rounded-lg text-gray-300 hover:text-white transition-all"
+              className="mb-6 flex items-center gap-2 rounded-lg border border-white/10 bg-gray-800/50 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-300 transition-all hover:bg-gray-700/50 hover:text-white"
             >
-              <span>←</span> Kembali
+              <FaArrowLeft />
+              Kembali
             </button>
           )}
 
@@ -1146,7 +1209,7 @@ export default function MateriGuru() {
                                 {materiItem.bab.map((bab) => (
                                   <li
                                     key={bab.id_bab}
-                                    className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 transition-colors hover:bg-white/20"
+                                    className="rounded-lg border border-white/30 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm transition-colors hover:bg-white/20"
                                   >
                                     {bab.judul_bab}
                                   </li>
@@ -1166,14 +1229,14 @@ export default function MateriGuru() {
           ) : (
             // ===== DETAIL VIEW: Show specific materi with bab-bab =====
             <div className="mb-8">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-6">
+                <h2 className="text-lg sm:text-2xl font-bold flex items-center gap-2 sm:gap-3">
                   <FaBook className="text-white" /> Materi {materi?.elemen?.nama_elemen || materi?.judul_materi || 'Materi Pembelajaran'}
                 </h2>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <button
                     onClick={handleViewMateriProgress}
-                    className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
+                    className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-colors"
                   >
                     <FaChartBar size={12} />
                     Progres
@@ -1191,7 +1254,7 @@ export default function MateriGuru() {
 
                       setShowAddBabModal(true);
                     }}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-colors"
                   >
                     <FaPlus />
                     Tambah BAB
@@ -1208,95 +1271,186 @@ export default function MateriGuru() {
                   {materi.bab.map((bab, index) => (
                     <div
                       key={bab.id_bab}
-                      className="bg-gray-900/50 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden"
+                      className="bg-gray-900/50 backdrop-blur-sm border border-white/10 rounded-xl overflow-visible"
                     >
                       {/* Bab Header */}
-                      <div className="p-6">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
+                      <div className="p-3 sm:p-6 overflow-visible">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 overflow-visible">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 sm:gap-3 mb-2">
                               <button
                                 onClick={() => toggleBabExpand(bab.id_bab)}
-                                className="text-blue-400 hover:text-blue-300"
+                                className="text-blue-400 hover:text-blue-300 flex-shrink-0"
                               >
                                 {expandedBabs.includes(bab.id_bab) ? <FaChevronUp /> : <FaChevronDown />}
                               </button>
-                              <h3 className="text-xl font-bold">
+                              <h3 className="text-base sm:text-xl font-bold truncate">
                                 Bab {index + 1}: {bab.judul_bab}
                               </h3>
                             </div>
-                            <p className="text-gray-400 ml-9">{bab.deskripsi_bab}</p>
+                            <p className="text-gray-400 text-sm sm:ml-9 line-clamp-2">{bab.deskripsi_bab}</p>
                           </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => openAddSubBabModal(bab)}
-                              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
-                            >
-                              <FaPlus size={12} />
-                              Tambah Sub-bab
-                            </button>
-                            <button
-                              onClick={() => openEditBabModal(bab)}
-                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
-                            >
-                              <FaEdit />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteBab(bab.id_bab, bab.judul_bab)}
-                              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
-                            >
-                              <FaTrash />
-                            </button>
+                          <div className="flex items-center gap-2 relative overflow-visible">
+                            {/* Desktop: All buttons */}
+                            <div className="hidden sm:flex flex-wrap gap-2 sm:gap-3">
+                              <button
+                                onClick={() => openAddSubBabModal(bab)}
+                                className="bg-green-600 hover:bg-green-700 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded text-xs sm:text-sm flex items-center gap-1 whitespace-nowrap"
+                              >
+                                <FaPlus size={12} />
+                                Tambah Sub-bab
+                              </button>
+                              <button
+                                onClick={() => openEditBabModal(bab)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded text-xs sm:text-sm"
+                                title="Edit BAB"
+                              >
+                                <FaEdit />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteBab(bab.id_bab, bab.judul_bab)}
+                                className="bg-red-600 hover:bg-red-700 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded text-xs sm:text-sm"
+                                title="Hapus BAB"
+                              >
+                                <FaTrash />
+                              </button>
+                            </div>
+
+                            {/* Mobile: Kebab menu */}
+                            <div className="sm:hidden relative overflow-visible ml-auto">
+                              <button
+                                onClick={() => setOpenBabMenuId(openBabMenuId === bab.id_bab ? null : bab.id_bab)}
+                                className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-lg transition-colors"
+                                title="Menu"
+                              >
+                                <FaEllipsisVertical size={16} />
+                              </button>
+                              {openBabMenuId === bab.id_bab && (
+                                <div className="absolute right-0 bottom-full mb-2 w-56 bg-gray-800 border border-white/10 rounded-lg shadow-2xl z-[9999] overflow-visible">
+                                  <button
+                                    onClick={() => {
+                                      openAddSubBabModal(bab);
+                                      setOpenBabMenuId(null);
+                                    }}
+                                    className="flex items-center gap-2 w-full px-4 py-2 text-green-400 hover:bg-green-600/20 transition-colors border-b border-white/10 text-sm"
+                                  >
+                                    <FaPlus size={14} />
+                                    Tambah Sub-bab
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      openEditBabModal(bab);
+                                      setOpenBabMenuId(null);
+                                    }}
+                                    className="flex items-center gap-2 w-full px-4 py-2 text-blue-400 hover:bg-blue-600/20 transition-colors border-b border-white/10 text-sm"
+                                  >
+                                    <FaEdit size={14} />
+                                    Edit BAB
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      handleDeleteBab(bab.id_bab, bab.judul_bab);
+                                      setOpenBabMenuId(null);
+                                    }}
+                                    className="flex items-center gap-2 w-full px-4 py-2 text-red-400 hover:bg-red-600/20 transition-colors text-sm"
+                                  >
+                                    <FaTrash size={14} />
+                                    Hapus BAB
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
 
                         {/* Sub-bab List */}
                         {expandedBabs.includes(bab.id_bab) && (
-                          <div className="mt-4 ml-9 space-y-2">
+                          <div className="mt-4 sm:ml-9 space-y-2">
                             {bab.sub_bab && bab.sub_bab.length > 0 ? (
                               bab.sub_bab.map((subBab) => (
                                 <div
                                   key={subBab.id_sub_bab}
-                                  className="bg-gray-800/50 border border-white/10 rounded-lg overflow-hidden"
+                                  className="bg-gray-800/50 border border-white/10 rounded-lg overflow-visible"
                                 >
                                   {/* Sub-bab Header */}
                                   <div
-                                    className="p-4 cursor-pointer hover:bg-gray-700/30 transition-colors"
+                                    className="p-3 sm:p-4 cursor-pointer hover:bg-gray-700/30 transition-colors overflow-visible"
                                     onClick={() => togglePreview(subBab.id_sub_bab)}
                                   >
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex items-center gap-3 flex-1">
-                                        <button className="text-blue-400">{expandedPreviews.includes(subBab.id_sub_bab) ? <FaChevronUp /> : <FaChevronDown />}</button>
-                                        {getFileTypeFromUrl(subBab.tautan_konten) === 'dokumen' && <FaFileAlt className="text-blue-400" />}
-                                        {getFileTypeFromUrl(subBab.tautan_konten) === 'video' && <FaVideo className="text-red-400" />}
-                                        {getFileTypeFromUrl(subBab.tautan_konten) === 'tautan' && <FaLink className="text-green-400" />}
-                                        <div>
-                                          <p className="text-xl font-bold">{subBab.judul_sub_bab}</p>
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 overflow-visible">
+                                      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                                        <button className="text-blue-400 flex-shrink-0">{expandedPreviews.includes(subBab.id_sub_bab) ? <FaChevronUp /> : <FaChevronDown />}</button>
+                                        {getFileTypeFromUrl(subBab.tautan_konten) === 'dokumen' && <FaFileAlt className="text-blue-400 flex-shrink-0" />}
+                                        {getFileTypeFromUrl(subBab.tautan_konten) === 'video' && <FaVideo className="text-red-400 flex-shrink-0" />}
+                                        {getFileTypeFromUrl(subBab.tautan_konten) === 'tautan' && <FaLink className="text-green-400 flex-shrink-0" />}
+                                        <div className="min-w-0">
+                                          <p className="text-base sm:text-xl font-bold truncate">{subBab.judul_sub_bab}</p>
                                         </div>
                                       </div>
+                                      {/* Desktop Version */}
                                       <div
-                                        className="flex gap-2"
+                                        className="hidden sm:flex flex-wrap gap-2 sm:gap-3"
                                         onClick={(e) => e.stopPropagation()}
                                       >
                                         <button
                                           onClick={() => openEditSubBabModal(subBab)}
-                                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                                          className="bg-blue-600 hover:bg-blue-700 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded text-xs sm:text-sm"
+                                          title="Edit Sub-bab"
                                         >
                                           <FaEdit />
                                         </button>
                                         <button
                                           onClick={() => handleDeleteSubBab(subBab.id_sub_bab, subBab.judul_sub_bab)}
-                                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+                                          className="bg-red-600 hover:bg-red-700 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded text-xs sm:text-sm"
+                                          title="Hapus Sub-bab"
                                         >
                                           <FaTrash />
                                         </button>
+                                      </div>
+
+                                      {/* Mobile Kebab Menu */}
+                                      <div
+                                        className="sm:hidden relative overflow-visible ml-auto"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <button
+                                          onClick={() => setOpenSubBabMenuId(openSubBabMenuId === subBab.id_sub_bab ? null : subBab.id_sub_bab)}
+                                          className="text-white hover:text-gray-200 p-2"
+                                          title="Opsi Sub-bab"
+                                        >
+                                          <FaEllipsisVertical size={16} />
+                                        </button>
+                                        {openSubBabMenuId === subBab.id_sub_bab && (
+                                          <div className="absolute right-0 bottom-full mb-2 w-56 bg-gray-800 border border-white/10 rounded-lg shadow-2xl z-[9999] overflow-visible">
+                                            <button
+                                              onClick={() => {
+                                                openEditSubBabModal(subBab);
+                                                setOpenSubBabMenuId(null);
+                                              }}
+                                              className="flex items-center gap-2 w-full px-4 py-2 text-blue-400 hover:bg-blue-600/20 text-sm rounded-t-lg"
+                                            >
+                                              <FaEdit size={14} />
+                                              Edit Sub-bab
+                                            </button>
+                                            <button
+                                              onClick={() => {
+                                                handleDeleteSubBab(subBab.id_sub_bab, subBab.judul_sub_bab);
+                                                setOpenSubBabMenuId(null);
+                                              }}
+                                              className="flex items-center gap-2 w-full px-4 py-2 text-red-400 hover:bg-red-600/20 text-sm rounded-b-lg"
+                                            >
+                                              <FaTrash size={14} />
+                                              Hapus Sub-bab
+                                            </button>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   </div>
 
                                   {/* Inline Preview */}
                                   {expandedPreviews.includes(subBab.id_sub_bab) && (
-                                    <div className="px-4 pb-4">
+                                    <div className="px-2 sm:px-3 md:px-4 pb-2 sm:pb-3 md:pb-4">
                                       <InlineFilePreview subBab={subBab} />
                                     </div>
                                   )}
@@ -1394,14 +1548,14 @@ export default function MateriGuru() {
                     setShowAddBabModal(false);
                     setBabFormData({ judul_bab: '', deskripsi_bab: '' });
                   }}
-                  className="flex flex-1 items-center justify-center gap-2 bg-gray-700 px-6 py-3 font-semibold text-white rounded-lg transition-colors hover:bg-gray-600"
+                  className="flex flex-1 items-center justify-center gap-2 bg-gray-700 px-4 sm:px-6 py-2 sm:py-3 font-semibold text-white rounded-lg transition-colors hover:bg-gray-600"
                 >
                   <FaTimes />
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="flex flex-1 items-center justify-center gap-2 bg-blue-600 px-6 py-3 font-semibold text-white rounded-lg transition-colors hover:bg-blue-700"
+                  className="flex flex-1 items-center justify-center gap-2 bg-blue-600 px-4 sm:px-6 py-2 sm:py-3 font-semibold text-white rounded-lg transition-colors hover:bg-blue-700"
                 >
                   <FaPlus />
                   Tambah
@@ -1452,14 +1606,14 @@ export default function MateriGuru() {
                     setSelectedBab(null);
                     setBabFormData({ judul_bab: '', deskripsi_bab: '' });
                   }}
-                  className="flex flex-1 items-center justify-center gap-2 bg-gray-700 px-6 py-3 font-semibold text-white rounded-lg transition-colors hover:bg-gray-600"
+                  className="flex flex-1 items-center justify-center gap-2 bg-gray-700 px-4 sm:px-6 py-2 sm:py-3 font-semibold text-white rounded-lg transition-colors hover:bg-gray-600"
                 >
                   <FaTimes />
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="flex flex-1 items-center justify-center gap-2 bg-blue-600 px-6 py-3 font-semibold text-white rounded-lg transition-colors hover:bg-blue-700"
+                  className="flex flex-1 items-center justify-center gap-2 bg-blue-600 px-4 sm:px-6 py-2 sm:py-3 font-semibold text-white rounded-lg transition-colors hover:bg-blue-700"
                 >
                   <FaSave />
                   Simpan
@@ -1509,7 +1663,7 @@ export default function MateriGuru() {
                   <button
                     type="button"
                     onClick={() => setFileType('dokumen')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-colors ${
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-3 rounded-lg border transition-colors ${
                       fileType === 'dokumen' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-gray-800 border-white/10 text-gray-400 hover:border-blue-500/50'
                     }`}
                   >
@@ -1519,7 +1673,7 @@ export default function MateriGuru() {
                   <button
                     type="button"
                     onClick={() => setFileType('video')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-colors ${
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-3 rounded-lg border transition-colors ${
                       fileType === 'video' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-gray-800 border-white/10 text-gray-400 hover:border-blue-500/50'
                     }`}
                   >
@@ -1529,7 +1683,7 @@ export default function MateriGuru() {
                   <button
                     type="button"
                     onClick={() => setFileType('tautan')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-colors ${
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-3 rounded-lg border transition-colors ${
                       fileType === 'tautan' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-gray-800 border-white/10 text-gray-400 hover:border-blue-500/50'
                     }`}
                   >
@@ -1642,7 +1796,7 @@ export default function MateriGuru() {
                     setFileType('dokumen');
                     setUploadedFile(null);
                   }}
-                  className="flex flex-1 items-center justify-center gap-2 bg-gray-700 px-6 py-3 font-semibold text-white rounded-lg transition-colors hover:bg-gray-600"
+                  className="flex flex-1 items-center justify-center gap-2 bg-gray-700 px-4 sm:px-6 py-2 sm:py-3 font-semibold text-white rounded-lg transition-colors hover:bg-gray-600"
                 >
                   <FaTimes />
                   Batal
@@ -1650,7 +1804,7 @@ export default function MateriGuru() {
                 <button
                   type="submit"
                   disabled={isUploading}
-                  className="flex flex-1 items-center justify-center gap-2 bg-blue-600 px-6 py-3 font-semibold text-white rounded-lg transition-colors hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                  className="flex flex-1 items-center justify-center gap-2 bg-blue-600 px-4 sm:px-6 py-2 sm:py-3 font-semibold text-white rounded-lg transition-colors hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
                 >
                   {isUploading ? <FaCloudUploadAlt className="animate-pulse" /> : <FaPlus />}
                   {isUploading ? 'Mengupload...' : 'Tambah'}
@@ -1876,7 +2030,7 @@ export default function MateriGuru() {
                     setFileType('dokumen');
                     setUploadedFile(null);
                   }}
-                  className="flex flex-1 items-center justify-center gap-2 bg-gray-700 px-6 py-3 font-semibold text-white rounded-lg transition-colors hover:bg-gray-600"
+                  className="flex flex-1 items-center justify-center gap-2 bg-gray-700 px-4 sm:px-6 py-2 sm:py-3 font-semibold text-white rounded-lg transition-colors hover:bg-gray-600"
                 >
                   <FaTimes />
                   Batal
@@ -1884,7 +2038,7 @@ export default function MateriGuru() {
                 <button
                   type="submit"
                   disabled={isUploading}
-                  className="flex flex-1 items-center justify-center gap-2 bg-blue-600 px-6 py-3 font-semibold text-white rounded-lg transition-colors hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                  className="flex flex-1 items-center justify-center gap-2 bg-blue-600 px-4 sm:px-6 py-2 sm:py-3 font-semibold text-white rounded-lg transition-colors hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
                 >
                   {isUploading ? <FaCloudUploadAlt className="animate-pulse" /> : <FaSave />}
                   {isUploading ? 'Mengupload...' : 'Simpan'}
@@ -1918,13 +2072,13 @@ export default function MateriGuru() {
                   setShowDeleteBabModal(false);
                   setDeleteTargetBab(null);
                 }}
-                className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
               >
                 Batal
               </button>
               <button
                 onClick={confirmDeleteBab}
-                className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-semibold"
+                className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-semibold"
               >
                 Hapus
               </button>
@@ -1956,13 +2110,13 @@ export default function MateriGuru() {
                   setShowDeleteSubBabModal(false);
                   setDeleteTargetSubBab(null);
                 }}
-                className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
               >
                 Batal
               </button>
               <button
                 onClick={confirmDeleteSubBab}
-                className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-semibold"
+                className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-semibold"
               >
                 Hapus
               </button>

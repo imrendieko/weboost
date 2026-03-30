@@ -133,7 +133,7 @@ export default function AsesmenSiswa() {
               </h1>
               <p className="text-gray-400">{getCurrentDate()}</p>
             </div>
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
 
           <div className="mb-8">

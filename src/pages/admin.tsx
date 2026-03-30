@@ -169,7 +169,7 @@ export default function Admin() {
 
           {/* Clock Timer */}
           <div className="flex justify-start md:justify-end">
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
         </div>
 

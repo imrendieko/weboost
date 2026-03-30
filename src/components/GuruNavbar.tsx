@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import { FaUserCircle, FaChevronDown, FaHome, FaBook, FaProjectDiagram, FaClipboardList, FaBars, FaTimes } from 'react-icons/fa';
+import { useAdminTheme } from '@/contexts/AdminThemeContext';
 
 interface GuruNavbarProps {
   guruName: string;
@@ -16,6 +17,8 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { theme, mounted } = useAdminTheme();
+  const isLightTheme = mounted && theme === 'light';
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -54,7 +57,17 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
             href="/dashboard-guru"
             className="flex items-center group"
           >
-            <div className="relative w-45 h-16 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden">
+            {/* Mobile - Square Logo */}
+            <div className="relative w-12 h-12 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden md:hidden">
+              <Image
+                src="/logo_weboost_persegi.png"
+                alt="WeBoost Logo"
+                fill
+                className="object-contain"
+              />
+            </div>
+            {/* Desktop - Original Logo */}
+            <div className="relative w-45 h-16 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden hidden md:block">
               <Image
                 src="/logo_weboost.png"
                 alt="WeBoost Logo"
@@ -115,7 +128,7 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
               <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
                 <FaUserCircle
                   className="text-2xl"
-                  style={{ color: '#ffffff' }}
+                  style={{ color: isLightTheme ? '#000000' : '#ffffff' }}
                 />
               </div>
               <span className="font-medium">{firstName}</span>
@@ -128,7 +141,10 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
                   href="/guru/profil"
                   className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#0080FF]/20 transition-colors border-b border-white/5"
                 >
-                  <FaUserCircle className="text-xl" />
+                  <FaUserCircle
+                    className="text-xl"
+                    style={{ color: isLightTheme ? '#000000' : '#ffffff' }}
+                  />
                   <span>Profil</span>
                 </Link>
                 <button
@@ -157,7 +173,7 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
           {/* Mobile Hamburger Button */}
           <button
             onClick={toggleMobileMenu}
-            className="md:hidden text-white text-2xl focus:outline-none z-50"
+            className="mana-btn mana-btn--neutral h-11 w-11 p-0 inline-flex items-center justify-center text-lg z-50 md:hidden"
             aria-label="Toggle menu"
           >
             {isMobileMenuOpen ? <FaTimes /> : <FaBars />}

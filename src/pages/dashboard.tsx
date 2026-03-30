@@ -218,7 +218,7 @@ export default function DashboardSiswa() {
               </h1>
               <p className="text-gray-400">{getCurrentDate()}</p>
             </div>
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
 
           <div className="mb-10 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
@@ -484,7 +484,7 @@ export default function DashboardSiswa() {
         </div>
       )}
 
-      <footer className="relative py-8 px-6 border-t border-white/10">
+      <footer className="relative py-6 sm:py-8 px-3 sm:px-6 border-t border-white/10">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-gray-400 text-sm">
             Copyright © 2026 All right reserved | This website is made with ❤️ by{' '}

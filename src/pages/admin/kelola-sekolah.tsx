@@ -478,7 +478,7 @@ export default function KelolaSekolah() {
             <p className="text-gray-400 text-sm md:text-base">{getCurrentDate()}</p>
           </div>
           <div className="flex justify-start md:justify-end">
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
         </div>
 
@@ -496,17 +496,19 @@ export default function KelolaSekolah() {
 
         {/* Sekolah Section */}
         <div className="bg-gray-900/50 backdrop-blur-md border border-white/10 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             <div className="flex items-center gap-3">
-              <FaSchool className="text-white text-2xl" />
-              <h2 className="text-white text-xl font-semibold">Sekolah/Lembaga yang Terdaftar</h2>
+              <FaSchool className="text-white text-xl sm:text-2xl flex-shrink-0" />
+              <h2 className="text-white text-lg sm:text-xl font-semibold">Sekolah/Lembaga yang Terdaftar</h2>
             </div>
             <button
               onClick={handleOpenAddModal}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              className="px-2 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2 text-xs sm:text-sm font-medium w-full sm:w-auto justify-center sm:justify-start"
             >
               <FaSchool />
-              Tambah Data Sekolah
+              <span className="hidden sm:inline">Tambah Data</span>
+              <span className="sm:hidden">Tambah</span>
+              <span className="hidden sm:inline">Sekolah</span>
             </button>
           </div>
           {renderTable()}
@@ -514,7 +516,7 @@ export default function KelolaSekolah() {
       </div>
 
       {/* Footer */}
-      <footer className="relative py-8 px-6 border-t border-white/10">
+      <footer className="relative py-6 sm:py-8 px-3 sm:px-6 border-t border-white/10">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-gray-400 text-sm">
             Copyright © 2026 All right reserved | This website is made with ❤️ by{' '}

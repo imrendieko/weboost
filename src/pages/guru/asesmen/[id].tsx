@@ -43,6 +43,8 @@ export default function DaftarAsesmen() {
     message: '',
     type: 'success',
   });
+  const [kelasList, setKelasList] = useState<any[]>([]);
+  const [elemenList, setElemenList] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     judul_asesmen: '',
     sampul_asesmen_preview: '',
@@ -52,6 +54,8 @@ export default function DaftarAsesmen() {
     waktu_terakhir_date: '',
     waktu_terakhir_time: '',
     durasi_asesmen: '',
+    kelas_asesmen: '',
+    elemen_asesmen: '',
   });
 
   const showNotification = (message: string, type: NotificationType) => {
@@ -92,6 +96,10 @@ export default function DaftarAsesmen() {
           await fetchElemenData(idElemen);
           await fetchAsesmenByElemen(idElemen);
         }
+
+        // Fetch kelas and elemen lists
+        await fetchKelasList();
+        await fetchElemenList();
 
         setLoading(false);
       } catch (error) {
@@ -163,6 +171,36 @@ export default function DaftarAsesmen() {
     }
   };
 
+  const fetchKelasList = async () => {
+    try {
+      const res = await fetch('/api/kelas');
+      if (!res.ok) {
+        console.error('Error fetching kelas:', res.status);
+        return;
+      }
+
+      const data = await res.json();
+      setKelasList(data || []);
+    } catch (error) {
+      console.error('Error fetching kelas:', error);
+    }
+  };
+
+  const fetchElemenList = async () => {
+    try {
+      const res = await fetch('/api/elemen');
+      if (!res.ok) {
+        console.error('Error fetching elemen:', res.status);
+        return;
+      }
+
+      const data = await res.json();
+      setElemenList(data || []);
+    } catch (error) {
+      console.error('Error fetching elemen:', error);
+    }
+  };
+
   const handleSearch = (term: string) => {
     setSearchTerm(term);
     const filtered = asesmenList.filter((item) => item.judul_asesmen.toLowerCase().includes(term.toLowerCase()));
@@ -180,6 +218,8 @@ export default function DaftarAsesmen() {
       waktu_terakhir_date: '',
       waktu_terakhir_time: '',
       durasi_asesmen: '',
+      kelas_asesmen: '',
+      elemen_asesmen: '',
     });
     setShowForm(true);
   };
@@ -220,6 +260,8 @@ export default function DaftarAsesmen() {
       waktu_terakhir_date: terakhirInput.date,
       waktu_terakhir_time: terakhirInput.time,
       durasi_asesmen: asesmen.durasi_asesmen ? String(asesmen.durasi_asesmen) : asesmen.durasi_kuis ? String(asesmen.durasi_kuis) : '',
+      kelas_asesmen: (asesmen as any).kelas_asesmen ? String((asesmen as any).kelas_asesmen) : '',
+      elemen_asesmen: (asesmen as any).elemen_asesmen ? String((asesmen as any).elemen_asesmen) : '',
     });
     setOpenMenuId(null);
     setShowForm(true);
@@ -284,8 +326,17 @@ export default function DaftarAsesmen() {
   };
 
   const handleSaveAsesmen = async () => {
-    if (!formData.judul_asesmen.trim() || !formData.sampul_asesmen_preview || !formData.waktu_mulai_date || !formData.waktu_mulai_time || !formData.waktu_terakhir_date || !formData.waktu_terakhir_time) {
-      showNotification('Semua field wajib harus terisi (judul, sampul, waktu mulai, waktu terakhir)', 'error');
+    if (
+      !formData.judul_asesmen.trim() ||
+      !formData.sampul_asesmen_preview ||
+      !formData.waktu_mulai_date ||
+      !formData.waktu_mulai_time ||
+      !formData.waktu_terakhir_date ||
+      !formData.waktu_terakhir_time ||
+      !formData.kelas_asesmen ||
+      !formData.elemen_asesmen
+    ) {
+      showNotification('Semua field wajib harus terisi (judul, sampul, kelas, elemen, waktu mulai, waktu terakhir)', 'error');
       return;
     }
 
@@ -365,6 +416,8 @@ export default function DaftarAsesmen() {
               waktu_mulai: new Date(waktuMulai).toISOString(),
               waktu_terakhir: new Date(waktuTerakhir).toISOString(),
               durasi_asesmen: formData.durasi_asesmen ? parseInt(formData.durasi_asesmen, 10) : null,
+              kelas_asesmen: formData.kelas_asesmen ? parseInt(formData.kelas_asesmen, 10) : null,
+              elemen_asesmen: formData.elemen_asesmen ? parseInt(formData.elemen_asesmen, 10) : null,
             }),
           });
 
@@ -412,6 +465,8 @@ export default function DaftarAsesmen() {
               waktu_mulai: new Date(waktuMulai).toISOString(),
               waktu_terakhir: new Date(waktuTerakhir).toISOString(),
               durasi_asesmen: formData.durasi_asesmen ? parseInt(formData.durasi_asesmen, 10) : null,
+              kelas_asesmen: formData.kelas_asesmen ? parseInt(formData.kelas_asesmen, 10) : null,
+              elemen_asesmen: formData.elemen_asesmen ? parseInt(formData.elemen_asesmen, 10) : null,
             }),
           });
 
@@ -521,7 +576,7 @@ export default function DaftarAsesmen() {
 
       {guruData && <GuruNavbar guruName={guruData.nama_guru} />}
 
-      <div className="relative z-10 pt-32 pb-12 px-6">
+      <div className="relative z-10 pt-24 pb-12 px-6">
         <div className="max-w-7xl mx-auto">
           {/* Header Section */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
@@ -534,30 +589,31 @@ export default function DaftarAsesmen() {
           </div>
 
           {/* Back & Title */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.back()}
-                className="flex items-center gap-2 bg-gray-800/50 hover:bg-gray-700/50 border border-white/10 px-4 py-2 rounded-lg text-gray-300 hover:text-white transition-all"
-              >
-                <FaArrowLeft size={16} />
-                Kembali
-              </button>
-
-              <div>
-                <h2 className="text-2xl font-bold">{elemenData?.nama_elemen || 'Elemen'}</h2>
-                <p className="text-sm text-gray-400">Daftar Asesmen</p>
-              </div>
-            </div>
-
-            {/* Add Button */}
+          <div className="mb-6">
             <button
-              onClick={handleAddAsesmen}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 border border-blue-500/50 px-6 py-2 rounded-lg text-white transition-all"
+              type="button"
+              onClick={() => router.back()}
+              className="mb-6 flex items-center gap-2 rounded-lg border border-white/10 bg-gray-800/50 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-300 transition-all hover:bg-gray-700/50 hover:text-white"
             >
-              <FaPlus size={16} />
-              Tambah Asesmen
+              <FaArrowLeft />
+              Kembali
             </button>
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold">{elemenData?.nama_elemen || 'Elemen'}</h2>
+                <p className="text-xs sm:text-sm text-gray-400">Daftar Asesmen</p>
+              </div>
+
+              {/* Add Button */}
+              <button
+                onClick={handleAddAsesmen}
+                className="mana-btn mana-btn--primary h-10 px-3 sm:px-4 flex items-center gap-2 whitespace-nowrap text-xs sm:text-sm justify-center"
+              >
+                <FaPlus size={14} />
+                Tambah Asesmen
+              </button>
+            </div>
           </div>
 
           {/* Search */}
@@ -585,9 +641,9 @@ export default function DaftarAsesmen() {
                   onClick={() => handleGoToSoal(asesmen.id_asesmen)}
                   className="group bg-gray-800/30 border border-white/10 hover:border-blue-500/50 rounded-lg transition-all hover:shadow-lg hover:shadow-blue-500/10 cursor-pointer"
                 >
-                  <div className="flex gap-4 p-4">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 p-3 sm:p-4">
                     {/* Sampul */}
-                    <div className="w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-gray-700 to-gray-800">
+                    <div className="w-full sm:w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-gray-700 to-gray-800">
                       {asesmen.sampul_asesmen ? (
                         <img
                           src={asesmen.sampul_asesmen}
@@ -602,28 +658,42 @@ export default function DaftarAsesmen() {
                     </div>
 
                     {/* Info */}
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg mb-2 group-hover:text-blue-400 transition-colors">{asesmen.judul_asesmen}</h3>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-base sm:text-lg mb-2 group-hover:text-blue-400 transition-colors truncate">{asesmen.judul_asesmen}</h3>
 
-                      <div className="grid grid-cols-2 gap-2 text-sm text-gray-400 mb-3">
-                        <div className="flex items-center gap-2">
-                          <FaCalendar size={14} />
-                          <span>
-                            Mulai: {new Date(asesmen.waktu_mulai).toLocaleDateString('id-ID')} {new Date(asesmen.waktu_mulai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                      <div className="space-y-1 text-xs sm:text-sm text-gray-400 mb-3">
+                        <div className="flex items-start gap-2">
+                          <FaCalendar
+                            size={12}
+                            className="flex-shrink-0 mt-0.5"
+                          />
+                          <span className="truncate">
+                            Mulai: {new Date(asesmen.waktu_mulai).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' })} {new Date(asesmen.waktu_mulai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <FaClock size={14} />
-                          <span>
-                            Akhir: {new Date(asesmen.waktu_terakhir).toLocaleDateString('id-ID')} {new Date(asesmen.waktu_terakhir).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                        <div className="flex items-start gap-2">
+                          <FaClock
+                            size={12}
+                            className="flex-shrink-0 mt-0.5"
+                          />
+                          <span className="truncate">
+                            Akhir: {new Date(asesmen.waktu_terakhir).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' })} {new Date(asesmen.waktu_terakhir).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
                       </div>
 
-                      <div className="text-sm text-gray-400">
-                        <p>Guru: {asesmen.guru?.nama_guru || '-'}</p>
-                        <p>Kelas: {elemenData?.kelas?.nama_kelas || '-'}</p>
-                        {(asesmen.durasi_asesmen || asesmen.durasi_kuis) && <p>Durasi Kuis: {asesmen.durasi_asesmen || asesmen.durasi_kuis} menit</p>}
+                      <div className="text-xs sm:text-sm text-gray-400 space-y-0.5">
+                        <p>
+                          Guru: <span className="text-gray-300">{asesmen.guru?.nama_guru || '-'}</span>
+                        </p>
+                        <p>
+                          Kelas: <span className="text-gray-300">{elemenData?.kelas?.nama_kelas || '-'}</span>
+                        </p>
+                        {(asesmen.durasi_asesmen || asesmen.durasi_kuis) && (
+                          <p>
+                            Durasi: <span className="text-gray-300">{asesmen.durasi_asesmen || asesmen.durasi_kuis} menit</span>
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -758,6 +828,46 @@ export default function DaftarAsesmen() {
                     />
                   </label>
                 </div>
+              </div>
+
+              {/* Kelas Dropdown */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Kelas</label>
+                <select
+                  value={formData.kelas_asesmen}
+                  onChange={(e) => setFormData({ ...formData, kelas_asesmen: e.target.value })}
+                  className="w-full bg-gray-800 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">Pilih Kelas</option>
+                  {kelasList.map((kelas) => (
+                    <option
+                      key={kelas.id_kelas}
+                      value={kelas.id_kelas}
+                    >
+                      {kelas.nama_kelas}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Elemen Dropdown */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Elemen</label>
+                <select
+                  value={formData.elemen_asesmen}
+                  onChange={(e) => setFormData({ ...formData, elemen_asesmen: e.target.value })}
+                  className="w-full bg-gray-800 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">Pilih Elemen</option>
+                  {elemenList.map((elemen) => (
+                    <option
+                      key={elemen.id_elemen}
+                      value={elemen.id_elemen}
+                    >
+                      {elemen.nama_elemen}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Waktu Mulai */}

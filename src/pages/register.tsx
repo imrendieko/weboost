@@ -162,9 +162,9 @@ export default function Register() {
           transition={{ duration: 0.5 }}
           className="auth-card w-full max-w-5xl overflow-hidden"
         >
-          <div className="grid md:grid-cols-2 min-h-[700px]">
+          <div className="grid md:grid-cols-2 min-h-[auto] md:min-h-[700px]">
             {/* Left Side - Info */}
-            <div className="auth-info-pane p-12 flex flex-col justify-center items-center text-center">
+            <div className="auth-info-pane p-6 md:p-12 flex flex-col justify-center items-center text-center">
               <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
@@ -175,7 +175,7 @@ export default function Register() {
             </div>
 
             {/* Right Side - Form */}
-            <div className="auth-form-pane p-8 md:p-10">
+            <div className="auth-form-pane p-4 sm:p-6 md:p-10">
               {/* Tab Switch */}
               <div className="auth-role-switch flex gap-0 mb-6 rounded-lg p-1">
                 <button

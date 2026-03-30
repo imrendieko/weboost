@@ -738,20 +738,20 @@ export default function KelolaSiswa() {
       )}
 
       {/* Main Content */}
-      <div className="relative pt-32 pb-50 px-6 max-w-7xl mx-auto">
+      <div className="relative pt-24 sm:pt-28 md:pt-32 pb-12 px-3 sm:px-6 max-w-7xl mx-auto">
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-3 sm:gap-4">
           <div>
-            <h1 className="text-white text-3xl md:text-4xl font-bold mb-2">Selamat Datang, {adminData.nama_admin.split(' ')[0]}!</h1>
-            <p className="text-gray-400 text-sm md:text-base">{getCurrentDate()}</p>
+            <h1 className="text-white text-2xl sm:text-3xl md:text-4xl font-bold mb-2">Selamat Datang, {adminData.nama_admin.split(' ')[0]}!</h1>
+            <p className="text-gray-400 text-xs sm:text-sm md:text-base">{getCurrentDate()}</p>
           </div>
           <div className="flex justify-start md:justify-end">
-            <CountdownTimer />
+            <CountdownTimer showDate={false} />
           </div>
         </div>
 
         {/* Breadcrumb */}
-        <div className="mb-6 flex items-center gap-2 text-gray-400">
+        <div className="mb-4 sm:mb-6 flex items-center gap-2 text-xs sm:text-sm text-gray-400">
           <Link
             href="/admin"
             className="hover:text-[#0080FF] transition-colors"
@@ -782,7 +782,7 @@ export default function KelolaSiswa() {
       </div>
 
       {/* Footer */}
-      <footer className="relative py-8 px-6 border-t border-white/10">
+      <footer className="relative py-6 sm:py-8 px-3 sm:px-6 border-t border-white/10">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-gray-400 text-sm">
             Copyright © 2026 All right reserved | This website is made with ❤️ by{' '}
