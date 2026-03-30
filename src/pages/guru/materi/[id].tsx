@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import GuruNavbar from '@/components/GuruNavbar';
 import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
-import { FaBook, FaPlus, FaEdit, FaTrash, FaChevronDown, FaChevronUp, FaFileAlt, FaVideo, FaLink, FaChartBar } from 'react-icons/fa';
+import { FaBook, FaPlus, FaEdit, FaTrash, FaChevronDown, FaChevronUp, FaFileAlt, FaVideo, FaLink, FaChartBar, FaArrowLeft } from 'react-icons/fa';
 
 interface GuruData {
   id_guru: number;

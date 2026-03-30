@@ -4,7 +4,7 @@ import GuruNavbar from '@/components/GuruNavbar';
 import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
 import supabase from '@/lib/db';
-import { FaSearch, FaSortAlphaDown, FaSortAlphaUp, FaChartBar } from 'react-icons/fa';
+import { FaSearch, FaSortAlphaDown, FaSortAlphaUp, FaChartBar, FaArrowLeft } from 'react-icons/fa';
 
 interface GuruData {
   id_guru: number;

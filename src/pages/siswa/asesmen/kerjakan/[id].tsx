@@ -153,7 +153,7 @@ export default function SiswaKerjakanAsesmen() {
   }, [router, asesmenId]);
 
   useEffect(() => {
-    if (!quizData || showIntro || quizData.attempt) {
+    if (!quizData || showIntro || quizData.attempt || !quizData.asesmen) {
       return;
     }
 
@@ -194,7 +194,7 @@ export default function SiswaKerjakanAsesmen() {
     const startTimer = window.setTimeout(() => {
       setShowIntro(false);
       setStartTime(new Date());
-      const durationMinutes = quizData?.asesmen.durasi_asesmen || quizData?.asesmen.durasi_kuis || 0;
+      const durationMinutes = quizData?.asesmen?.durasi_asesmen || quizData?.asesmen?.durasi_kuis || 0;
       if (durationMinutes > 0) {
         setSecondsLeft(durationMinutes * 60);
       }
@@ -291,7 +291,7 @@ export default function SiswaKerjakanAsesmen() {
         },
         body: JSON.stringify({
           id_siswa: siswaSession.id_siswa,
-          id_asesmen: quizData.asesmen.id_asesmen,
+          id_asesmen: quizData?.asesmen?.id_asesmen,
           started_at: startTime.toISOString(),
           answers,
         }),
