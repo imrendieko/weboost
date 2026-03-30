@@ -1,8 +1,18 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
   reactStrictMode: true,
+  // Explicit rewrites untuk Pages Router - pastikan static pages ter-serve dengan benar
+  async rewrites() {
+    return {
+      beforeFiles: [
+        // Public static pages
+        { source: '/', destination: '/' },
+        { source: '/login', destination: '/login' },
+        { source: '/register', destination: '/register' },
+      ],
+    };
+  },
   images: {
     remotePatterns: [
       {
