@@ -238,3 +238,10 @@ export default function Login() {
     </div>
   );
 }
+
+export const getStaticProps = async () => {
+  return {
+    props: {},
+    revalidate: 3600,
+  };
+};
