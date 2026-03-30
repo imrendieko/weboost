@@ -122,7 +122,7 @@ export default function DashboardGuru() {
       // Fetch tujuan pembelajaran untuk setiap elemen
       if (elemenData && elemenData.length > 0) {
         const elemenWithTP = await Promise.all(
-          elemenData.map(async (elemen) => {
+          elemenData.map(async (elemen: any) => {
             const { data: tpData } = await supabase.from('tujuan_pembelajaran').select('*').eq('elemen_tp', elemen.id_elemen);
 
             console.log('Elemen:', elemen.nama_elemen, 'Kelas:', elemen.kelas);
