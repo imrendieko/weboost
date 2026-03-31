@@ -247,7 +247,149 @@ export default function KelolaSoalAsesmen() {
     }
   };
 
-  const handleSelectSoal = (soal: SoalAsesmen) => {
+  // Helper function to save current editor state without showing notification
+  const autoSaveCurrentSoal = async (): Promise<boolean> => {
+    if (!editorState || !idAsesmen) return true;
+
+    // Validate pilihan ganda if applicable
+    if (editorState.tipe_soal === 'pilihan_ganda' && editorState.pilihan_ganda) {
+      const invalidOption = editorState.pilihan_ganda.find((item) => !item.teks_pilgan?.trim() && !item.gambar_pilgan?.trim());
+      if (invalidOption) {
+        // Skip auto-save if validation fails
+        return false;
+      }
+    }
+
+    try {
+      let gambarSoalUrl = editorState.gambar_soal_preview || '';
+      let pilihanGandaPayload = editorState.tipe_soal === 'pilihan_ganda' ? [...(editorState.pilihan_ganda || [])] : [];
+
+      // Handle gambar soal upload if needed
+      if (editorState.gambar_soal_file) {
+        const reader = new FileReader();
+        const base64File = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(editorState.gambar_soal_file as File);
+        });
+
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileData: base64File,
+            fileName: editorState.gambar_soal_file.name,
+            fileType: editorState.gambar_soal_file.type,
+          }),
+        });
+
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          gambarSoalUrl = uploadData.url;
+        }
+      }
+
+      // Handle pilihan ganda images
+      if (editorState.tipe_soal === 'pilihan_ganda' && pilihanGandaPayload.length > 0) {
+        pilihanGandaPayload = await Promise.all(
+          pilihanGandaPayload.map(async (pilihan) => {
+            let gambarPilihanUrl = pilihan.gambar_pilgan || '';
+
+            if (pilihan.gambar_file) {
+              let fileToUpload = pilihan.gambar_file;
+              if (fileToUpload.size > 500 * 1024) {
+                const compression = await compressFile(fileToUpload);
+                fileToUpload = compression.compressedFile;
+              }
+
+              const reader = new FileReader();
+              const base64File = await new Promise<string>((resolve, reject) => {
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(fileToUpload);
+              });
+
+              const uploadRes = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  fileData: base64File,
+                  fileName: fileToUpload.name,
+                  fileType: fileToUpload.type,
+                }),
+              });
+
+              if (uploadRes.ok) {
+                const uploadData = await uploadRes.json();
+                gambarPilihanUrl = uploadData.url;
+              }
+            }
+
+            if (gambarPilihanUrl.startsWith('data:')) {
+              gambarPilihanUrl = '';
+            }
+
+            return {
+              ...pilihan,
+              gambar_pilgan: gambarPilihanUrl,
+              gambar_file: undefined,
+            };
+          }),
+        );
+      }
+
+      // Save to API
+      const res = await fetch(`/api/asesmen/soal/${editorState.id_soal}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teks_soal: editorState.teks_soal,
+          teks_jawaban: editorState.teks_jawaban,
+          gambar_soal: gambarSoalUrl,
+          nilai_soal: editorState.nilai_soal,
+          id_tp: editorState.id_tp,
+          kunci_teks: editorState.kunci_teks,
+          tipe_soal: editorState.tipe_soal,
+          pilihan_ganda:
+            editorState.tipe_soal === 'pilihan_ganda'
+              ? pilihanGandaPayload.map((pilihan) => ({
+                  id_pilgan: pilihan.id_pilgan,
+                  opsi_pilgan: pilihan.opsi_pilgan,
+                  urutan_pilgan: pilihan.urutan_pilgan,
+                  teks_pilgan: pilihan.teks_pilgan,
+                  gambar_pilgan: pilihan.gambar_pilgan,
+                  kunci_pilgan: pilihan.kunci_pilgan,
+                }))
+              : [],
+        }),
+      });
+
+      if (res.ok) {
+        setEditorState((current) =>
+          current
+            ? {
+                ...current,
+                gambar_soal_preview: gambarSoalUrl,
+                gambar_soal_file: undefined,
+                pilihan_ganda: current.tipe_soal === 'pilihan_ganda' ? pilihanGandaPayload : current.pilihan_ganda,
+              }
+            : current,
+        );
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error auto-saving soal:', error);
+      return false;
+    }
+  };
+
+  const handleSelectSoal = async (soal: SoalAsesmen) => {
+    // Auto-save current soal before switching
+    if (editorState && selectedSoalId !== soal.id_soal) {
+      await autoSaveCurrentSoal();
+    }
+
     setSelectedSoalId(soal.id_soal);
 
     // Initialize editor state
@@ -645,6 +787,9 @@ export default function KelolaSoalAsesmen() {
   const handleDrop = async (targetSoalId: number) => {
     if (!draggedSoalId || draggedSoalId === targetSoalId || !idAsesmen) return;
 
+    // Auto-save before reordering
+    await autoSaveCurrentSoal();
+
     try {
       const draggedIndex = soalList.findIndex((s) => s.id_soal === draggedSoalId);
       const targetIndex = soalList.findIndex((s) => s.id_soal === targetSoalId);
@@ -750,7 +895,9 @@ export default function KelolaSoalAsesmen() {
                         onDragStart={() => handleDragStart(soal.id_soal)}
                         onDragOver={handleDragOver}
                         onDrop={() => handleDrop(soal.id_soal)}
-                        onClick={() => handleSelectSoal(soal)}
+                        onClick={() => {
+                          handleSelectSoal(soal);
+                        }}
                         className={`p-2 sm:p-3 rounded-lg cursor-move transition-all border ${selectedSoalId === soal.id_soal ? 'bg-blue-600/30 border-blue-500' : 'bg-gray-800/50 border-white/10 hover:border-blue-500/50'}`}
                       >
                         <div className="flex items-start gap-2">
