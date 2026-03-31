@@ -123,7 +123,7 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
           >
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="flex items-center gap-2 text-white hover:text-[#0080FF] transition-colors duration-300 font-medium relative group px-3 py-2 rounded-lg hover:bg-white/10"
+              className="flex items-center gap-2 text-white hover:text-[#0080FF] transition-colors duration-300 font-medium relative group px-4 py-2.5 rounded-xl bg-white/5 border border-white/20 hover:bg-white/15 shadow-[0_4px_15px_rgba(0,128,255,0.3)]"
             >
               <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
                 <FaUserCircle
@@ -136,10 +136,10 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
             </button>
 
             {isProfileOpen && (
-              <div className="absolute top-full right-0 mt-2 bg-gray-900/95 backdrop-blur-md border border-white/10 rounded-lg shadow-xl min-w-[180px] overflow-hidden">
+              <div className="absolute top-full right-0 mt-2 bg-gray-900/80 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_8px_32px_rgba(0,128,255,0.2)] min-w-[180px] overflow-hidden">
                 <Link
                   href="/guru/profil"
-                  className="flex items-center gap-3 px-4 py-3 text-white hover:bg-[#0080FF]/20 transition-colors border-b border-white/5"
+                  className="flex items-center gap-3 px-4 py-3 text-white hover:bg-white/10 transition-all duration-200 border-b border-white/10"
                 >
                   <FaUserCircle
                     className="text-xl"
@@ -149,7 +149,7 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/20 transition-colors w-full text-left"
+                  className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/15 transition-all duration-200 w-full text-left"
                 >
                   <svg
                     className="w-5 h-5"
