@@ -503,7 +503,7 @@ export default function PBLGuru() {
       try {
         const guruSession = localStorage.getItem('guru_session');
         if (!guruSession) {
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -545,7 +545,7 @@ export default function PBLGuru() {
         }
       } catch (error) {
         console.error('Error checking guru auth:', error);
-        router.push('/login');
+        router.push('/');
       }
     };
 

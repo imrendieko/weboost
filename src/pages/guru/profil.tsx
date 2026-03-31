@@ -64,12 +64,14 @@ export default function ProfilGuru() {
   };
 
   useEffect(() => {
+    if (!router.isReady) return;
+
     const checkGuruAuth = async () => {
       try {
         const guruSession = localStorage.getItem('guru_session');
 
         if (!guruSession) {
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -81,7 +83,7 @@ export default function ProfilGuru() {
         if (guruError || !guru) {
           console.error('Error fetching guru profile:', guruError);
           localStorage.removeItem('guru_session');
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -100,7 +102,7 @@ export default function ProfilGuru() {
         setLoading(false);
       } catch (error) {
         console.error('Error during authentication check:', error);
-        router.push('/login');
+        router.push('/');
       }
     };
 

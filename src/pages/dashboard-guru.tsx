@@ -59,13 +59,15 @@ export default function DashboardGuru() {
   };
 
   useEffect(() => {
+    if (!router.isReady) return;
+
     const checkGuruAuth = async () => {
       try {
         // Check if guru is logged in
         const guruSession = localStorage.getItem('guru_session');
 
         if (!guruSession) {
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -77,7 +79,7 @@ export default function DashboardGuru() {
         if (guruError || !guru) {
           console.error('Error fetching guru data:', guruError);
           localStorage.removeItem('guru_session');
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -89,7 +91,7 @@ export default function DashboardGuru() {
         setLoading(false);
       } catch (error) {
         console.error('Error checking guru auth:', error);
-        router.push('/login');
+        router.push('/');
       }
     };
 

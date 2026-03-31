@@ -92,7 +92,7 @@ export default function DashboardSiswa() {
       try {
         const siswaSession = localStorage.getItem('siswa_session');
         if (!siswaSession) {
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -111,7 +111,7 @@ export default function DashboardSiswa() {
       } catch (error) {
         console.error('Error loading siswa dashboard:', error);
         localStorage.removeItem('siswa_session');
-        router.push('/login');
+        router.push('/');
       } finally {
         setLoading(false);
       }

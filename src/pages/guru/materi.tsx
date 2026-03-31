@@ -268,7 +268,7 @@ export default function MateriGuru() {
 
         if (!guruSession) {
           console.log('❌ No guru session found, redirecting to login');
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -295,7 +295,7 @@ export default function MateriGuru() {
         console.log('✅ Loading complete');
       } catch (error) {
         console.error('❌ Error checking guru auth:', error);
-        router.push('/login');
+        router.push('/');
       }
     };
 

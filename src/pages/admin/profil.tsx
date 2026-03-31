@@ -54,12 +54,14 @@ export default function ProfilAdmin() {
   };
 
   useEffect(() => {
+    if (!router.isReady) return;
+
     const checkAdminAuth = async () => {
       try {
         const adminSession = localStorage.getItem('admin_session');
 
         if (!adminSession) {
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -72,7 +74,7 @@ export default function ProfilAdmin() {
         if (!response.ok) {
           console.error('Error fetching admin profile:', data.error);
           localStorage.removeItem('admin_session');
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -86,7 +88,7 @@ export default function ProfilAdmin() {
         setLoading(false);
       } catch (error) {
         console.error('Error during authentication check:', error);
-        router.push('/login');
+        router.push('/');
       }
     };
 

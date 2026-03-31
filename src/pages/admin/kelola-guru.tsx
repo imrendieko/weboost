@@ -87,12 +87,14 @@ export default function KelolaGuru() {
   };
 
   useEffect(() => {
+    if (!router.isReady) return;
+
     const checkAdminAuth = async () => {
       try {
         const adminSession = localStorage.getItem('admin_session');
 
         if (!adminSession) {
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -103,7 +105,7 @@ export default function KelolaGuru() {
         if (adminError || !admin) {
           console.error('Error fetching admin data:', adminError);
           localStorage.removeItem('admin_session');
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -113,7 +115,7 @@ export default function KelolaGuru() {
         setLoading(false);
       } catch (error) {
         console.error('Error checking admin auth:', error);
-        router.push('/login');
+        router.push('/');
       }
     };
 

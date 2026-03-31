@@ -291,7 +291,7 @@ export default function PBLSiswa() {
       try {
         const rawSession = localStorage.getItem('siswa_session');
         if (!rawSession) {
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -333,7 +333,7 @@ export default function PBLSiswa() {
         }
       } catch (error) {
         console.error('Error loading pbl siswa:', error);
-        router.push('/login');
+        router.push('/');
       }
     };
 

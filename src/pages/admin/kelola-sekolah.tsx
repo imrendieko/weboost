@@ -68,7 +68,7 @@ export default function KelolaSekolah() {
         const adminSession = localStorage.getItem('admin_session');
 
         if (!adminSession) {
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -79,7 +79,7 @@ export default function KelolaSekolah() {
         if (adminError || !admin) {
           console.error('Error fetching admin data:', adminError);
           localStorage.removeItem('admin_session');
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -88,7 +88,7 @@ export default function KelolaSekolah() {
         setLoading(false);
       } catch (error) {
         console.error('Error checking admin auth:', error);
-        router.push('/login');
+        router.push('/');
       }
     };
 

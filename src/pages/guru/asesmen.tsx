@@ -30,12 +30,14 @@ export default function KelolAsesmen() {
 
   // Check authentication & fetch data
   useEffect(() => {
+    if (!router.isReady) return;
+
     const checkGuruAuth = async () => {
       try {
         const guruSession = localStorage.getItem('guru_session');
 
         if (!guruSession) {
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -47,7 +49,7 @@ export default function KelolAsesmen() {
         setLoading(false);
       } catch (error) {
         console.error('Error checking guru auth:', error);
-        router.push('/login');
+        router.push('/');
       }
     };
 

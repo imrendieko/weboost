@@ -44,7 +44,7 @@ export default function AsesmenSiswa() {
     const loadData = async () => {
       const rawSession = localStorage.getItem('siswa_session');
       if (!rawSession) {
-        router.push('/login');
+        router.push('/');
         return;
       }
 

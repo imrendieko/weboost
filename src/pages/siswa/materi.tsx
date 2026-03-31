@@ -221,7 +221,7 @@ export default function MateriSiswa() {
       try {
         const rawSession = localStorage.getItem('siswa_session');
         if (!rawSession) {
-          router.push('/login');
+          router.push('/');
           return;
         }
 

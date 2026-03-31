@@ -71,11 +71,13 @@ export default function ProfilSiswa() {
   };
 
   useEffect(() => {
+    if (!router.isReady) return;
+
     const loadProfile = async () => {
       try {
         const rawSession = localStorage.getItem('siswa_session');
         if (!rawSession) {
-          router.push('/login');
+          router.push('/');
           return;
         }
 
@@ -85,7 +87,7 @@ export default function ProfilSiswa() {
 
         if (siswaError || !siswa) {
           localStorage.removeItem('siswa_session');
-          router.push('/login');
+          router.push('/');
           return;
         }
 
