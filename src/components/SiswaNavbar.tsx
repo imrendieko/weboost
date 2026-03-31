@@ -110,7 +110,7 @@ export default function SiswaNavbar({ siswaName }: SiswaNavbarProps) {
           >
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="flex items-center gap-2 text-white hover:text-[#0080FF] transition-colors duration-300 font-medium relative group px-4 py-2.5 rounded-xl bg-white/5 border border-white/20 hover:bg-white/15 shadow-[0_4px_15px_rgba(0,128,255,0.3)]"
+              className="flex items-center gap-2 text-white transition-all duration-300 font-medium relative group px-4 py-2.5 rounded-xl bg-white/5 border border-white/20 hover:bg-white/15 shadow-[0_4px_15px_rgba(0,128,255,0.3)]"
             >
               <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
                 <FaUserCircle
