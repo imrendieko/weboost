@@ -232,6 +232,31 @@ export default function SiswaKerjakanAsesmen() {
     });
   }, [quizData]);
 
+  // Save answers to localStorage whenever they change
+  useEffect(() => {
+    if (asesmenId) {
+      const key = `quiz_answers_${asesmenId}`;
+      localStorage.setItem(key, JSON.stringify(answers));
+    }
+  }, [answers, asesmenId]);
+
+  // Restore answers from localStorage when component mounts
+  useEffect(() => {
+    if (asesmenId && quizData) {
+      const key = `quiz_answers_${asesmenId}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        try {
+          const restored = JSON.parse(saved);
+          setAnswers(restored);
+          console.log('✅ Answers restored from localStorage:', restored);
+        } catch (e) {
+          console.error('Error restoring answers:', e);
+        }
+      }
+    }
+  }, [asesmenId, quizData]);
+
   const soal = useMemo(() => quizData?.soal || [], [quizData]);
   const currentSoal = soal[currentIndex] || null;
 
@@ -309,6 +334,10 @@ export default function SiswaKerjakanAsesmen() {
           message: 'Waktu habis. Jawaban Anda telah dikumpulkan otomatis.',
           type: 'success',
         });
+        // Clear localStorage after submit
+        if (asesmenId) {
+          localStorage.removeItem(`quiz_answers_${asesmenId}`);
+        }
         // Delay update attempt saat auto submit agar notifikasi bisa terlihat dulu
         setTimeout(() => {
           setQuizData((current) =>
@@ -321,6 +350,10 @@ export default function SiswaKerjakanAsesmen() {
           );
         }, 2000);
       } else {
+        // Clear localStorage after submit
+        if (asesmenId) {
+          localStorage.removeItem(`quiz_answers_${asesmenId}`);
+        }
         setQuizData((current) =>
           current
             ? {
