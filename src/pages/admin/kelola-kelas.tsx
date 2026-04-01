@@ -482,6 +482,14 @@ export default function KelolaKelas() {
           </div>
         </div>
 
+        {/* Notification */}
+        {notification.show && (
+          <div className={`mb-6 px-4 py-3 rounded-lg ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white flex items-center gap-3`}>
+            {notification.type === 'success' ? <FaCheck /> : <FaTimes />}
+            {notification.message}
+          </div>
+        )}
+
         {/* Breadcrumb */}
         <div className="mb-6 flex items-center gap-2 text-gray-400">
           <Link
