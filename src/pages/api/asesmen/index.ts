@@ -13,11 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const idElemen = parseInt(id_elemen as string, 10);
 
       // Fetch all asesmen by elemen - explicitly select to ensure all fields are returned
-      const { data, error } = await supabaseAdmin
-        .from('asesmen')
-        .select('*, kelas_asesmen, elemen_asesmen')
-        .eq('id_elemen', idElemen)
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabaseAdmin.from('asesmen').select('*, kelas_asesmen, elemen_asesmen, acak_soal').eq('id_elemen', idElemen).order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching asesmen:', error);
@@ -54,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === 'POST') {
     try {
-      const { judul_asesmen, sampul_asesmen, guru_asesmen, id_elemen, nilai_asesmen, waktu_mulai, waktu_terakhir, durasi_asesmen, durasi_kuis, kelas_asesmen, elemen_asesmen } = req.body;
+      const { judul_asesmen, sampul_asesmen, guru_asesmen, id_elemen, nilai_asesmen, waktu_mulai, waktu_terakhir, durasi_asesmen, durasi_kuis, kelas_asesmen, elemen_asesmen, acak_soal } = req.body;
 
       console.log('📨 POST /api/asesmen received:', {
         judul_asesmen,
@@ -84,6 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Add optional fields only if provided
       if (kelas_asesmen !== undefined) payload.kelas_asesmen = kelas_asesmen;
       if (elemen_asesmen !== undefined) payload.elemen_asesmen = elemen_asesmen;
+      if (acak_soal !== undefined) payload.acak_soal = acak_soal;
 
       let { data, error } = await supabaseAdmin.from('asesmen').insert([payload]).select().single();
 

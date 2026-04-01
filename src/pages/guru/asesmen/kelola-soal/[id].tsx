@@ -200,6 +200,11 @@ export default function KelolaSoalAsesmen() {
       const data = await res.json();
       console.log('✅ Asesmen data loaded:', data);
       setAsesmenData(data);
+      
+      // Set randomization status from database
+      if (data.acak_soal !== undefined) {
+        setIsSoalRandomized(data.acak_soal);
+      }
 
       // Fetch tujuan pembelajaran untuk elemen ini
       if (data.id_elemen) {
@@ -840,6 +845,7 @@ export default function KelolaSoalAsesmen() {
 
     try {
       let updatedList: SoalAsesmen[];
+      let newRandomizedStatus = false;
 
       if (isSoalRandomized) {
         // Cancel randomize - restore original order
@@ -862,6 +868,21 @@ export default function KelolaSoalAsesmen() {
             }),
           ),
         );
+
+        // Save randomization status to database
+        await fetch(`/api/asesmen/${idAsesmen}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            judul_asesmen: asesmenData?.judul_asesmen,
+            sampul_asesmen: asesmenData?.sampul_asesmen,
+            waktu_mulai: asesmenData?.waktu_mulai,
+            waktu_terakhir: asesmenData?.waktu_terakhir,
+            nilai_asesmen: asesmenData?.nilai_asesmen,
+            durasi_asesmen: asesmenData?.durasi_asesmen,
+            acak_soal: false,
+          }),
+        });
 
         setSoalList(updatedList);
         setIsSoalRandomized(false);
@@ -890,6 +911,21 @@ export default function KelolaSoalAsesmen() {
             }),
           ),
         );
+
+        // Save randomization status to database
+        await fetch(`/api/asesmen/${idAsesmen}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            judul_asesmen: asesmenData?.judul_asesmen,
+            sampul_asesmen: asesmenData?.sampul_asesmen,
+            waktu_mulai: asesmenData?.waktu_mulai,
+            waktu_terakhir: asesmenData?.waktu_terakhir,
+            nilai_asesmen: asesmenData?.nilai_asesmen,
+            durasi_asesmen: asesmenData?.durasi_asesmen,
+            acak_soal: true,
+          }),
+        });
 
         const sortedList = updatedList.sort((a, b) => a.urutan_soal - b.urutan_soal);
         setSoalList(sortedList);

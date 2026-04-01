@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'GET') {
     try {
       // Get asesmen with related data
-      const { data, error } = await supabaseAdmin.from('asesmen').select('*, kelas_asesmen, elemen_asesmen').eq('id_asesmen', idAsesmen).single();
+      const { data, error } = await supabaseAdmin.from('asesmen').select('*, kelas_asesmen, elemen_asesmen, acak_soal').eq('id_asesmen', idAsesmen).single();
 
       if (error) {
         console.error('Error fetching asesmen:', error);
@@ -43,7 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === 'PUT') {
     try {
-      const { judul_asesmen, sampul_asesmen, waktu_mulai, waktu_terakhir, nilai_asesmen, durasi_asesmen, durasi_kuis, kelas_asesmen, elemen_asesmen } = req.body;
+      const { judul_asesmen, sampul_asesmen, waktu_mulai, waktu_terakhir, nilai_asesmen, durasi_asesmen, durasi_kuis, kelas_asesmen, elemen_asesmen, acak_soal } = req.body;
 
       const payload: any = {
         judul_asesmen,
@@ -57,6 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Add optional fields only if provided
       if (kelas_asesmen !== undefined) payload.kelas_asesmen = kelas_asesmen;
       if (elemen_asesmen !== undefined) payload.elemen_asesmen = elemen_asesmen;
+      if (acak_soal !== undefined) payload.acak_soal = acak_soal;
 
       let { data, error } = await supabaseAdmin.from('asesmen').update(payload).eq('id_asesmen', idAsesmen).select().single();
 
