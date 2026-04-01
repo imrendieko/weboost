@@ -214,17 +214,17 @@ export default function SiswaKerjakanAsesmen() {
       let changed = false;
 
       quizData.soal.forEach((item) => {
-        if (item.tipe_soal !== 'baris_kode') {
-          return;
-        }
-
-        if (typeof next[item.id_soal] === 'string') {
-          return;
-        }
-
-        if ((item.teks_jawaban || '').trim().length > 0) {
-          next[item.id_soal] = item.teks_jawaban || '';
-          changed = true;
+        // Initialize baris_kode type questions with teks_jawaban if it exists
+        if (item.tipe_soal === 'baris_kode') {
+          const currentAnswer = next[item.id_soal];
+          const hasTeksJawaban = (item.teks_jawaban || '').trim().length > 0;
+          
+          // If no current answer and has teks_jawaban, initialize with it
+          if (!currentAnswer && hasTeksJawaban) {
+            next[item.id_soal] = item.teks_jawaban || '';
+            changed = true;
+            console.log(`✅ Initialized soal ${item.id_soal} with teks_jawaban`);
+          }
         }
       });
 
@@ -242,20 +242,29 @@ export default function SiswaKerjakanAsesmen() {
 
   // Restore answers from localStorage when component mounts
   useEffect(() => {
-    if (asesmenId && quizData) {
+    if (asesmenId && quizData && quizData.soal.length > 0) {
       const key = `quiz_answers_${asesmenId}`;
       const saved = localStorage.getItem(key);
       if (saved) {
         try {
           const restored = JSON.parse(saved);
-          setAnswers(restored);
-          console.log('✅ Answers restored from localStorage:', restored);
+          setAnswers((current) => {
+            // Merge: Keep teks_jawaban initialization, override only if localStorage has non-empty values
+            const merged = { ...current };
+            Object.entries(restored).forEach(([idSoalStr, answer]) => {
+              if (answer && typeof answer === 'string' && answer.trim().length > 0) {
+                merged[Number(idSoalStr)] = answer;
+              }
+            });
+            console.log('✅ Answers restored from localStorage:', merged);
+            return merged;
+          });
         } catch (e) {
           console.error('Error restoring answers:', e);
         }
       }
     }
-  }, [asesmenId, quizData]);
+  }, [asesmenId, quizData?.soal?.length]);
 
   const soal = useMemo(() => quizData?.soal || [], [quizData]);
   const currentSoal = soal[currentIndex] || null;

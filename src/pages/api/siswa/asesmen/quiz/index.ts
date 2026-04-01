@@ -113,6 +113,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       pilihan_ganda: pilihanMap[item.id_soal] || [],
     }));
 
+    // Log soal dengan teks_jawaban
+    soalList.forEach((soal) => {
+      if (soal.tipe_soal === 'baris_kode' && soal.teks_jawaban) {
+        console.log(`✅ Soal baris_kode ${soal.id_soal} has teks_jawaban:`, soal.teks_jawaban.substring(0, 100));
+      }
+    });
+
     // Randomize soal if acak_soal is true
     if (asesmen?.acak_soal === true) {
       soalList = shuffleArray(soalList);
