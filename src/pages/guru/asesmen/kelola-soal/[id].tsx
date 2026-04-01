@@ -391,21 +391,6 @@ export default function KelolaSoalAsesmen() {
     // Auto-save current soal before switching
     if (editorState && selectedSoalId !== soal.id_soal) {
       await autoSaveCurrentSoal();
-
-      // Update soalList dengan data terbaru dari editorState
-      setSoalList((prevList) =>
-        prevList.map((s) =>
-          s.id_soal === editorState.id_soal
-            ? {
-                ...s,
-                teks_soal: editorState.teks_soal,
-                nilai_soal: editorState.nilai_soal,
-                tipe_soal: editorState.tipe_soal,
-                pilihan_ganda: editorState.tipe_soal === 'pilihan_ganda' ? editorState.pilihan_ganda : s.pilihan_ganda,
-              }
-            : s,
-        ),
-      );
     }
 
     setSelectedSoalId(soal.id_soal);
@@ -826,23 +811,6 @@ export default function KelolaSoalAsesmen() {
 
     // Auto-save before reordering
     await autoSaveCurrentSoal();
-
-    // Update soalList dengan data terbaru dari editorState agar tidak hilang saat pindah soal
-    if (editorState && selectedSoalId) {
-      setSoalList((prevList) =>
-        prevList.map((soal) =>
-          soal.id_soal === editorState.id_soal
-            ? {
-                ...soal,
-                teks_soal: editorState.teks_soal,
-                nilai_soal: editorState.nilai_soal,
-                tipe_soal: editorState.tipe_soal,
-                pilihan_ganda: editorState.tipe_soal === 'pilihan_ganda' ? editorState.pilihan_ganda : soal.pilihan_ganda,
-              }
-            : soal,
-        ),
-      );
-    }
 
     try {
       const draggedIndex = soalList.findIndex((s) => s.id_soal === draggedSoalId);
