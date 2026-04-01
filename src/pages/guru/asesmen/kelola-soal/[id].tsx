@@ -398,14 +398,33 @@ export default function KelolaSoalAsesmen() {
     // Initialize editor state
     const pilihan = (soal.pilihan_ganda || []).sort((a, b) => a.urutan_pilgan - b.urutan_pilgan);
 
-    const pilihan_ganda_editor: PilihanGandaEditor[] = pilihan.map((p) => ({
-      id_pilgan: p.id_pilgan,
-      opsi_pilgan: p.opsi_pilgan,
-      urutan_pilgan: p.urutan_pilgan,
-      teks_pilgan: p.teks_pilgan || '',
-      gambar_pilgan: p.gambar_pilgan || '',
-      kunci_pilgan: p.kunci_pilgan,
-    }));
+    // For pilihan_ganda type, ensure we have all 5 options (A-E) with proper data
+    let pilihan_ganda_editor: PilihanGandaEditor[];
+    if (soal.tipe_soal === 'pilihan_ganda') {
+      // Build complete A-E options, preserving existing data
+      pilihan_ganda_editor = buildPilihanGandaEditor(
+        pilihan.map((p) => ({
+          id_pilgan: p.id_pilgan,
+          opsi_pilgan: p.opsi_pilgan,
+          urutan_pilgan: p.urutan_pilgan,
+          teks_pilgan: p.teks_pilgan || '',
+          gambar_pilgan: p.gambar_pilgan || '',
+          kunci_pilgan: p.kunci_pilgan,
+        }))
+      );
+    } else {
+      // For non-pilihan_ganda types, just map the data
+      pilihan_ganda_editor = pilihan.map((p) => ({
+        id_pilgan: p.id_pilgan,
+        opsi_pilgan: p.opsi_pilgan,
+        urutan_pilgan: p.urutan_pilgan,
+        teks_pilgan: p.teks_pilgan || '',
+        gambar_pilgan: p.gambar_pilgan || '',
+        kunci_pilgan: p.kunci_pilgan,
+      }));
+    }
+
+    console.log('📝 Loading soal with pilihan_ganda:', pilihan_ganda_editor);
 
     setEditorState({
       id_soal: soal.id_soal,
@@ -417,7 +436,7 @@ export default function KelolaSoalAsesmen() {
       id_tp: soal.id_tp,
       tipe_soal: soal.tipe_soal as TipeSoal,
       kunci_teks: soal.kunci_teks,
-      pilihan_ganda: buildPilihanGandaEditor(pilihan_ganda_editor),
+      pilihan_ganda: pilihan_ganda_editor,
     });
   };
 
