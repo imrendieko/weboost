@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import StarBackground from '@/components/StarBackground';
 import SiswaNavbar from '@/components/SiswaNavbar';
+import ExitAssessmentWarning from '@/components/ExitAssessmentWarning';
 import { FaArrowLeft, FaArrowRight, FaCheckCircle, FaClock, FaCode, FaFlagCheckered, FaListOl, FaPaperPlane, FaPlay, FaStopwatch } from 'react-icons/fa';
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
@@ -117,6 +118,8 @@ export default function SiswaKerjakanAsesmen() {
     type: 'info',
   });
   const [showTimeoutNotification, setShowTimeoutNotification] = useState(false);
+  const [showExitWarning, setShowExitWarning] = useState(false);
+  const [pendingExit, setPendingExit] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -151,6 +154,41 @@ export default function SiswaKerjakanAsesmen() {
       loadData();
     }
   }, [router, asesmenId]);
+
+  // Handle exit warning for the assessment page
+  useEffect(() => {
+    // Only add exit warning if quiz is ongoing (not intro, not completed)
+    if (!quizData || showIntro || quizData.attempt) {
+      return;
+    }
+
+    // Handle page unload (browser close, tab close, reload, etc)
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+      return false;
+    };
+
+    // Handle router navigation attempts
+    const handleRouteChangeStart = (url: string) => {
+      // Prevent route change and show warning instead
+      if (url !== router.asPath) {
+        router.events.emit('routeChangeError');
+        setPendingExit(url);
+        setShowExitWarning(true);
+        throw 'Route change prevented';
+      }
+    };
+
+    // Add event listeners only when quiz is active
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    router.events.on('routeChangeStart', handleRouteChangeStart);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      router.events.off('routeChangeStart', handleRouteChangeStart);
+    };
+  }, [quizData, showIntro, router.asPath, router.events]);
 
   useEffect(() => {
     if (!quizData || showIntro || quizData.attempt || !quizData.asesmen) {
@@ -218,7 +256,7 @@ export default function SiswaKerjakanAsesmen() {
         if (item.tipe_soal === 'baris_kode') {
           const currentAnswer = next[item.id_soal];
           const hasTeksJawaban = (item.teks_jawaban || '').trim().length > 0;
-          
+
           // If no current answer and has teks_jawaban, initialize with it
           if (!currentAnswer && hasTeksJawaban) {
             next[item.id_soal] = item.teks_jawaban || '';
@@ -300,6 +338,24 @@ export default function SiswaKerjakanAsesmen() {
       ...current,
       [idSoal]: value,
     }));
+  };
+
+  const handleExitConfirm = async () => {
+    // Auto submit the assessment when exiting
+    await handleSubmit(true);
+    setShowExitWarning(false);
+
+    // Navigate away after submission
+    if (pendingExit) {
+      router.push(pendingExit);
+    } else {
+      router.back();
+    }
+  };
+
+  const handleExitCancel = () => {
+    setShowExitWarning(false);
+    setPendingExit(null);
   };
 
   const handleSubmit = async (autoSubmit = false) => {
@@ -490,7 +546,6 @@ export default function SiswaKerjakanAsesmen() {
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
       <StarBackground />
-      <SiswaNavbar siswaName={siswaSession.nama_siswa} />
 
       {startCountdown !== null && (
         <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center px-6">
@@ -759,6 +814,14 @@ export default function SiswaKerjakanAsesmen() {
           </div>
         </div>
       )}
+
+      {/* Exit Assessment Warning */}
+      <ExitAssessmentWarning
+        show={showExitWarning}
+        onConfirm={handleExitConfirm}
+        onCancel={handleExitCancel}
+        isLoading={submitting}
+      />
     </div>
   );
 }
