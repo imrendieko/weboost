@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import GuruNavbar from '@/components/GuruNavbar';
 import StarBackground from '@/components/StarBackground';
 import supabase from '@/lib/db';
-import { FaArrowLeft, FaPlus, FaGripVertical, FaTrash, FaCopy, FaImage, FaCheck, FaTimes, FaExclamationTriangle, FaSave, FaCode, FaAlignLeft, FaListUl, FaChevronDown, FaBold, FaItalic, FaUnderline } from 'react-icons/fa';
+import { FaArrowLeft, FaPlus, FaGripVertical, FaTrash, FaCopy, FaImage, FaCheck, FaTimes, FaExclamationTriangle, FaSave, FaCode, FaAlignLeft, FaListUl, FaChevronDown, FaBold, FaItalic, FaUnderline, FaRandom } from 'react-icons/fa';
 import { Asesmen, SoalAsesmen, PilihanGandaEditor, EditorSoalState, TujuanPembelajaran, GuruData } from '@/types/asesmen.d';
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
@@ -834,6 +834,46 @@ export default function KelolaSoalAsesmen() {
     }
   };
 
+  const handleRandomizeSoal = async () => {
+    if (!soalList || soalList.length === 0 || !idAsesmen) return;
+
+    try {
+      // Create array of indices and shuffle them
+      const indices = Array.from({ length: soalList.length }, (_, i) => i);
+      const shuffled = indices.sort(() => Math.random() - 0.5);
+
+      // Create randomized list with new urutan_soal values
+      const randomizedSoal = soalList.map((soal, currentIndex) => ({
+        ...soal,
+        urutan_soal: shuffled[currentIndex] + 1,
+      }));
+
+      // Update all soal with new urutan
+      await Promise.all(
+        randomizedSoal.map((soal) =>
+          fetch(`/api/asesmen/soal/${soal.id_soal}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              urutan_soal: soal.urutan_soal,
+              teks_soal: soal.teks_soal,
+              nilai_soal: soal.nilai_soal,
+              tipe_soal: soal.tipe_soal,
+            }),
+          })
+        )
+      );
+
+      // Sort by new urutan_soal and update state
+      const sortedList = randomizedSoal.sort((a, b) => a.urutan_soal - b.urutan_soal);
+      setSoalList(sortedList);
+      showNotification('Soal berhasil diacak!', 'success');
+    } catch (error) {
+      console.error('Error randomizing soal:', error);
+      showNotification('Gagal mengacak soal', 'error');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -882,6 +922,19 @@ export default function KelolaSoalAsesmen() {
                   <FaPlus size={14} />
                 </button>
               </div>
+
+              {soalList.length > 0 && (
+                <div className="bg-gray-800/30 border-b border-white/10 px-3 sm:px-4 py-2 flex items-center gap-2">
+                  <button
+                    onClick={handleRandomizeSoal}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded text-blue-400 hover:text-blue-300 transition-all whitespace-nowrap"
+                    title="Acak urutan soal untuk siswa"
+                  >
+                    <FaRandom size={12} />
+                    Acak Soal
+                  </button>
+                </div>
+              )}
 
               <div className="flex-1 overflow-y-auto">
                 {soalList.length === 0 ? (
