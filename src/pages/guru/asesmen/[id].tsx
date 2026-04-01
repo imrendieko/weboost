@@ -578,16 +578,6 @@ export default function DaftarAsesmen() {
 
       <div className="relative z-10 pt-24 pb-12 px-6">
         <div className="max-w-7xl mx-auto">
-          {/* Header Section */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">
-                Selamat Datang, <span className="text-[#FFFFFF]">{guruData?.nama_guru.split(' ')[0]}!</span>
-              </h1>
-              <p className="text-gray-400">{getCurrentDate()}</p>
-            </div>
-          </div>
-
           {/* Back & Title */}
           <div className="mb-6">
             <button
