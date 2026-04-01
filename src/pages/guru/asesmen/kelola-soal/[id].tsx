@@ -109,6 +109,7 @@ export default function KelolaSoalAsesmen() {
   const [draggedSoalId, setDraggedSoalId] = useState<number | null>(null);
   const [editorState, setEditorState] = useState<EditorSoalState | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isSoalRandomized, setIsSoalRandomized] = useState(false);
   const [notification, setNotification] = useState<NotificationState>({
     show: false,
     message: '',
@@ -838,39 +839,66 @@ export default function KelolaSoalAsesmen() {
     if (!soalList || soalList.length === 0 || !idAsesmen) return;
 
     try {
-      // Create array of indices and shuffle them
-      const indices = Array.from({ length: soalList.length }, (_, i) => i);
-      const shuffled = indices.sort(() => Math.random() - 0.5);
+      let updatedList: SoalAsesmen[];
 
-      // Create randomized list with new urutan_soal values
-      const randomizedSoal = soalList.map((soal, currentIndex) => ({
-        ...soal,
-        urutan_soal: shuffled[currentIndex] + 1,
-      }));
+      if (isSoalRandomized) {
+        // Cancel randomize - restore original order
+        updatedList = soalList.map((soal, index) => ({
+          ...soal,
+          urutan_soal: index + 1,
+        }));
 
-      // Update all soal with new urutan
-      await Promise.all(
-        randomizedSoal.map((soal) =>
-          fetch(`/api/asesmen/soal/${soal.id_soal}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              urutan_soal: soal.urutan_soal,
-              teks_soal: soal.teks_soal,
-              nilai_soal: soal.nilai_soal,
-              tipe_soal: soal.tipe_soal,
-            }),
-          })
-        )
-      );
+        await Promise.all(
+          updatedList.map((soal) =>
+            fetch(`/api/asesmen/soal/${soal.id_soal}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                urutan_soal: soal.urutan_soal,
+                teks_soal: soal.teks_soal,
+                nilai_soal: soal.nilai_soal,
+                tipe_soal: soal.tipe_soal,
+              }),
+            })
+          )
+        );
 
-      // Sort by new urutan_soal and update state
-      const sortedList = randomizedSoal.sort((a, b) => a.urutan_soal - b.urutan_soal);
-      setSoalList(sortedList);
-      showNotification('Soal berhasil diacak!', 'success');
+        setSoalList(updatedList);
+        setIsSoalRandomized(false);
+        showNotification('Pengacakan soal dibatalkan!', 'success');
+      } else {
+        // Randomize order
+        const indices = Array.from({ length: soalList.length }, (_, i) => i);
+        const shuffled = indices.sort(() => Math.random() - 0.5);
+
+        updatedList = soalList.map((soal, currentIndex) => ({
+          ...soal,
+          urutan_soal: shuffled[currentIndex] + 1,
+        }));
+
+        await Promise.all(
+          updatedList.map((soal) =>
+            fetch(`/api/asesmen/soal/${soal.id_soal}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                urutan_soal: soal.urutan_soal,
+                teks_soal: soal.teks_soal,
+                nilai_soal: soal.nilai_soal,
+                tipe_soal: soal.tipe_soal,
+              }),
+            })
+          )
+        );
+
+        const sortedList = updatedList.sort((a, b) => a.urutan_soal - b.urutan_soal);
+        setSoalList(sortedList);
+        setIsSoalRandomized(true);
+        showNotification('Soal berhasil diacak!', 'success');
+      }
     } catch (error) {
       console.error('Error randomizing soal:', error);
-      showNotification('Gagal mengacak soal', 'error');
+      showNotification(isSoalRandomized ? 'Gagal membatalkan pengacakan' : 'Gagal mengacak soal', 'error');
     }
   };
 
@@ -927,11 +955,15 @@ export default function KelolaSoalAsesmen() {
                 <div className="bg-gray-800/30 border-b border-white/10 px-3 sm:px-4 py-2 flex items-center gap-2">
                   <button
                     onClick={handleRandomizeSoal}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded text-blue-400 hover:text-blue-300 transition-all whitespace-nowrap"
-                    title="Acak urutan soal untuk siswa"
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm rounded transition-all whitespace-nowrap ${
+                      isSoalRandomized
+                        ? 'bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/50 text-emerald-400 hover:text-emerald-300'
+                        : 'bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 text-blue-400 hover:text-blue-300'
+                    }`}
+                    title={isSoalRandomized ? 'Batalkan pengacakan soal' : 'Acak urutan soal untuk siswa'}
                   >
                     <FaRandom size={12} />
-                    Acak Soal
+                    {isSoalRandomized ? 'Soal Teracak ✓' : 'Acak Soal'}
                   </button>
                 </div>
               )}
