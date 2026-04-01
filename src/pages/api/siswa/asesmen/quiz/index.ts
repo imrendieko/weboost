@@ -58,7 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const { data: soalRows, error: soalError } = await supabaseAdmin
       .from('soal_asesmen')
-      .select('id_soal,teks_soal,teks_jawaban,gambar_soal,nilai_soal,urutan_soal,tipe_soal')
+      .select('id_soal,teks_soal,teks_jawaban,gambar_soal,nilai_soal,urutan_soal,tipe_soal,id_tp,kunci_teks')
       .eq('id_asesmen', idAsesmen)
       .order('urutan_soal', { ascending: true });
 
