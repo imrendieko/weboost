@@ -248,9 +248,15 @@ export default function DaftarAsesmen() {
   };
 
   const handleEditAsesmen = (asesmen: Asesmen) => {
+    console.log('📝 Editing asesmen:', asesmen);
     setEditingAsesmen(asesmen);
     const mulaiInput = toLocalDateTimeInput(asesmen.waktu_mulai);
     const terakhirInput = toLocalDateTimeInput(asesmen.waktu_terakhir);
+
+    const kelasValue = (asesmen as any).kelas_asesmen || '';
+    const elemenValue = (asesmen as any).elemen_asesmen || '';
+
+    console.log('Kelas value:', kelasValue, 'Elemen value:', elemenValue);
 
     setFormData({
       judul_asesmen: asesmen.judul_asesmen,
@@ -261,8 +267,8 @@ export default function DaftarAsesmen() {
       waktu_terakhir_date: terakhirInput.date,
       waktu_terakhir_time: terakhirInput.time,
       durasi_asesmen: asesmen.durasi_asesmen ? String(asesmen.durasi_asesmen) : asesmen.durasi_kuis ? String(asesmen.durasi_kuis) : '',
-      kelas_asesmen: (asesmen as any).kelas_asesmen ? String((asesmen as any).kelas_asesmen) : '',
-      elemen_asesmen: (asesmen as any).elemen_asesmen ? String((asesmen as any).elemen_asesmen) : '',
+      kelas_asesmen: kelasValue ? String(kelasValue) : '',
+      elemen_asesmen: elemenValue ? String(elemenValue) : '',
     });
     setOpenMenuId(null);
     setShowForm(true);
@@ -846,7 +852,7 @@ export default function DaftarAsesmen() {
                   {kelasList.map((kelas) => (
                     <option
                       key={kelas.id_kelas}
-                      value={kelas.id_kelas}
+                      value={String(kelas.id_kelas)}
                     >
                       {kelas.nama_kelas}
                     </option>
@@ -866,7 +872,7 @@ export default function DaftarAsesmen() {
                   {elemenList.map((elemen) => (
                     <option
                       key={elemen.id_elemen}
-                      value={elemen.id_elemen}
+                      value={String(elemen.id_elemen)}
                     >
                       {elemen.nama_elemen}
                     </option>

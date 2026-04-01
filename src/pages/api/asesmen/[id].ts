@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'GET') {
     try {
       // Get asesmen with related data
-      const { data, error } = await supabaseAdmin.from('asesmen').select('*').eq('id_asesmen', idAsesmen).single();
+      const { data, error } = await supabaseAdmin.from('asesmen').select('*, kelas_asesmen, elemen_asesmen').eq('id_asesmen', idAsesmen).single();
 
       if (error) {
         console.error('Error fetching asesmen:', error);

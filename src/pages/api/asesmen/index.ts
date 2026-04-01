@@ -12,8 +12,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const idElemen = parseInt(id_elemen as string, 10);
 
-      // Fetch all asesmen by elemen
-      const { data, error } = await supabaseAdmin.from('asesmen').select('*').eq('id_elemen', idElemen).order('created_at', { ascending: false });
+      // Fetch all asesmen by elemen - explicitly select to ensure all fields are returned
+      const { data, error } = await supabaseAdmin
+        .from('asesmen')
+        .select('*, kelas_asesmen, elemen_asesmen')
+        .eq('id_elemen', idElemen)
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching asesmen:', error);
