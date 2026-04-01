@@ -425,7 +425,7 @@ export default function KelolaSoalAsesmen() {
           teks_pilgan: p.teks_pilgan || '',
           gambar_pilgan: p.gambar_pilgan || '',
           kunci_pilgan: p.kunci_pilgan,
-        }))
+        })),
       );
     } else {
       // For non-pilihan_ganda types, just map the data
@@ -866,6 +866,7 @@ export default function KelolaSoalAsesmen() {
             teks_soal: draggedSoal.teks_soal,
             nilai_soal: draggedSoal.nilai_soal,
             tipe_soal: draggedSoal.tipe_soal,
+            pilihan_ganda: draggedSoal.tipe_soal === 'pilihan_ganda' ? draggedSoal.pilihan_ganda : [],
           }),
         }),
         fetch(`/api/asesmen/soal/${targetSoal.id_soal}`, {
@@ -876,6 +877,7 @@ export default function KelolaSoalAsesmen() {
             teks_soal: targetSoal.teks_soal,
             nilai_soal: targetSoal.nilai_soal,
             tipe_soal: targetSoal.tipe_soal,
+            pilihan_ganda: targetSoal.tipe_soal === 'pilihan_ganda' ? targetSoal.pilihan_ganda : [],
           }),
         }),
       ]);
