@@ -11,23 +11,32 @@ function parseId(value: string | string[] | undefined): number | null {
 }
 
 async function getAsesmenById(idAsesmen: number) {
-  let { data, error } = await supabaseAdmin.from('asesmen').select('id_asesmen,judul_asesmen,waktu_mulai,waktu_terakhir,durasi_asesmen,durasi_kuis').eq('id_asesmen', idAsesmen).single();
+  let { data, error } = await supabaseAdmin.from('asesmen').select('id_asesmen,judul_asesmen,waktu_mulai,waktu_terakhir,durasi_asesmen,durasi_kuis,acak_soal').eq('id_asesmen', idAsesmen).single();
 
   if (error && error.message?.toLowerCase().includes('durasi_asesmen')) {
-    const fallback = await supabaseAdmin.from('asesmen').select('id_asesmen,judul_asesmen,waktu_mulai,waktu_terakhir,durasi_kuis').eq('id_asesmen', idAsesmen).single();
+    const fallback = await supabaseAdmin.from('asesmen').select('id_asesmen,judul_asesmen,waktu_mulai,waktu_terakhir,durasi_kuis,acak_soal').eq('id_asesmen', idAsesmen).single();
 
     data = fallback.data as any;
     error = fallback.error;
   }
 
   if (error && error.message?.toLowerCase().includes('durasi_kuis')) {
-    const fallback = await supabaseAdmin.from('asesmen').select('id_asesmen,judul_asesmen,waktu_mulai,waktu_terakhir,durasi_asesmen').eq('id_asesmen', idAsesmen).single();
+    const fallback = await supabaseAdmin.from('asesmen').select('id_asesmen,judul_asesmen,waktu_mulai,waktu_terakhir,durasi_asesmen,acak_soal').eq('id_asesmen', idAsesmen).single();
 
     data = fallback.data as any;
     error = fallback.error;
   }
 
   return { data, error };
+}
+
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -98,12 +107,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const latestAttempt = (attemptRows || [])[0];
 
+    // Prepare soal list
+    let soalList = (soalRows || []).map((item) => ({
+      ...item,
+      pilihan_ganda: pilihanMap[item.id_soal] || [],
+    }));
+
+    // Randomize soal if acak_soal is true
+    if (asesmen?.acak_soal === true) {
+      soalList = shuffleArray(soalList);
+    }
+
     return res.status(200).json({
       asesmen,
-      soal: (soalRows || []).map((item) => ({
-        ...item,
-        pilihan_ganda: pilihanMap[item.id_soal] || [],
-      })),
+      soal: soalList,
       attempt: latestAttempt && latestAttempt.status === 'submitted' ? latestAttempt : null,
     });
   } catch (error) {

@@ -906,13 +906,16 @@ export default function KelolaSoalAsesmen() {
         setIsSoalRandomized(false);
         showNotification('Pengacakan soal dibatalkan!', 'success');
       } else {
-        // Randomize order
-        const indices = Array.from({ length: soalList.length }, (_, i) => i);
-        const shuffled = indices.sort(() => Math.random() - 0.5);
+        // Randomize order using Fisher-Yates shuffle
+        const shuffledSoal = [...soalList];
+        for (let i = shuffledSoal.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffledSoal[i], shuffledSoal[j]] = [shuffledSoal[j], shuffledSoal[i]];
+        }
 
-        updatedList = soalList.map((soal, currentIndex) => ({
+        updatedList = shuffledSoal.map((soal, index) => ({
           ...soal,
-          urutan_soal: shuffled[currentIndex] + 1,
+          urutan_soal: index + 1,
         }));
 
         await Promise.all(
