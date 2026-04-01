@@ -200,7 +200,7 @@ export default function KelolaSoalAsesmen() {
       const data = await res.json();
       console.log('✅ Asesmen data loaded:', data);
       setAsesmenData(data);
-      
+
       // Set randomization status from database
       if (data.acak_soal !== undefined) {
         setIsSoalRandomized(data.acak_soal);
@@ -257,13 +257,10 @@ export default function KelolaSoalAsesmen() {
   const autoSaveCurrentSoal = async (): Promise<boolean> => {
     if (!editorState || !idAsesmen) return true;
 
-    // Validate pilihan ganda if applicable
-    if (editorState.tipe_soal === 'pilihan_ganda' && editorState.pilihan_ganda) {
-      const invalidOption = editorState.pilihan_ganda.find((item) => !item.teks_pilgan?.trim() && !item.gambar_pilgan?.trim());
-      if (invalidOption) {
-        // Skip auto-save if validation fails
-        return false;
-      }
+    // For autosave: Only skip if soal text is completely empty, but allow empty pilihan
+    if (editorState.teks_soal?.trim() === '') {
+      console.warn('⚠️ Autosave skipped: Soal text is empty');
+      return false;
     }
 
     try {
