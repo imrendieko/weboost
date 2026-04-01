@@ -50,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === 'POST') {
     try {
-      const { judul_asesmen, sampul_asesmen, guru_asesmen, id_elemen, nilai_asesmen, waktu_mulai, waktu_terakhir, durasi_asesmen, durasi_kuis } = req.body;
+      const { judul_asesmen, sampul_asesmen, guru_asesmen, id_elemen, nilai_asesmen, waktu_mulai, waktu_terakhir, durasi_asesmen, durasi_kuis, kelas_asesmen, elemen_asesmen } = req.body;
 
       console.log('📨 POST /api/asesmen received:', {
         judul_asesmen,
@@ -66,7 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'judul_asesmen, guru_asesmen, dan id_elemen diperlukan' });
       }
 
-      const payload = {
+      const payload: any = {
         judul_asesmen,
         sampul_asesmen: sampul_asesmen || '',
         guru_asesmen,
@@ -76,6 +76,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         waktu_terakhir,
         durasi_asesmen: durasi_asesmen ?? durasi_kuis ?? null,
       };
+
+      // Add optional fields only if provided
+      if (kelas_asesmen !== undefined) payload.kelas_asesmen = kelas_asesmen;
+      if (elemen_asesmen !== undefined) payload.elemen_asesmen = elemen_asesmen;
 
       let { data, error } = await supabaseAdmin.from('asesmen').insert([payload]).select().single();
 

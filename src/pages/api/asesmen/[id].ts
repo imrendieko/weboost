@@ -43,9 +43,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === 'PUT') {
     try {
-      const { judul_asesmen, sampul_asesmen, waktu_mulai, waktu_terakhir, nilai_asesmen, durasi_asesmen, durasi_kuis } = req.body;
+      const { judul_asesmen, sampul_asesmen, waktu_mulai, waktu_terakhir, nilai_asesmen, durasi_asesmen, durasi_kuis, kelas_asesmen, elemen_asesmen } = req.body;
 
-      const payload = {
+      const payload: any = {
         judul_asesmen,
         sampul_asesmen,
         waktu_mulai,
@@ -53,6 +53,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         nilai_asesmen,
         durasi_asesmen: durasi_asesmen ?? durasi_kuis ?? null,
       };
+
+      // Add optional fields only if provided
+      if (kelas_asesmen !== undefined) payload.kelas_asesmen = kelas_asesmen;
+      if (elemen_asesmen !== undefined) payload.elemen_asesmen = elemen_asesmen;
 
       let { data, error } = await supabaseAdmin.from('asesmen').update(payload).eq('id_asesmen', idAsesmen).select().single();
 

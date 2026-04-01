@@ -859,8 +859,8 @@ export default function KelolaSoalAsesmen() {
                 nilai_soal: soal.nilai_soal,
                 tipe_soal: soal.tipe_soal,
               }),
-            })
-          )
+            }),
+          ),
         );
 
         setSoalList(updatedList);
@@ -887,8 +887,8 @@ export default function KelolaSoalAsesmen() {
                 nilai_soal: soal.nilai_soal,
                 tipe_soal: soal.tipe_soal,
               }),
-            })
-          )
+            }),
+          ),
         );
 
         const sortedList = updatedList.sort((a, b) => a.urutan_soal - b.urutan_soal);
