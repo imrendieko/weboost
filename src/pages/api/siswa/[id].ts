@@ -70,12 +70,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (error) {
         console.error('Error deleting siswa:', error);
+        
+        // Check if it's a foreign key constraint error
+        if (error.message && (error.message.includes('foreign key') || error.message.includes('FK') || error.message.includes('violate'))) {
+          return res.status(400).json({ 
+            error: 'Siswa ini sudah pernah mengerjakan penugasan. Hapus semua pengumpulan penugasan terlebih dahulu',
+            code: 'FK_CONSTRAINT'
+          });
+        }
+        
         return res.status(500).json({ error: 'Gagal menghapus data siswa' });
       }
 
       return res.status(200).json({ message: 'Data siswa berhasil dihapus' });
     } catch (error) {
       console.error('Error in delete siswa API:', error);
+      
+      // Check if it's a foreign key constraint error
+      const errorMessage = String(error);
+      if (errorMessage.includes('foreign key') || errorMessage.includes('FK') || errorMessage.includes('violate')) {
+        return res.status(400).json({ 
+          error: 'Siswa ini sudah pernah mengerjakan penugasan. Hapus semua pengumpulan penugasan terlebih dahulu',
+          code: 'FK_CONSTRAINT'
+        });
+      }
+      
       return res.status(500).json({ error: 'Terjadi kesalahan server' });
     }
   }
