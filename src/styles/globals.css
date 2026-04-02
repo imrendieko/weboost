@@ -2029,9 +2029,9 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 
 .auth-bb8-mascot-hero .auth-bb8-bubble {
   top: -26%;
-  left: 50%;
+  left: 42%;
   transform: translateX(-50%);
-  max-width: 82%;
+  max-width: 78%;
   padding: 0.65rem 0.95rem;
   font-size: 1rem;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
@@ -2039,7 +2039,7 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 
 .auth-bb8-mascot-hero .auth-bb8-bubble-tail {
   top: 82%;
-  right: 22%;
+  right: 28%;
 }
 
 .auth-bb8-bubble-tail {
