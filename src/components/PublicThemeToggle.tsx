@@ -46,6 +46,7 @@ const StyledWrapper = styled.div`
     border-radius: 24px;
     transition: left 0.3s ease;
     left: 2px;
+    z-index: 1;
     box-shadow: 0px 8px 18px rgba(37, 99, 235, 0.28);
   }
 
@@ -57,13 +58,25 @@ const StyledWrapper = styled.div`
   .label-text {
     position: relative;
     z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 12px;
     font-weight: 500;
     width: 50%;
+    height: 100%;
     text-align: center;
     transition: color 0.3s ease;
     color: #111827;
     user-select: none;
+  }
+
+  .label-left {
+    margin-left: 0;
+  }
+
+  .label-right {
+    margin-left: auto;
   }
 
   .switch-container.dark .label-text {
@@ -105,8 +118,8 @@ export default function PublicThemeToggle({ mobile = false, className = '' }: Pu
         aria-label={`Aktifkan mode ${isDarkTheme ? 'terang' : 'gelap'}`}
       >
         <div className="switch-track" />
-          <span className={`label-text ${!isDarkTheme ? 'active' : ''}`}>Terang</span>
-          <span className={`label-text ${isDarkTheme ? 'active' : ''}`}>Gelap</span>
+            <span className={`label-text label-left ${!isDarkTheme ? 'active' : ''}`}>Terang</span>
+            <span className={`label-text label-right ${isDarkTheme ? 'active' : ''}`}>Gelap</span>
         <input
           type="checkbox"
           id="color_mode"
