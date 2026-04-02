@@ -84,6 +84,14 @@ const StyledWrapper = styled.div`
     color: #111827;
   }
 
+  .switch-container.dark .label-left {
+    color: #111827;
+  }
+
+  .switch-container.dark .label-right {
+    color: #fff;
+  }
+
   .label-text.active {
     color: #fff;
   }
