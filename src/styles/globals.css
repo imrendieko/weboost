@@ -2135,8 +2135,7 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 
 .auth-bb8-mascot-hero .antennas,
 .auth-bb8-mascot-hero .head {
-  animation: none !important;
-  transform: translate(0, 0) rotate(0deg) !important;
+  transform: translate(0, 0) rotate(0deg);
 }
 
 .auth-bb8-mascot-hero .antennas {
@@ -2152,6 +2151,48 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   height: 24px;
   bottom: 2px;
   left: 54px;
+}
+
+.auth-bb8-mascot-hero:hover .eyes {
+  animation: auth-bb8-eyes-look 1.2s ease-in-out infinite;
+}
+
+.auth-bb8-mascot-hero:hover .head {
+  animation: auth-bb8-head-look-hero 1.2s ease-in-out infinite;
+}
+
+.auth-bb8-mascot-hero:hover .antennas {
+  animation: auth-bb8-antenna-look-hero 1.2s ease-in-out infinite;
+}
+
+@keyframes auth-bb8-head-look-hero {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  35% {
+    transform: translate(8px, 0) rotate(4deg);
+  }
+  70% {
+    transform: translate(-8px, 1px) rotate(-4deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+}
+
+@keyframes auth-bb8-antenna-look-hero {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  35% {
+    transform: translate(6px, -4px) rotate(4deg);
+  }
+  70% {
+    transform: translate(-6px, 4px) rotate(-4deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
 }
 
 .auth-bb8-mascot .antennas {
