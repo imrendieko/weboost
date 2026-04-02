@@ -23,32 +23,34 @@ const StyledWrapper = styled.div`
     position: relative;
     width: 140px;
     height: 30px;
-    background: #e0e0e0;
+    background: #e5e7eb;
     border-radius: 26px;
+    overflow: hidden;
     cursor: pointer;
     transition: background-color 0.3s ease;
     display: flex;
     align-items: center;
     padding: 2px;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.12);
   }
 
   .switch-container.dark {
-    background: #151515;
+    background: #d1d5db;
   }
 
   .switch-track {
     position: absolute;
     width: 70px;
     height: 26px;
-    background: #fff;
+    background: #2563eb;
     border-radius: 24px;
     transition: left 0.3s ease;
     left: 2px;
-    box-shadow: 0px 0px 6px -2px #111;
+    box-shadow: 0px 8px 18px rgba(37, 99, 235, 0.28);
   }
 
   .switch-container.dark .switch-track {
-    background: #3c3c3c;
+    background: #111827;
     left: 68px;
   }
 
@@ -60,12 +62,16 @@ const StyledWrapper = styled.div`
     width: 50%;
     text-align: center;
     transition: color 0.3s ease;
-    color: #666;
+    color: #111827;
     user-select: none;
   }
 
   .switch-container.dark .label-text {
-    color: #999;
+    color: #111827;
+  }
+
+  .label-text.active {
+    color: #fff;
   }
 
   input[type='checkbox'] {
@@ -96,10 +102,11 @@ export default function PublicThemeToggle({ mobile = false, className = '' }: Pu
         onClick={toggleTheme}
         role="switch"
         aria-checked={isDarkTheme}
-        aria-label={`Aktifkan ${isDarkTheme ? 'mode terang' : 'mode gelap'}`}
+        aria-label={`Aktifkan mode ${isDarkTheme ? 'terang' : 'gelap'}`}
       >
         <div className="switch-track" />
-        <span className="label-text">{isDarkTheme ? 'Dark' : 'Light'}</span>
+          <span className={`label-text ${!isDarkTheme ? 'active' : ''}`}>Terang</span>
+          <span className={`label-text ${isDarkTheme ? 'active' : ''}`}>Gelap</span>
         <input
           type="checkbox"
           id="color_mode"
