@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import supabaseAdmin from '@/lib/supabaseAdmin';
+import { verifyPassword } from '@/lib/password';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -18,13 +19,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const passwordValue = String(password).trim();
 
     // Check admin first
-    const { data: adminData, error: adminError } = await supabaseAdmin.from('admin').select('*').eq('email_admin', emailLower).eq('password_admin', passwordValue).limit(1).maybeSingle();
+    const { data: adminData, error: adminError } = await supabaseAdmin.from('admin').select('*').eq('email_admin', emailLower).limit(1).maybeSingle();
 
     if (adminError) {
       console.error('Error checking admin login:', adminError);
     }
 
-    if (adminData) {
+    if (adminData && (await verifyPassword(passwordValue, adminData.password_admin))) {
       return res.status(200).json({
         success: true,
         userType: 'admin',
@@ -37,19 +38,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Check siswa
-    const { data: siswaData, error: siswaError } = await supabaseAdmin
-      .from('siswa')
-      .select('id_siswa, nama_siswa, email_siswa, password_siswa, nisn_siswa, kelas_siswa, lembaga_siswa')
-      .eq('email_siswa', emailLower)
-      .eq('password_siswa', passwordValue)
-      .limit(1)
-      .maybeSingle();
+    const { data: siswaData, error: siswaError } = await supabaseAdmin.from('siswa').select('id_siswa, nama_siswa, email_siswa, password_siswa, nisn_siswa, kelas_siswa, lembaga_siswa').eq('email_siswa', emailLower).limit(1).maybeSingle();
 
     if (siswaError) {
       console.error('Error checking siswa login:', siswaError);
     }
 
-    if (siswaData) {
+    if (siswaData && (await verifyPassword(passwordValue, siswaData.password_siswa))) {
       return res.status(200).json({
         success: true,
         userType: 'siswa',
@@ -69,7 +64,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('guru')
       .select('id_guru, nama_guru, email_guru, password_guru, nip_guru, lembaga_guru, status_guru')
       .eq('email_guru', emailLower)
-      .eq('password_guru', passwordValue)
       .eq('status_guru', true)
       .limit(1)
       .maybeSingle();
@@ -78,7 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error('Error checking guru login:', guruError);
     }
 
-    if (guruData) {
+    if (guruData && (await verifyPassword(passwordValue, guruData.password_guru))) {
       return res.status(200).json({
         success: true,
         userType: 'guru',
@@ -94,13 +88,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // If guru exists but not validated, return a clear validation error.
-    const { data: unvalidatedGuru, error: unvalidatedGuruError } = await supabaseAdmin.from('guru').select('id_guru').eq('email_guru', emailLower).eq('password_guru', passwordValue).eq('status_guru', false).limit(1).maybeSingle();
+    const { data: unvalidatedGuru, error: unvalidatedGuruError } = await supabaseAdmin.from('guru').select('id_guru, password_guru').eq('email_guru', emailLower).eq('status_guru', false).limit(1).maybeSingle();
 
     if (unvalidatedGuruError) {
       console.error('Error checking unvalidated guru login:', unvalidatedGuruError);
     }
 
-    if (unvalidatedGuru) {
+    if (unvalidatedGuru && (await verifyPassword(passwordValue, unvalidatedGuru.password_guru))) {
       return res.status(403).json({
         error: 'Akun Anda belum divalidasi oleh admin. Silakan hubungi admin untuk aktivasi akun.',
       });

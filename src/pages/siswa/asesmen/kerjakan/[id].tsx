@@ -49,6 +49,7 @@ interface QuizResponse {
   } | null;
   soal: Soal[];
   attempt: AttemptResult | null;
+  pending_validation?: boolean;
   notFound?: boolean;
   message?: string;
 }
@@ -120,6 +121,7 @@ export default function SiswaKerjakanAsesmen() {
   const [showTimeoutNotification, setShowTimeoutNotification] = useState(false);
   const [showExitWarning, setShowExitWarning] = useState(false);
   const [pendingExit, setPendingExit] = useState<string | null>(null);
+  const [pendingValidation, setPendingValidation] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -145,6 +147,7 @@ export default function SiswaKerjakanAsesmen() {
         setLoadError(data?.message || 'Asesmen tidak ditemukan');
       } else {
         setQuizData(data);
+        setPendingValidation(Boolean(data?.pending_validation));
       }
 
       setLoading(false);
@@ -413,6 +416,7 @@ export default function SiswaKerjakanAsesmen() {
                 }
               : current,
           );
+          setPendingValidation(true);
         }, 2000);
       } else {
         // Clear localStorage after submit
@@ -427,6 +431,7 @@ export default function SiswaKerjakanAsesmen() {
               }
             : current,
         );
+        setPendingValidation(true);
       }
     } catch (error) {
       console.error(error);
@@ -516,9 +521,13 @@ export default function SiswaKerjakanAsesmen() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
                 <div className="rounded-xl border border-white/10 bg-black/30 p-4">
                   <p className="text-sm text-gray-400">Skor Anda</p>
-                  <p className="text-2xl font-bold text-white">
-                    {quizData.attempt.skor_total} / {quizData.attempt.skor_maksimum}
-                  </p>
+                  {pendingValidation ? (
+                    <p className="text-sm font-semibold text-amber-300">Menunggu validasi nilai oleh guru</p>
+                  ) : (
+                    <p className="text-2xl font-bold text-white">
+                      {quizData.attempt.skor_total} / {quizData.attempt.skor_maksimum}
+                    </p>
+                  )}
                 </div>
                 <div className="rounded-xl border border-white/10 bg-black/30 p-4">
                   <p className="text-sm text-gray-400">Durasi Pengerjaan</p>
@@ -546,6 +555,7 @@ export default function SiswaKerjakanAsesmen() {
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
       <StarBackground />
+      {showIntro && <SiswaNavbar siswaName={siswaSession.nama_siswa} />}
 
       {startCountdown !== null && (
         <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center px-6">
@@ -559,7 +569,7 @@ export default function SiswaKerjakanAsesmen() {
         </div>
       )}
 
-      <div className="relative z-10 pt-24 pb-12 px-6">
+      <div className={`relative z-10 ${showIntro ? 'pt-24' : 'pt-10'} pb-12 px-6`}>
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
             <div>

@@ -1,4 +1,5 @@
 import supabaseAdmin from '@/lib/supabaseAdmin';
+import { calculateTPPercentage, getTPStatus, resolveQuestionScore, roundToOneDecimal, type SoalWithTP } from '@/lib/tpAchievement';
 
 type GenerateAnalisisInput = {
   idAsesmen: number;
@@ -6,7 +7,7 @@ type GenerateAnalisisInput = {
 };
 
 export async function generateAnalisisSiswa({ idAsesmen, idSiswa }: GenerateAnalisisInput) {
-  const { data: attemptData, error: attemptError } = await supabaseAdmin.from('asesmen_attempt').select('answers_json').eq('id_asesmen', idAsesmen).eq('id_siswa', idSiswa).eq('status', 'submitted').single();
+  const { data: attemptData, error: attemptError } = await supabaseAdmin.from('asesmen_attempt').select('id_attempt, answers_json').eq('id_asesmen', idAsesmen).eq('id_siswa', idSiswa).eq('status', 'submitted').single();
 
   if (attemptError || !attemptData) {
     throw new Error('Asesmen attempt tidak ditemukan');
@@ -14,13 +15,13 @@ export async function generateAnalisisSiswa({ idAsesmen, idSiswa }: GenerateAnal
 
   const answersJson = attemptData.answers_json || {};
 
-  const { data: allSoal, error: allSoalError } = await supabaseAdmin.from('soal_asesmen').select('id_soal, tipe_soal, kunci_teks, id_tp').eq('id_asesmen', idAsesmen);
+  const { data: allSoal, error: allSoalError } = await supabaseAdmin.from('soal_asesmen').select('id_soal, tipe_soal, kunci_teks, id_tp, nilai_soal').eq('id_asesmen', idAsesmen);
 
   if (allSoalError) {
     throw new Error(allSoalError.message);
   }
 
-  const soalWithTP = (allSoal || []).filter((s: any) => s.id_tp !== null && s.id_tp !== undefined);
+  const soalWithTP = ((allSoal || []) as SoalWithTP[]).filter((s) => s.id_tp !== null && s.id_tp !== undefined);
 
   if (soalWithTP.length === 0) {
     return { analysis: [] as any[], message: 'Tidak ada soal dengan TP' };
@@ -35,7 +36,11 @@ export async function generateAnalisisSiswa({ idAsesmen, idSiswa }: GenerateAnal
 
   const tpMap: { [id: number]: string } = {};
   const tpAnalysis: {
-    [tpId: number]: { nama_tp: string; totalSoal: number; soalBenar: number };
+    [tpId: number]: {
+      nama_tp: string;
+      total_skor_siswa: number;
+      total_skor_maksimum: number;
+    };
   } = {};
 
   (tpList || []).forEach((tp: any) => {
@@ -56,6 +61,20 @@ export async function generateAnalisisSiswa({ idAsesmen, idSiswa }: GenerateAnal
     }
   });
 
+  const { data: validasiRows, error: validasiError } = await supabaseAdmin.from('validasi_nilai').select('id_soal, skor_tervalidasi, skor_asli').eq('id_attempt', attemptData.id_attempt);
+
+  if (validasiError) {
+    throw new Error(validasiError.message);
+  }
+
+  const validasiMap: { [soalId: number]: { skor_tervalidasi: number | null; skor_asli: number | null } } = {};
+  (validasiRows || []).forEach((row: any) => {
+    validasiMap[Number(row.id_soal)] = {
+      skor_tervalidasi: row.skor_tervalidasi,
+      skor_asli: row.skor_asli,
+    };
+  });
+
   (soalWithTP as any[]).forEach((soal) => {
     const tpId = soal.id_tp;
     const soalId = soal.id_soal;
@@ -63,62 +82,53 @@ export async function generateAnalisisSiswa({ idAsesmen, idSiswa }: GenerateAnal
     if (!tpAnalysis[tpId]) {
       tpAnalysis[tpId] = {
         nama_tp: tpMap[tpId] || 'TP Unknown',
-        totalSoal: 0,
-        soalBenar: 0,
+        total_skor_siswa: 0,
+        total_skor_maksimum: 0,
       };
     }
-
-    tpAnalysis[tpId].totalSoal += 1;
-
     const studentAnswer = answersJson[String(soalId)];
-    let isCorrect = false;
+    const skorMaksimumSoal = Number(soal.nilai_soal || 0);
+    const validasi = validasiMap[soalId];
 
-    if (soal.tipe_soal === 'pilihan_ganda') {
-      const correctOption = kunciPilihanMap[soalId];
-      if (correctOption && studentAnswer === correctOption) {
-        isCorrect = true;
-      }
-    } else if (soal.tipe_soal === 'uraian' || soal.tipe_soal === 'baris_kode') {
-      if (studentAnswer && soal.kunci_teks) {
-        let normalized1: string;
-        let normalized2: string;
+    const skorSiswaSoal = resolveQuestionScore({
+      soal,
+      studentAnswer,
+      validatedScore: validasi?.skor_tervalidasi,
+      fallbackScore: validasi?.skor_asli,
+      kunciPilihan: kunciPilihanMap[soalId],
+    });
 
-        if (soal.tipe_soal === 'uraian') {
-          normalized1 = String(studentAnswer || '')
-            .toLowerCase()
-            .trim()
-            .replace(/\s+/g, ' ');
-          normalized2 = soal.kunci_teks.toLowerCase().trim().replace(/\s+/g, ' ');
-        } else {
-          normalized1 = String(studentAnswer || '').trim();
-          normalized2 = soal.kunci_teks.trim();
-        }
-
-        isCorrect = normalized1 === normalized2;
-      }
-    }
-
-    if (isCorrect) {
-      tpAnalysis[tpId].soalBenar += 1;
-    }
+    tpAnalysis[tpId].total_skor_siswa += skorSiswaSoal;
+    tpAnalysis[tpId].total_skor_maksimum += skorMaksimumSoal;
   });
 
   const analisisRecords: any[] = [];
-  Object.entries(tpAnalysis).forEach(([tpId, data]) => {
-    const persentase = (data.soalBenar / data.totalSoal) * 100;
+  const computedMap: Record<number, { total_skor_siswa: number; total_skor_maksimum: number; persentase_tp: number; status_tp: string }> = {};
 
-    let saran = '';
-    if (persentase < 75) {
-      saran = `Tujuan pembelajaran "${data.nama_tp}" memiliki ketercapaian ${Math.round(persentase)}% (kurang dari 75%). Anda perlu mempelajari materi "${data.nama_tp}" lebih mendalam. Ajarilah lebih banyak dan serius lagi menghadapi materi ini!`;
-    } else {
-      saran = `Selamat! Anda telah mencapai ketercapaian tujuan pembelajaran "${data.nama_tp}" sebesar ${Math.round(persentase)}%. Prestasi ini sangat baik, pertahankan dan terus tingkatkan kemampuan Anda!`;
-    }
+  Object.entries(tpAnalysis).forEach(([tpId, data]) => {
+    const persentaseMentah = calculateTPPercentage(data.total_skor_siswa, data.total_skor_maksimum);
+    const persentase = roundToOneDecimal(persentaseMentah);
+    const status = getTPStatus(persentaseMentah);
+
+    const saran =
+      status === 'Belum'
+        ? `Ketercapaian TP "${data.nama_tp}" masih rendah (${Math.round(persentase)}%). Fokuskan latihan tambahan dan pendalaman konsep pada TP ini.`
+        : status === 'Cukup'
+          ? `Ketercapaian TP "${data.nama_tp}" sudah cukup (${Math.round(persentase)}%). Tingkatkan konsistensi dengan latihan bertahap agar mencapai kategori Tercapai.`
+          : `Ketercapaian TP "${data.nama_tp}" sudah tercapai (${Math.round(persentase)}%). Pertahankan performa dan lanjutkan penguatan materi.`;
+
+    computedMap[Number(tpId)] = {
+      total_skor_siswa: roundToOneDecimal(data.total_skor_siswa),
+      total_skor_maksimum: roundToOneDecimal(data.total_skor_maksimum),
+      persentase_tp: persentase,
+      status_tp: status,
+    };
 
     analisisRecords.push({
       nama_asesmen: idAsesmen,
       nama_siswa: idSiswa,
       tp_asesmen: Number(tpId),
-      persentase_tp_siswa: Math.round(persentase * 10) / 10,
+      persentase_tp_siswa: persentase,
       saran_siswa: saran,
     });
   });
@@ -135,5 +145,15 @@ export async function generateAnalisisSiswa({ idAsesmen, idSiswa }: GenerateAnal
     throw new Error(insertError.message);
   }
 
-  return { analysis: insertedData || [], message: 'Analisis berhasil dibuat' };
+  const enriched = (insertedData || []).map((row: any) => ({
+    ...row,
+    ...(computedMap[Number(row.tp_asesmen)] || {
+      total_skor_siswa: 0,
+      total_skor_maksimum: 0,
+      persentase_tp: Number(row.persentase_tp_siswa || 0),
+      status_tp: getTPStatus(Number(row.persentase_tp_siswa || 0)),
+    }),
+  }));
+
+  return { analysis: enriched, message: 'Analisis berhasil dibuat' };
 }

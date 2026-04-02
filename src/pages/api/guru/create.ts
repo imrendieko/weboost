@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import supabaseAdmin from '@/lib/supabaseAdmin';
+import { hashPasswordIfNeeded } from '@/lib/password';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -18,6 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const emailLower = email_guru.toString().trim().toLowerCase();
+    const hashedPassword = await hashPasswordIfNeeded(String(password_guru));
 
     // Convert NIP to string and validate it's numeric
     const nipString = nip_guru.toString().trim();
@@ -56,7 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         {
           nama_guru: nama_guru.trim(),
           email_guru: emailLower,
-          password_guru,
+          password_guru: hashedPassword,
           nip_guru: nipString,
           lembaga_guru: parseInt(lembaga_guru.toString()),
           status_guru: true,

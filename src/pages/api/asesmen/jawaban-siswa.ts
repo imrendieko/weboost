@@ -91,7 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (validasi) {
         // If already validated, use stored score
-        skorAsli = validasi.skor_asli || 0;
+        skorAsli = validasi.skor_asli ?? 0;
       } else {
         // Calculate score from answer
         // Check kunci jawaban from pilihan_ganda table
@@ -146,7 +146,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         jawaban_siswa: jawabanSiswa,
         kunci_jawaban: kunciJawabanDisplay,
         skor_asli: skorAsli,
-        skor_tervalidasi: validasi?.skor_tervalidasi || null,
+        skor_tervalidasi: validasi?.skor_tervalidasi ?? null,
         status_validasi: validasi?.status_validasi || 'pending',
       };
     });

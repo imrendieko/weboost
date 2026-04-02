@@ -1,11 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import supabaseAdmin from '@/lib/supabaseAdmin';
+import { hashPasswordIfNeeded } from '@/lib/password';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
     try {
       const { nama_siswa, email_siswa, password_siswa, nisn_siswa, kelas_siswa, lembaga_siswa } = req.body;
       const emailLower = String(email_siswa).trim().toLowerCase();
+      const hashedPassword = await hashPasswordIfNeeded(String(password_siswa));
 
       // Validate required fields
       if (!nama_siswa || !email_siswa || !password_siswa || !nisn_siswa || !kelas_siswa || !lembaga_siswa) {
@@ -40,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           {
             nama_siswa,
             email_siswa: emailLower,
-            password_siswa,
+            password_siswa: hashedPassword,
             nisn_siswa,
             kelas_siswa: parseInt(kelas_siswa),
             lembaga_siswa: parseInt(lembaga_siswa),

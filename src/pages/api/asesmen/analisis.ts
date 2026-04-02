@@ -19,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // 1. Fetch asesmen_attempt untuk mendapatkan nilai dan durasi
       const { data: attemptData, error: attemptError } = await supabaseAdmin
         .from('asesmen_attempt')
-        .select('skor_total, skor_maksimum, durasi_detik, submitted_at')
+        .select('id_attempt, skor_total, skor_maksimum, durasi_detik, submitted_at')
         .eq('id_asesmen', idAsesmen)
         .eq('id_siswa', idSiswa)
         .eq('status', 'submitted')
@@ -32,40 +32,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       console.log('✅ Found attempt:', { skor: attemptData.skor_total, durasi: attemptData.durasi_detik });
 
-      // 2. Fetch analisis_siswa untuk mendapatkan per-TP analysis
-      let { data: analysisData, error: analysisError } = await supabaseAdmin
-        .from('analisis_siswa')
-        .select('id_analisis_siswa, persentase_tp_siswa, saran_siswa, tp_asesmen')
-        .eq('nama_asesmen', idAsesmen)
-        .eq('nama_siswa', idSiswa)
-        .order('id_analisis_siswa');
-
-      if (analysisError) {
-        console.error('❌ Error fetching analysis:', analysisError);
-        return res.status(500).json({ error: analysisError.message });
+      const { data: soalRows, error: soalError } = await supabaseAdmin.from('soal_asesmen').select('id_soal').eq('id_asesmen', idAsesmen);
+      if (soalError) {
+        return res.status(500).json({ error: soalError.message });
       }
 
-      // Ambil TP yang benar-benar dipakai oleh soal pada asesmen ini.
-      const { data: soalTpRows, error: soalTpError } = await supabaseAdmin.from('soal_asesmen').select('id_tp').eq('id_asesmen', idAsesmen).not('id_tp', 'is', null);
+      const totalSoal = (soalRows || []).length;
+      const soalIdSet = new Set<number>((soalRows || []).map((row: any) => Number(row.id_soal)));
 
-      if (soalTpError) {
-        return res.status(500).json({ error: soalTpError.message });
+      const { data: validasiRows, error: validasiError } = await supabaseAdmin.from('validasi_nilai').select('id_soal, status_validasi').eq('id_attempt', attemptData.id_attempt).eq('status_validasi', 'validated');
+
+      if (validasiError) {
+        return res.status(500).json({ error: validasiError.message });
       }
 
-      const usedTpSet = new Set<number>((soalTpRows || []).map((row: any) => Number(row.id_tp)).filter((id) => Number.isFinite(id)));
+      const validatedSoalSet = new Set<number>((validasiRows || []).map((row: any) => Number(row.id_soal)).filter((id) => soalIdSet.has(id)));
+      const isPendingValidation = totalSoal > 0 && validatedSoalSet.size < totalSoal;
 
-      // Jika data analisis lama masih berisi TP di luar soal asesmen, regenerate agar sinkron.
-      const hasOutdatedRows = (analysisData || []).some((row: any) => !usedTpSet.has(Number(row.tp_asesmen)));
-      if (hasOutdatedRows) {
-        await generateAnalisisSiswa({ idAsesmen, idSiswa });
-        const refetch = await supabaseAdmin.from('analisis_siswa').select('id_analisis_siswa, persentase_tp_siswa, saran_siswa, tp_asesmen').eq('nama_asesmen', idAsesmen).eq('nama_siswa', idSiswa).order('id_analisis_siswa');
-
-        if (!refetch.error) {
-          analysisData = refetch.data || [];
-        }
+      if (isPendingValidation) {
+        return res.status(200).json({
+          attempt: attemptData,
+          analysis: [],
+          pending_validation: true,
+          message: 'Menunggu validasi nilai oleh guru',
+        });
       }
 
-      analysisData = (analysisData || []).filter((row: any) => usedTpSet.has(Number(row.tp_asesmen)));
+      // 2. Selalu generate ulang agar memakai model proporsional terbaru berbasis skor per soal
+      const generated = await generateAnalisisSiswa({ idAsesmen, idSiswa });
+      const analysisData = generated.analysis || [];
 
       console.log(`✅ Found ${analysisData?.length || 0} analysis records`);
 
@@ -94,6 +89,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({
         attempt: attemptData,
         analysis: analysisWithTP || [],
+        pending_validation: false,
       });
     } catch (error) {
       console.error('❌ Error in GET /api/asesmen/analisis:', error);

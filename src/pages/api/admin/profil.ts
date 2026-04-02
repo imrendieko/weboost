@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import supabaseAdmin from '@/lib/supabaseAdmin';
+import { hashPasswordIfNeeded } from '@/lib/password';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // GET - Get admin profile
@@ -48,10 +49,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Update using raw RPC call as fallback if needed
+      const hashedPassword = await hashPasswordIfNeeded(String(password_admin));
       const updateData = {
         nama_admin: nama_admin.trim(),
         email_admin: email_admin.trim().toLowerCase(),
-        password_admin: password_admin,
+        password_admin: hashedPassword,
       };
 
       console.log('Attempting to update admin ID:', adminId);

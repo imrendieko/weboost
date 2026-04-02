@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import supabaseAdmin from '@/lib/supabaseAdmin';
+import { hashPasswordIfNeeded } from '@/lib/password';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -22,6 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const emailLower = email.trim().toLowerCase();
     const nisnString = nisn.toString().trim();
+    const hashedPassword = await hashPasswordIfNeeded(String(password));
 
     // Check if email already exists in siswa
     const { data: existingEmail } = await supabaseAdmin.from('siswa').select('email_siswa').eq('email_siswa', emailLower).maybeSingle();
@@ -51,7 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         {
           nama_siswa: nama.trim(),
           email_siswa: emailLower,
-          password_siswa: password,
+          password_siswa: hashedPassword,
           nisn_siswa: nisnString,
           kelas_siswa: parseInt(kelas),
           lembaga_siswa: parseInt(lembaga),

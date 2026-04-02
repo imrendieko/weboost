@@ -1,4 +1,5 @@
 import supabaseAdmin from '@/lib/supabaseAdmin';
+import { calculateTPPercentage, getTPStatus, resolveQuestionScore, roundToOneDecimal, type SoalWithTP } from '@/lib/tpAchievement';
 
 type GenerateAnalisisGuruInput = {
   idAsesmen: number;
@@ -13,40 +14,6 @@ type AttemptRow = {
   durasi_detik: number;
 };
 
-function isJawabanBenar(soal: any, studentAnswer: unknown, kunciPilihanMap: Record<number, string>) {
-  let isCorrect = false;
-
-  if (soal.tipe_soal === 'pilihan_ganda') {
-    const correctOption = kunciPilihanMap[soal.id_soal];
-    if (correctOption && studentAnswer === correctOption) {
-      isCorrect = true;
-    }
-  } else if (soal.tipe_soal === 'uraian' || soal.tipe_soal === 'baris_kode') {
-    if (studentAnswer && soal.kunci_teks) {
-      let normalized1: string;
-      let normalized2: string;
-
-      if (soal.tipe_soal === 'uraian') {
-        normalized1 = String(studentAnswer || '')
-          .toLowerCase()
-          .trim()
-          .replace(/\s+/g, ' ');
-        normalized2 = String(soal.kunci_teks || '')
-          .toLowerCase()
-          .trim()
-          .replace(/\s+/g, ' ');
-      } else {
-        normalized1 = String(studentAnswer || '').trim();
-        normalized2 = String(soal.kunci_teks || '').trim();
-      }
-
-      isCorrect = normalized1 === normalized2;
-    }
-  }
-
-  return isCorrect;
-}
-
 export async function generateAnalisisGuru({ idAsesmen }: GenerateAnalisisGuruInput) {
   const { data: attempts, error: attemptsError } = await supabaseAdmin.from('asesmen_attempt').select('id_attempt, id_siswa, answers_json, skor_total, skor_maksimum, durasi_detik').eq('id_asesmen', idAsesmen).eq('status', 'submitted');
 
@@ -56,13 +23,13 @@ export async function generateAnalisisGuru({ idAsesmen }: GenerateAnalisisGuruIn
 
   const submittedAttempts = (attempts || []) as AttemptRow[];
 
-  const { data: allSoal, error: allSoalError } = await supabaseAdmin.from('soal_asesmen').select('id_soal, tipe_soal, kunci_teks, id_tp').eq('id_asesmen', idAsesmen);
+  const { data: allSoal, error: allSoalError } = await supabaseAdmin.from('soal_asesmen').select('id_soal, tipe_soal, kunci_teks, id_tp, nilai_soal').eq('id_asesmen', idAsesmen);
 
   if (allSoalError) {
     throw new Error(allSoalError.message);
   }
 
-  const soalWithTP = (allSoal || []).filter((soal: any) => soal.id_tp !== null && soal.id_tp !== undefined);
+  const soalWithTP = ((allSoal || []) as SoalWithTP[]).filter((soal) => soal.id_tp !== null && soal.id_tp !== undefined);
 
   const summary = {
     total_siswa: submittedAttempts.length,
@@ -102,13 +69,27 @@ export async function generateAnalisisGuru({ idAsesmen }: GenerateAnalisisGuruIn
     }
   });
 
+  const attemptIds = submittedAttempts.map((attempt) => attempt.id_attempt);
+  const { data: validasiRows, error: validasiError } = attemptIds.length ? await supabaseAdmin.from('validasi_nilai').select('id_attempt, id_soal, skor_tervalidasi, skor_asli').in('id_attempt', attemptIds) : { data: [], error: null };
+
+  if (validasiError) {
+    throw new Error(validasiError.message);
+  }
+
+  const validasiMap: Record<string, { skor_tervalidasi: number | null; skor_asli: number | null }> = {};
+  (validasiRows || []).forEach((row: any) => {
+    validasiMap[`${row.id_attempt}:${row.id_soal}`] = {
+      skor_tervalidasi: row.skor_tervalidasi,
+      skor_asli: row.skor_asli,
+    };
+  });
+
   const tpAnalysis: Record<
     number,
     {
       nama_tp: string;
-      totalSoal: number;
-      peluangTotal: number;
-      jawabanBenar: number;
+      total_skor_siswa: number;
+      total_skor_maksimum: number;
     }
   > = {};
 
@@ -117,17 +98,10 @@ export async function generateAnalisisGuru({ idAsesmen }: GenerateAnalisisGuruIn
     if (!tpAnalysis[tpId]) {
       tpAnalysis[tpId] = {
         nama_tp: tpMap[tpId] || 'TP Unknown',
-        totalSoal: 0,
-        peluangTotal: 0,
-        jawabanBenar: 0,
+        total_skor_siswa: 0,
+        total_skor_maksimum: 0,
       };
     }
-
-    tpAnalysis[tpId].totalSoal += 1;
-  });
-
-  Object.values(tpAnalysis).forEach((item) => {
-    item.peluangTotal = item.totalSoal * submittedAttempts.length;
   });
 
   submittedAttempts.forEach((attempt) => {
@@ -136,21 +110,41 @@ export async function generateAnalisisGuru({ idAsesmen }: GenerateAnalisisGuruIn
     (soalWithTP as any[]).forEach((soal) => {
       const tpId = Number(soal.id_tp);
       const studentAnswer = (answersJson as Record<string, unknown>)[String(soal.id_soal)];
-      const correct = isJawabanBenar(soal, studentAnswer, kunciPilihanMap);
-      if (correct) {
-        tpAnalysis[tpId].jawabanBenar += 1;
-      }
+      const validasi = validasiMap[`${attempt.id_attempt}:${soal.id_soal}`];
+      const skorMaksimumSoal = Number(soal.nilai_soal || 0);
+
+      const skorSiswaSoal = resolveQuestionScore({
+        soal,
+        studentAnswer,
+        validatedScore: validasi?.skor_tervalidasi,
+        fallbackScore: validasi?.skor_asli,
+        kunciPilihan: kunciPilihanMap[soal.id_soal],
+      });
+
+      tpAnalysis[tpId].total_skor_siswa += skorSiswaSoal;
+      tpAnalysis[tpId].total_skor_maksimum += skorMaksimumSoal;
     });
   });
 
+  const computedMap: Record<number, { total_skor_siswa: number; total_skor_maksimum: number; persentase_tp: number; status_tp: string }> = {};
   const analisisRecords = Object.entries(tpAnalysis).map(([tpId, item]) => {
-    const persentase = item.peluangTotal > 0 ? (item.jawabanBenar / item.peluangTotal) * 100 : 0;
-    const persentaseRounded = Math.round(persentase * 10) / 10;
+    const persentaseRaw = calculateTPPercentage(item.total_skor_siswa, item.total_skor_maksimum);
+    const persentaseRounded = roundToOneDecimal(persentaseRaw);
+    const status = getTPStatus(persentaseRaw);
 
     const saranGuru =
-      persentaseRounded < 75
-        ? `Ketercapaian tujuan pembelajaran pada "${item.nama_tp}" masih rendah (${Math.round(persentaseRounded)}%). Anda harus mengajarkan lebih pada materi tersebut dan jangan lupa minta feedback terhadap materi yang sudah diajarkan. Semangat mencerdaskan bangsa!`
-        : `Ketercapaian tujuan pembelajaran pada "${item.nama_tp}" sudah baik (${Math.round(persentaseRounded)}%). Pertahankan strategi pembelajaran saat ini, terus berikan latihan terarah, dan tetap minta feedback dari siswa agar kualitas pembelajaran semakin meningkat.`;
+      status === 'Belum'
+        ? `Ketercapaian TP "${item.nama_tp}" masih rendah (${Math.round(persentaseRounded)}%). Lakukan remedial terarah dan perkuat konsep inti pada TP ini.`
+        : status === 'Cukup'
+          ? `Ketercapaian TP "${item.nama_tp}" berada pada level cukup (${Math.round(persentaseRounded)}%). Tambahkan latihan bertahap agar siswa bergerak ke kategori Tercapai.`
+          : `Ketercapaian TP "${item.nama_tp}" sudah baik (${Math.round(persentaseRounded)}%). Pertahankan strategi pembelajaran dan lanjutkan penguatan soal berbobot.`;
+
+    computedMap[Number(tpId)] = {
+      total_skor_siswa: roundToOneDecimal(item.total_skor_siswa),
+      total_skor_maksimum: roundToOneDecimal(item.total_skor_maksimum),
+      persentase_tp: persentaseRounded,
+      status_tp: status,
+    };
 
     return {
       nama_asesmen: idAsesmen,
@@ -171,5 +165,15 @@ export async function generateAnalisisGuru({ idAsesmen }: GenerateAnalisisGuruIn
     throw new Error(insertError.message);
   }
 
-  return { analysis: insertedData || [], summary, message: 'Analisis guru berhasil dibuat' };
+  const enriched = (insertedData || []).map((row: any) => ({
+    ...row,
+    ...(computedMap[Number(row.tp_asesmen)] || {
+      total_skor_siswa: 0,
+      total_skor_maksimum: 0,
+      persentase_tp: Number(row.persentase_tp_guru || 0),
+      status_tp: getTPStatus(Number(row.persentase_tp_guru || 0)),
+    }),
+  }));
+
+  return { analysis: enriched, summary, message: 'Analisis guru berhasil dibuat' };
 }

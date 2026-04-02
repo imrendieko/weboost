@@ -106,6 +106,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const latestAttempt = (attemptRows || [])[0];
+    let pendingValidation = false;
+
+    if (latestAttempt && latestAttempt.status === 'submitted') {
+      const { data: validasiRows, error: validasiError } = await supabaseAdmin.from('validasi_nilai').select('id_soal, status_validasi').eq('id_attempt', latestAttempt.id_attempt).eq('status_validasi', 'validated');
+
+      if (validasiError) {
+        return res.status(500).json({ error: validasiError.message });
+      }
+
+      const soalIdSet = new Set<number>(soalIds);
+      const validatedSoalSet = new Set<number>((validasiRows || []).map((row: any) => Number(row.id_soal)).filter((id) => soalIdSet.has(id)));
+      pendingValidation = soalIds.length > 0 && validatedSoalSet.size < soalIds.length;
+    }
 
     // Prepare soal list
     let soalList = (soalRows || []).map((item) => ({
@@ -129,6 +142,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       asesmen,
       soal: soalList,
       attempt: latestAttempt && latestAttempt.status === 'submitted' ? latestAttempt : null,
+      pending_validation: pendingValidation,
     });
   } catch (error) {
     console.error('Error in GET /api/siswa/asesmen/quiz:', error);

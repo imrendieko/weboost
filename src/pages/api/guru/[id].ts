@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import supabaseAdmin from '@/lib/supabaseAdmin';
+import { hashPasswordIfNeeded } from '@/lib/password';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
@@ -69,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Only update password if provided
       if (password_guru && password_guru.trim() !== '') {
-        updateData.password_guru = password_guru;
+        updateData.password_guru = await hashPasswordIfNeeded(String(password_guru));
       }
 
       const { data, error } = await supabaseAdmin.from('guru').update(updateData).eq('id_guru', guruId).select().single();

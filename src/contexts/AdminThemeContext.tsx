@@ -12,7 +12,7 @@ interface AdminThemeContextValue {
 const ADMIN_THEME_STORAGE_KEY = 'admin_theme_preference';
 
 const defaultAdminThemeContext: AdminThemeContextValue = {
-  theme: 'dark',
+  theme: 'light',
   mounted: false,
   setTheme: () => undefined,
   toggleTheme: () => undefined,
@@ -25,7 +25,7 @@ interface AdminThemeProviderProps {
 }
 
 export function AdminThemeProvider({ children }: AdminThemeProviderProps) {
-  const [theme, setThemeState] = useState<AdminTheme>('dark');
+  const [theme, setThemeState] = useState<AdminTheme>('light');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

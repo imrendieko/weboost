@@ -31,6 +31,8 @@ interface AttemptData {
 interface AnalisisResponse {
   attempt: AttemptData;
   analysis: TPAnalysis[];
+  pending_validation?: boolean;
+  message?: string;
 }
 
 interface Jawaban {
@@ -111,6 +113,7 @@ export default function HasilAnalisisAsesmenSiswa() {
   const [overallPercentage, setOverallPercentage] = useState(0);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [jawabanList, setJawabanList] = useState<Jawaban[]>([]);
+  const [pendingValidation, setPendingValidation] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -140,8 +143,9 @@ export default function HasilAnalisisAsesmenSiswa() {
 
         let data = await fetchAnalisis();
         setAttemptData(data.attempt);
+        setPendingValidation(Boolean(data.pending_validation));
 
-        if (!data.analysis || data.analysis.length === 0) {
+        if (!data.pending_validation && (!data.analysis || data.analysis.length === 0)) {
           await fetch('/api/asesmen/generate-analisis-fallback', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -212,6 +216,7 @@ export default function HasilAnalisisAsesmenSiswa() {
   const hasUnvalidatedAnswers = jawabanList.some((jawaban) => jawaban.status_validasi !== 'validated');
   const validationStatus = hasUnvalidatedAnswers ? 'Belum Divalidasi' : 'Sudah Divalidasi';
   const isFullyValidated = !hasUnvalidatedAnswers;
+  const shouldHoldResult = pendingValidation || hasUnvalidatedAnswers;
 
   // Calculate total score from jawabanList (real-time based on validations)
   const calculateTotalScore = () => {
@@ -257,9 +262,13 @@ export default function HasilAnalisisAsesmenSiswa() {
                 <FaPoll className="text-white" />
                 Nilai Anda
               </p>
-              <div className="text-5xl font-bold text-white">
-                {totalScoreSiswa}/{attemptData.skor_maksimum}
-              </div>
+              {shouldHoldResult ? (
+                <div className="text-lg font-semibold text-amber-300">Menunggu validasi nilai oleh guru</div>
+              ) : (
+                <div className="text-5xl font-bold text-white">
+                  {totalScoreSiswa}/{attemptData.skor_maksimum}
+                </div>
+              )}
               <div className="mt-2 h-1 bg-gradient-to-r from-[#0E5BFF] to-transparent rounded-full" />
 
               {/* Validation Status Badge */}
@@ -299,7 +308,9 @@ export default function HasilAnalisisAsesmenSiswa() {
               Ketercapaian Tujuan Pembelajaran
             </h2>
 
-            {analysisData.length === 0 ? (
+            {shouldHoldResult ? (
+              <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 p-8 text-center text-amber-200">Persentase ketercapaian TP akan ditampilkan setelah semua nilai per soal divalidasi guru.</div>
+            ) : analysisData.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-gray-400">Belum ada data analisis TP tersedia.</div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-8 place-items-center">
@@ -325,7 +336,9 @@ export default function HasilAnalisisAsesmenSiswa() {
           </h2>
           <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-gray-800/50 to-gray-900/50 p-6 md:p-8">
             <div className="space-y-3">
-              {suggestions.length > 0 ? (
+              {shouldHoldResult ? (
+                <p className="text-base text-amber-200">Saran pembelajaran akan tersedia setelah guru menyelesaikan validasi nilai per soal.</p>
+              ) : suggestions.length > 0 ? (
                 suggestions.map((suggestion, index) => (
                   <p
                     key={index}

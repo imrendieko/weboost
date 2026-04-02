@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import supabaseAdmin from '@/lib/supabaseAdmin';
+import { generateAnalisisSiswa } from '@/lib/generateAnalisisSiswa';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'PUT') {
@@ -13,6 +14,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({
         error: 'Missing required fields: id_attempt, id_soal, skor_tervalidasi',
       });
+    }
+
+    const parsedSkorTervalidasi = Number(skor_tervalidasi);
+    if (!Number.isFinite(parsedSkorTervalidasi)) {
+      return res.status(400).json({ error: 'skor_tervalidasi harus berupa angka valid' });
+    }
+
+    const parsedSkorAsli = skor_asli === undefined || skor_asli === null ? null : Number(skor_asli);
+    if (parsedSkorAsli !== null && !Number.isFinite(parsedSkorAsli)) {
+      return res.status(400).json({ error: 'skor_asli harus berupa angka valid' });
+    }
+
+    const { data: soalData, error: soalError } = await supabaseAdmin.from('soal_asesmen').select('nilai_soal').eq('id_soal', id_soal).single();
+
+    if (soalError || !soalData) {
+      return res.status(404).json({ error: 'Data soal tidak ditemukan' });
+    }
+
+    const skorMaksimumSoal = Number(soalData.nilai_soal || 0);
+    if (parsedSkorTervalidasi < 0 || parsedSkorTervalidasi > skorMaksimumSoal) {
+      return res.status(400).json({ error: `Nilai validasi harus antara 0 dan ${skorMaksimumSoal}` });
     }
 
     // Check if validation record already exists
@@ -29,8 +51,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { data, error } = await supabaseAdmin
         .from('validasi_nilai')
         .update({
-          skor_asli: skor_asli || null,
-          skor_tervalidasi,
+          skor_asli: parsedSkorAsli,
+          skor_tervalidasi: parsedSkorTervalidasi,
           status_validasi: 'validated',
           updated_at: now,
         })
@@ -48,8 +70,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           id_attempt,
           id_soal,
           jawaban_siswa: jawaban_siswa || null,
-          skor_asli: skor_asli || null,
-          skor_tervalidasi,
+          skor_asli: parsedSkorAsli,
+          skor_tervalidasi: parsedSkorTervalidasi,
           status_validasi: 'validated',
           created_at: now,
           updated_at: now,
@@ -85,6 +107,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (updateErr) {
       console.warn('Error updating skor_total:', updateErr);
       // Don't fail the validation if skor_total update fails
+    }
+
+    try {
+      const { data: attemptData, error: attemptError } = await supabaseAdmin.from('asesmen_attempt').select('id_asesmen, id_siswa').eq('id_attempt', id_attempt).single();
+
+      if (!attemptError && attemptData) {
+        await generateAnalisisSiswa({
+          idAsesmen: Number(attemptData.id_asesmen),
+          idSiswa: Number(attemptData.id_siswa),
+        });
+      }
+    } catch (analysisError) {
+      console.warn('Warning: gagal regenerate analisis siswa setelah validasi:', analysisError);
     }
 
     res.status(200).json({
