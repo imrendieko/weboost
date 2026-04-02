@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import StarBackground from '@/components/StarBackground';
@@ -8,8 +8,42 @@ import AuthBb8Mascot from '@/components/AuthBb8Mascot';
 import Image from 'next/image';
 import { FaRocket, FaHandshake, FaUserPlus, FaSignInAlt } from 'react-icons/fa';
 
+const HERO_TYPED_WORDS = ['Boost', 'Tingkatkan'];
+
 const Home = () => {
-  const [isBoostHovered, setIsBoostHovered] = useState(false);
+  const [wordIndex, setWordIndex] = useState(0);
+  const [typedWord, setTypedWord] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    const currentWord = HERO_TYPED_WORDS[wordIndex];
+    const isWordComplete = typedWord === currentWord;
+    const isWordEmpty = typedWord === '';
+
+    let timeoutDelay = isDeleting ? 70 : 120;
+
+    if (isWordComplete && !isDeleting) {
+      timeoutDelay = 1200;
+    }
+
+    const timeout = setTimeout(() => {
+      if (isWordComplete && !isDeleting) {
+        setIsDeleting(true);
+        return;
+      }
+
+      if (isWordEmpty && isDeleting) {
+        setIsDeleting(false);
+        setWordIndex((prevIndex) => (prevIndex + 1) % HERO_TYPED_WORDS.length);
+        return;
+      }
+
+      const nextLength = typedWord.length + (isDeleting ? -1 : 1);
+      setTypedWord(currentWord.slice(0, nextLength));
+    }, timeoutDelay);
+
+    return () => clearTimeout(timeout);
+  }, [typedWord, isDeleting, wordIndex]);
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -32,19 +66,13 @@ const Home = () => {
         >
           <div className="text-left">
             <h1 className="text-white text-4xl md:text-5xl xl:text-6xl font-bold mb-6 leading-tight">
-              <span
-                className="text-[#0080FF]"
-                onMouseEnter={() => setIsBoostHovered(true)}
-                onMouseLeave={() => setIsBoostHovered(false)}
-              >
-                {isBoostHovered ? 'Tingkatkan' : <i>Boost</i>}
+              <span className="text-[#0080FF] inline-flex items-center min-w-[220px] md:min-w-[300px]">
+                {typedWord}
+                <span className="ml-1 inline-block h-[1em] w-[2px] bg-[#0080FF] animate-pulse" />
               </span>{' '}
               Pengetahuan Kamu Setiap Hari!
             </h1>
-            <p className="text-gray-300 text-lg md:text-xl mb-8 max-w-2xl">
-              LMS WeBoost akan membantu proses belajar kamu menjadi 100% lebih mudah dan menyenangkan.
-              Mulai dan terus belajar bersama kami!
-            </p>
+            <p className="text-gray-300 text-lg md:text-xl mb-8 max-w-2xl">LMS WeBoost akan membantu proses belajar kamu menjadi 100% lebih mudah dan menyenangkan. Mulai dan terus belajar bersama kami!</p>
 
             <div className="flex flex-wrap items-center gap-4 mb-10">
               <Link href="/register">
