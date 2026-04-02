@@ -225,6 +225,19 @@ body {
   }
 }
 
+/* Global cursor behavior */
+:is(button, input[type='button'], input[type='submit'], input[type='reset'], a[role='button'], .mana-btn):not(:disabled):not([aria-disabled='true']) {
+  cursor: pointer;
+}
+
+:is(button, input[type='button'], input[type='submit'], input[type='reset'], a[role='button'], .mana-btn):is(:disabled, [disabled], [aria-disabled='true']) {
+  cursor: not-allowed;
+}
+
+:is(button, input[type='button'], input[type='submit'], input[type='reset'], a[role='button'], .mana-btn):is(.is-loading, [data-loading='true'], [aria-busy='true']) {
+  cursor: progress;
+}
+
 .admin-theme-scope {
   --admin-accent: #0080ff;
   --admin-accent-soft: rgba(0, 128, 255, 0.14);
