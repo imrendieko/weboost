@@ -100,7 +100,6 @@ export default function PublicThemeToggle({ mobile = false, className = '' }: Pu
       >
         <div className="switch-track" />
         <span className="label-text">{isDarkTheme ? 'Dark' : 'Light'}</span>
-        <span className="label-text">{isDarkTheme ? 'Dark' : 'Light'}</span>
         <input
           type="checkbox"
           id="color_mode"

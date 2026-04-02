@@ -124,7 +124,7 @@ export default function Navbar() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="mana-btn mana-btn--primary px-8 py-3 font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(0,128,255,0.5)] flex items-center gap-2"
+                className="mana-btn mana-btn--primary px-6 py-3 font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(0,128,255,0.5)] flex items-center gap-2"
               >
                 <FaUserPlus size={18} />
                 Daftar
