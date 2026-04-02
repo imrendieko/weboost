@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import StarBackground from '@/components/StarBackground';
 import Navbar from '@/components/Navbar';
-import CountdownTimer from '@/components/CountdownTimer';
 import FeatureCards from '@/components/FeatureCards';
 import AuthBb8Mascot from '@/components/AuthBb8Mascot';
 import Image from 'next/image';
@@ -69,15 +68,6 @@ const Home = () => {
                 </motion.button>
               </Link>
             </div>
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-              className="flex justify-start"
-            >
-              <CountdownTimer />
-            </motion.div>
           </div>
 
           <motion.div
