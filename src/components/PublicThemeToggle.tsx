@@ -9,111 +9,67 @@ interface PublicThemeToggleProps {
 }
 
 const StyledWrapper = styled.div`
-  .btn-container {
-    display: table-cell;
-    vertical-align: middle;
-    text-align: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+
+  svg {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
   }
 
-  .btn-container i {
-    display: inline-block;
+  .switch-container {
     position: relative;
-    top: -9px;
-  }
-
-  label {
-    font-size: 13px;
-    color: #424242;
-    font-weight: 500;
-  }
-
-  .btn-color-mode-switch {
-    display: inline-block;
-    margin: 0px;
-    position: relative;
-  }
-
-  .btn-color-mode-switch > label.btn-color-mode-switch-inner {
-    margin: 0px;
     width: 140px;
     height: 30px;
-    background: #E0E0E0;
+    background: #e0e0e0;
     border-radius: 26px;
-    overflow: hidden;
-    position: relative;
-    transition: all 0.3s ease;
-    display: block;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    display: flex;
+    align-items: center;
+    padding: 2px;
   }
 
-  .btn-color-mode-switch > label.btn-color-mode-switch-inner:before {
-    content: attr(data-on);
+  .switch-container.dark {
+    background: #151515;
+  }
+
+  .switch-track {
     position: absolute;
+    width: 70px;
+    height: 26px;
+    background: #fff;
+    border-radius: 24px;
+    transition: left 0.3s ease;
+    left: 2px;
+    box-shadow: 0px 0px 6px -2px #111;
+  }
+
+  .switch-container.dark .switch-track {
+    background: #3c3c3c;
+    left: 68px;
+  }
+
+  .label-text {
+    position: relative;
+    z-index: 2;
     font-size: 12px;
     font-weight: 500;
-    top: 7px;
-    right: 20px;
-  }
-
-  .btn-color-mode-switch > label.btn-color-mode-switch-inner:after {
-    content: attr(data-off);
-    width: 70px;
-    height: 16px;
-    background: #fff;
-    border-radius: 26px;
-    position: absolute;
-    left: 2px;
-    top: 2px;
+    width: 50%;
     text-align: center;
-    transition: all 0.3s ease;
-    box-shadow: 0px 0px 6px -2px #111;
-    padding: 5px 0px;
+    transition: color 0.3s ease;
+    color: #666;
+    user-select: none;
   }
 
-  .btn-color-mode-switch > .alert {
+  .switch-container.dark .label-text {
+    color: #999;
+  }
+
+  input[type='checkbox'] {
     display: none;
-    background: #FF9800;
-    border: none;
-    color: #fff;
-  }
-
-  .btn-color-mode-switch input[type="checkbox"] {
-    cursor: pointer;
-    width: 50px;
-    height: 25px;
-    opacity: 0;
-    position: absolute;
-    top: 0;
-    z-index: 1;
-    margin: 0px;
-  }
-
-  .btn-color-mode-switch input[type="checkbox"]:checked + label.btn-color-mode-switch-inner {
-    background: #151515;
-    color: #fff;
-  }
-
-  .btn-color-mode-switch input[type="checkbox"]:checked + label.btn-color-mode-switch-inner:after {
-    content: attr(data-on);
-    left: 68px;
-    background: #3c3c3c;
-  }
-
-  .btn-color-mode-switch input[type="checkbox"]:checked + label.btn-color-mode-switch-inner:before {
-    content: attr(data-off);
-    right: auto;
-    left: 20px;
-  }
-
-  .btn-color-mode-switch input[type="checkbox"]:checked ~ .alert {
-    display: block;
-  }
-
-  .dark-preview {
-    background: #0d0d0d;
-  }
-
-  .white-preview {
-    background: #fff;
   }
 `;
 
@@ -124,26 +80,47 @@ export default function PublicThemeToggle({ mobile = false, className = '' }: Pu
 
   return (
     <StyledWrapper className={className}>
-      <div className="btn-container">
-        <svg viewBox="0 0 16 16" className="bi bi-sun-fill" fill="currentColor" width={23} xmlns="http://www.w3.org/2000/svg">
-          <path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z" color="red" />
-        </svg>
-        <label className="switch btn-color-mode-switch">
-          <input 
-            type="checkbox" 
-            id="color_mode" 
-            name="color_mode"
-            checked={isDarkTheme}
-            onChange={toggleTheme}
-            aria-label={`Aktifkan ${isDarkTheme ? 'mode terang' : 'mode gelap'}`}
-          />
-          <label className="btn-color-mode-switch-inner" data-off="Light" data-on="Dark" htmlFor="color_mode" />
-        </label>
-        <svg viewBox="0 0 16 16" className="bi bi-moon-stars-fill" fill="currentColor" width={23} xmlns="http://www.w3.org/2000/svg">
-          <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z" color="orange" />
-          <path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.734 1.734 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.734 1.734 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.734 1.734 0 0 0 1.097-1.097l.387-1.162zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L13.863.1z" color="black" />
-        </svg>
+      {/* Sun Icon */}
+      <svg
+        viewBox="0 0 16 16"
+        className="bi bi-sun-fill"
+        fill="currentColor"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z" />
+      </svg>
+
+      {/* Toggle Switch */}
+      <div
+        className={`switch-container ${isDarkTheme ? 'dark' : ''}`}
+        onClick={toggleTheme}
+        role="switch"
+        aria-checked={isDarkTheme}
+        aria-label={`Aktifkan ${isDarkTheme ? 'mode terang' : 'mode gelap'}`}
+      >
+        <div className="switch-track" />
+        <span className="label-text">{isDarkTheme ? 'Dark' : 'Light'}</span>
+        <span className="label-text">{isDarkTheme ? 'Dark' : 'Light'}</span>
+        <input
+          type="checkbox"
+          id="color_mode"
+          name="color_mode"
+          checked={isDarkTheme}
+          onChange={toggleTheme}
+          aria-hidden="true"
+        />
       </div>
+
+      {/* Moon Icon */}
+      <svg
+        viewBox="0 0 16 16"
+        className="bi bi-moon-stars-fill"
+        fill="currentColor"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z" />
+        <path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.734 1.734 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.734 1.734 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.734 1.734 0 0 0 1.097-1.097l.387-1.162zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L13.863.1z" />
+      </svg>
     </StyledWrapper>
   );
 }
