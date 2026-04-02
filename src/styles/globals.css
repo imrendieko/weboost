@@ -860,7 +860,7 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 
 .admin-theme-toggle-bb8 .head {
   transition: transform 0.4s;
-  background-color: ghostwhite;
+  background-color: #0e5bff;
   border-radius: 90px 90px 25px 25px;
   height: 63px;
   margin-left: -45px;
@@ -870,6 +870,7 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   z-index: 1;
   top: -56px;
   left: 56%;
+  box-shadow: 0 0 12px 2px rgba(14, 91, 255, 0.6), 0 0 24px 6px rgba(14, 91, 255, 0.3);
 }
 
 .admin-theme-toggle-bb8 .head .stripe {
@@ -1006,13 +1007,14 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 }
 
 .admin-theme-toggle-bb8 .ball {
-  background-color: ghostwhite;
+  background-color: #0e5bff;
   border-radius: 50%;
   height: 165px;
   overflow: hidden;
   position: relative;
   width: 165px;
   transition: transform 0.4s;
+  box-shadow: 0 0 12px 2px rgba(14, 91, 255, 0.6), 0 0 24px 6px rgba(14, 91, 255, 0.3);
 }
 
 .admin-theme-toggle-bb8 .lines {
@@ -1039,7 +1041,7 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 }
 
 .admin-theme-toggle-bb8 .ring::after {
-  background-color: ghostwhite;
+  background-color: #0e5bff;
   border-radius: 50%;
   content: '';
   display: block;
@@ -2183,7 +2185,7 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 .auth-bb8-mascot .head {
   transition: transform 0.35s ease;
   transform: translate(8px, 1px) rotate(4deg);
-  background-color: ghostwhite;
+  background-color: #0e5bff;
   border-radius: 90px 90px 25px 25px;
   height: 63px;
   margin-left: -45px;
@@ -2193,6 +2195,7 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   z-index: 1;
   top: -56px;
   left: 56%;
+  box-shadow: 0 0 0 0 #0e5bff;
 }
 
 .auth-bb8-mascot .head .stripe {
@@ -2327,12 +2330,13 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 }
 
 .auth-bb8-mascot .ball {
-  background-color: ghostwhite;
+  background-color: #0e5bff;
   border-radius: 50%;
   height: 165px;
   overflow: hidden;
   position: relative;
   width: 165px;
+  box-shadow: 0 0 0 0 #0e5bff;
 }
 
 .auth-bb8-mascot .lines {
@@ -2359,7 +2363,7 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 }
 
 .auth-bb8-mascot .ring::after {
-  background-color: ghostwhite;
+  background-color: #0e5bff;
   border-radius: 50%;
   content: '';
   display: block;
@@ -2462,6 +2466,30 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   }
 }
 
+@keyframes auth-bb8-glow-light {
+  0% {
+    box-shadow: 0 0 12px 2px rgba(14, 91, 255, 0.6), 0 0 24px 6px rgba(14, 91, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 18px 4px rgba(14, 91, 255, 0.8), 0 0 36px 10px rgba(14, 91, 255, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 12px 2px rgba(14, 91, 255, 0.6), 0 0 24px 6px rgba(14, 91, 255, 0.3);
+  }
+}
+
+@keyframes auth-bb8-glow-dark {
+  0% {
+    box-shadow: 0 0 12px 2px rgba(255, 255, 255, 0.5), 0 0 24px 6px rgba(255, 255, 255, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 18px 4px rgba(255, 255, 255, 0.7), 0 0 36px 10px rgba(255, 255, 255, 0.35);
+  }
+  100% {
+    box-shadow: 0 0 12px 2px rgba(255, 255, 255, 0.5), 0 0 24px 6px rgba(255, 255, 255, 0.25);
+  }
+}
+
 .auth-bb8-mascot:hover .eyes {
   animation: auth-bb8-eyes-look 1.2s ease-in-out infinite;
 }
@@ -2472,6 +2500,16 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 
 .auth-bb8-mascot:hover .antennas {
   animation: auth-bb8-antenna-look 1.2s ease-in-out infinite;
+}
+
+.admin-theme-dark .auth-bb8-mascot .head,
+.admin-theme-dark .auth-bb8-mascot .ball {
+  animation: auth-bb8-glow-dark 2.4s ease-in-out infinite;
+}
+
+.admin-theme-light .auth-bb8-mascot .head,
+.admin-theme-light .auth-bb8-mascot .ball {
+  animation: auth-bb8-glow-light 2.4s ease-in-out infinite;
 }
 
 .admin-theme-light .auth-bb8-bubble {
