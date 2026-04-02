@@ -1,9 +1,13 @@
 'use client';
 
-export default function AuthBb8Mascot() {
+interface AuthBb8MascotProps {
+  className?: string;
+}
+
+export default function AuthBb8Mascot({ className = '' }: AuthBb8MascotProps) {
   return (
     <div
-      className="auth-bb8-mascot"
+      className={`auth-bb8-mascot ${className}`.trim()}
       aria-hidden="true"
     >
       <div className="auth-bb8-bubble">

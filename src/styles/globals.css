@@ -1997,6 +1997,11 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   overflow: visible;
 }
 
+.auth-bb8-mascot-hero {
+  width: min(100%, 540px);
+  height: min(100%, 540px);
+}
+
 .auth-bb8-bubble {
   position: absolute;
   top: 5%;
@@ -2019,6 +2024,20 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
   max-width: 72%;
   overflow: visible;
+}
+
+.auth-bb8-mascot-hero .auth-bb8-bubble {
+  top: -2%;
+  left: 10%;
+  max-width: 78%;
+  padding: 0.65rem 1rem;
+  font-size: 1rem;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+}
+
+.auth-bb8-mascot-hero .auth-bb8-bubble-tail {
+  top: 76%;
+  right: -8px;
 }
 
 .auth-bb8-bubble-tail {
@@ -2104,6 +2123,11 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   width: 200px;
   transform: scale(1.1);
   transform-origin: center;
+}
+
+.auth-bb8-mascot-hero .bb8 {
+  width: 250px;
+  transform: scale(1.3);
 }
 
 .auth-bb8-mascot .antennas {
@@ -2368,6 +2392,13 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   left: 28px;
   z-index: -1;
   bottom: -8px;
+}
+
+.auth-bb8-mascot-hero .shadow {
+  width: 150px;
+  height: 24px;
+  bottom: 0;
+  left: 40px;
 }
 
 @keyframes auth-bb8-eyes-look {

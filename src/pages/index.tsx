@@ -104,7 +104,7 @@ const Home = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="hidden lg:flex justify-center"
           >
-            <AuthBb8Mascot />
+            <AuthBb8Mascot className="auth-bb8-mascot-hero" />
           </motion.div>
         </motion.div>
       </section>
