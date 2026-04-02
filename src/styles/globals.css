@@ -870,7 +870,9 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   z-index: 1;
   top: -56px;
   left: 56%;
-  box-shadow: 0 0 12px 2px rgba(14, 91, 255, 0.6), 0 0 24px 6px rgba(14, 91, 255, 0.3);
+  box-shadow:
+    0 0 12px 2px rgba(14, 91, 255, 0.6),
+    0 0 24px 6px rgba(14, 91, 255, 0.3);
 }
 
 .admin-theme-toggle-bb8 .head .stripe {
@@ -1014,7 +1016,9 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   position: relative;
   width: 165px;
   transition: transform 0.4s;
-  box-shadow: 0 0 12px 2px rgba(14, 91, 255, 0.6), 0 0 24px 6px rgba(14, 91, 255, 0.3);
+  box-shadow:
+    0 0 12px 2px rgba(14, 91, 255, 0.6),
+    0 0 24px 6px rgba(14, 91, 255, 0.3);
 }
 
 .admin-theme-toggle-bb8 .lines {
@@ -2158,7 +2162,7 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 .auth-bb8-mascot .antennas {
   position: absolute;
   left: 28%;
-  transform: translate(8px, -4px) rotate(4deg);
+  transform: translate(0, 0) rotate(0deg);
   transition: transform 0.35s ease;
 }
 
@@ -2184,7 +2188,7 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 
 .auth-bb8-mascot .head {
   transition: transform 0.35s ease;
-  transform: translate(8px, 1px) rotate(4deg);
+  transform: translate(0, 0) rotate(0deg);
   background-color: #0e5bff;
   border-radius: 90px 90px 25px 25px;
   height: 63px;
@@ -2422,84 +2426,121 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 }
 
 @keyframes auth-bb8-eyes-look {
-  0% {
+  0%, 100% {
     left: 28%;
   }
-  35% {
+  25% {
     left: 54%;
   }
-  70% {
+  50% {
     left: -8%;
   }
-  100% {
-    left: 28%;
+  75% {
+    left: 50%;
   }
 }
 
-@keyframes auth-bb8-head-look {
-  0% {
-    transform: translate(8px, 1px) rotate(4deg);
+@keyframes auth-bb8-head-bounce {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
   }
-  35% {
-    transform: translate(18px, 1px) rotate(10deg);
+  20% {
+    transform: translate(-3px, -8px) rotate(-2deg);
   }
-  70% {
-    transform: translate(-18px, 3px) rotate(-10deg);
+  40% {
+    transform: translate(4px, -10px) rotate(2deg);
   }
-  100% {
-    transform: translate(8px, 1px) rotate(4deg);
+  60% {
+    transform: translate(-4px, -6px) rotate(-1deg);
+  }
+  80% {
+    transform: translate(3px, -8px) rotate(1deg);
   }
 }
 
-@keyframes auth-bb8-antenna-look {
-  0% {
-    transform: translate(8px, -4px) rotate(4deg);
+@keyframes auth-bb8-antenna-wiggle {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
   }
-  35% {
-    transform: translate(16px, -8px) rotate(8deg);
+  15% {
+    transform: translate(-8px, -12px) rotate(-12deg);
   }
-  70% {
-    transform: translate(-16px, 8px) rotate(-8deg);
+  30% {
+    transform: translate(8px, -8px) rotate(14deg);
   }
-  100% {
-    transform: translate(8px, -4px) rotate(4deg);
+  45% {
+    transform: translate(-6px, -10px) rotate(-10deg);
+  }
+  60% {
+    transform: translate(7px, -9px) rotate(11deg);
+  }
+  75% {
+    transform: translate(-5px, -11px) rotate(-8deg);
   }
 }
 
 @keyframes auth-bb8-glow-light {
   0% {
-    box-shadow: 0 0 12px 2px rgba(14, 91, 255, 0.6), 0 0 24px 6px rgba(14, 91, 255, 0.3);
+    box-shadow:
+      0 0 12px 2px rgba(14, 91, 255, 0.6),
+      0 0 24px 6px rgba(14, 91, 255, 0.3);
   }
   50% {
-    box-shadow: 0 0 18px 4px rgba(14, 91, 255, 0.8), 0 0 36px 10px rgba(14, 91, 255, 0.4);
+    box-shadow:
+      0 0 18px 4px rgba(14, 91, 255, 0.8),
+      0 0 36px 10px rgba(14, 91, 255, 0.4);
   }
   100% {
-    box-shadow: 0 0 12px 2px rgba(14, 91, 255, 0.6), 0 0 24px 6px rgba(14, 91, 255, 0.3);
+    box-shadow:
+      0 0 12px 2px rgba(14, 91, 255, 0.6),
+      0 0 24px 6px rgba(14, 91, 255, 0.3);
   }
 }
 
 @keyframes auth-bb8-glow-dark {
   0% {
-    box-shadow: 0 0 12px 2px rgba(255, 255, 255, 0.5), 0 0 24px 6px rgba(255, 255, 255, 0.25);
+    box-shadow:
+      0 0 12px 2px rgba(255, 255, 255, 0.5),
+      0 0 24px 6px rgba(255, 255, 255, 0.25);
   }
   50% {
-    box-shadow: 0 0 18px 4px rgba(255, 255, 255, 0.7), 0 0 36px 10px rgba(255, 255, 255, 0.35);
+    box-shadow:
+      0 0 18px 4px rgba(255, 255, 255, 0.7),
+      0 0 36px 10px rgba(255, 255, 255, 0.35);
   }
   100% {
-    box-shadow: 0 0 12px 2px rgba(255, 255, 255, 0.5), 0 0 24px 6px rgba(255, 255, 255, 0.25);
+    box-shadow:
+      0 0 12px 2px rgba(255, 255, 255, 0.5),
+      0 0 24px 6px rgba(255, 255, 255, 0.25);
   }
 }
 
 .auth-bb8-mascot:hover .eyes {
-  animation: auth-bb8-eyes-look 1.2s ease-in-out infinite;
+  animation: auth-bb8-eyes-look 2s ease-in-out infinite;
 }
 
 .auth-bb8-mascot:hover .head {
-  animation: auth-bb8-head-look 1.2s ease-in-out infinite;
+  animation: auth-bb8-head-bounce 1.8s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
 }
 
 .auth-bb8-mascot:hover .antennas {
-  animation: auth-bb8-antenna-look 1.2s ease-in-out infinite;
+  animation: auth-bb8-antenna-wiggle 1.4s ease-in-out infinite;
+}
+
+@keyframes auth-bb8-body-sway {
+  0%, 100% {
+    transform: translateX(0) scale(1.1);
+  }
+  25% {
+    transform: translateX(-4px) scale(1.1);
+  }
+  75% {
+    transform: translateX(4px) scale(1.1);
+  }
+}
+
+.auth-bb8-mascot:hover .bb8 {
+  animation: auth-bb8-body-sway 1.6s ease-in-out infinite;
 }
 
 .admin-theme-dark .auth-bb8-mascot .head,
