@@ -89,6 +89,19 @@ function getMateriTitle(item: any) {
   return '';
 }
 
+function getMateriTagSource(item: any) {
+  const title = getMateriTitle(item);
+  if (title) {
+    return title;
+  }
+
+  if (item && typeof item.deskripsi_materi === 'string') {
+    return item.deskripsi_materi;
+  }
+
+  return '';
+}
+
 interface GuruData {
   id_guru: number;
   nama_guru: string;
@@ -576,12 +589,12 @@ export default function PBLGuru() {
 
       const materiList = await materiListResponse.json();
       const materiByElemen = ((materiList as Array<any>) || []).filter((item) => item.id_elemen === currentElemenId || item.elemen?.id_elemen === currentElemenId || item.kelas_materi === currentElemenId);
-      const taggedMateri = materiByElemen.filter((item) => hasSintakMateriTag(getMateriTitle(item), sintakOrder));
+      const taggedMateri = materiByElemen.filter((item) => hasSintakMateriTag(getMateriTagSource(item), sintakOrder));
       let selectedMateri = taggedMateri[0] || null;
 
       // Backward compatibility: old data without sintak tag is treated as Sintak 1.
       if (!selectedMateri && sintakOrder === 1) {
-        selectedMateri = materiByElemen.find((item) => !/\[SINTAK-\d+\]/i.test(String(getMateriTitle(item) || ''))) || null;
+        selectedMateri = materiByElemen.find((item) => !/\[SINTAK-\d+\]/i.test(String(getMateriTagSource(item) || ''))) || null;
       }
 
       // Ensure every sintak has its own materi container.
@@ -596,7 +609,7 @@ export default function PBLGuru() {
           body: JSON.stringify({
             judul_materi: `${sintakTag} ${elemenLabel}`,
             nama_materi: `${sintakTag} ${elemenLabel}`,
-            deskripsi_materi: `${elemenLabel} untuk sintak ${sintakOrder}`,
+            deskripsi_materi: `${sintakTag} ${elemenLabel} untuk sintak ${sintakOrder}`,
             kelas_materi: kelasId || currentElemenId,
             id_elemen: currentElemenId,
             guru_materi: guruId,
@@ -620,7 +633,7 @@ export default function PBLGuru() {
       if (!materiDetailResponse.ok) {
         const fallbackOverview = {
           id_materi: selectedMateri.id_materi,
-          judul_materi: stripSintakMateriTag(getMateriTitle(selectedMateri)),
+          judul_materi: stripSintakMateriTag(getMateriTagSource(selectedMateri)),
           bab: [],
         };
         setMateriOverview(fallbackOverview);
@@ -630,7 +643,7 @@ export default function PBLGuru() {
       const materiDetail = await materiDetailResponse.json();
       const nextOverview = {
         id_materi: materiDetail.id_materi,
-        judul_materi: stripSintakMateriTag(getMateriTitle(materiDetail)),
+        judul_materi: stripSintakMateriTag(getMateriTagSource(materiDetail)),
         bab: Array.isArray(materiDetail.bab) ? materiDetail.bab : [],
       };
       setMateriOverview(nextOverview);

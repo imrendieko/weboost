@@ -74,7 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { judul_materi, nama_materi, deskripsi_materi, file_materi, kelas_materi, guru_materi, id_elemen } = req.body;
       const materiTitle = typeof judul_materi === 'string' && judul_materi.trim().length > 0 ? judul_materi.trim() : typeof nama_materi === 'string' ? nama_materi.trim() : '';
 
-      if (!materiTitle || !kelas_materi || !guru_materi) {
+      if (!kelas_materi || !guru_materi) {
         return res.status(400).json({ error: 'Data tidak lengkap' });
       }
 
@@ -105,20 +105,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const candidatePayloads: Array<Record<string, any>> = [];
 
+      if (materiTitle) {
+        candidatePayloads.push({
+          ...basePayload,
+          judul_materi: materiTitle,
+          ...(id_elemen ? { id_elemen } : {}),
+        });
+        candidatePayloads.push({
+          ...basePayload,
+          nama_materi: materiTitle,
+          ...(id_elemen ? { id_elemen } : {}),
+        });
+      }
+
+      // Fallback bila tabel materi tidak memiliki kolom judul/nama.
       candidatePayloads.push({
         ...basePayload,
-        judul_materi: materiTitle,
-        ...(id_elemen ? { id_elemen } : {}),
-      });
-      candidatePayloads.push({
-        ...basePayload,
-        nama_materi: materiTitle,
         ...(id_elemen ? { id_elemen } : {}),
       });
 
       if (id_elemen) {
-        candidatePayloads.push({ ...basePayload, judul_materi: materiTitle });
-        candidatePayloads.push({ ...basePayload, nama_materi: materiTitle });
+        if (materiTitle) {
+          candidatePayloads.push({ ...basePayload, judul_materi: materiTitle });
+          candidatePayloads.push({ ...basePayload, nama_materi: materiTitle });
+        }
+        candidatePayloads.push({ ...basePayload });
       }
 
       let data: any = null;
