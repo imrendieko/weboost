@@ -567,12 +567,7 @@ export default function PBLGuru() {
     );
   };
 
-  const fetchMateriOverview = async (
-    guruId: number,
-    currentElemenId: number,
-    sintakOrder: number,
-    sintakReference?: Array<{ order: number; id_sintak: number | null }>,
-  ) => {
+  const fetchMateriOverview = async (guruId: number, currentElemenId: number, sintakOrder: number, sintakReference?: Array<{ order: number; id_sintak: number | null }>) => {
     try {
       const materiListResponse = await fetch(`/api/materi?id_guru=${guruId}`);
       if (!materiListResponse.ok) {
@@ -593,13 +588,12 @@ export default function PBLGuru() {
 
       // Nomor BAB global lintas sintak untuk elemen yang sama.
       // Urutan wajib: sintak 1 -> sintak 2 -> ... lalu urutan id_bab di tiap sintak.
-      const normalizedSintakReference =
-        (Array.isArray(sintakReference) && sintakReference.length > 0 ? sintakReference : sintakState)
-          .filter((item) => Number.isFinite(Number(item.order)))
-          .map((item) => ({
-            order: Number(item.order),
-            id_sintak: Number.isFinite(Number(item.id_sintak)) ? Number(item.id_sintak) : null,
-          }));
+      const normalizedSintakReference = (Array.isArray(sintakReference) && sintakReference.length > 0 ? sintakReference : sintakState)
+        .filter((item) => Number.isFinite(Number(item.order)))
+        .map((item) => ({
+          order: Number(item.order),
+          id_sintak: Number.isFinite(Number(item.id_sintak)) ? Number(item.id_sintak) : null,
+        }));
 
       const resolveSintakOrder = (value: unknown): number => {
         const numericValue = Number(value);
@@ -620,13 +614,7 @@ export default function PBLGuru() {
         return numericValue > 0 ? numericValue : Number.MAX_SAFE_INTEGER;
       };
 
-      const materiIds = [
-        ...new Set(
-          materiByElemen
-            .map((item) => Number(item.id_materi))
-            .filter((value) => Number.isFinite(value) && value > 0),
-        ),
-      ] as number[];
+      const materiIds = [...new Set(materiByElemen.map((item) => Number(item.id_materi)).filter((value) => Number.isFinite(value) && value > 0))] as number[];
 
       if (materiIds.length > 0) {
         const babResponses = await Promise.all(
@@ -697,9 +685,7 @@ export default function PBLGuru() {
       }
 
       const targetSintakId = sintakState.find((item) => item.order === sintakOrder)?.id_sintak;
-      const materiDetailUrl = targetSintakId
-        ? `/api/materi/${selectedMateri.id_materi}?sintak_materi=${targetSintakId}&sintak_order=${sintakOrder}`
-        : `/api/materi/${selectedMateri.id_materi}`;
+      const materiDetailUrl = targetSintakId ? `/api/materi/${selectedMateri.id_materi}?sintak_materi=${targetSintakId}&sintak_order=${sintakOrder}` : `/api/materi/${selectedMateri.id_materi}`;
       const materiDetailResponse = await fetch(materiDetailUrl);
       if (!materiDetailResponse.ok) {
         setMateriOverview({

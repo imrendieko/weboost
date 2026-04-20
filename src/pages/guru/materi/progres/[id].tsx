@@ -125,20 +125,12 @@ export default function ProgresMateri() {
       let materiIdsForElemen: number[] = [Number(babData.nama_materi)];
 
       if (Number.isFinite(elemenId) && elemenId > 0) {
-        const { data: materiByElemen, error: materiByElemenError } = await supabase
-          .from('materi')
-          .select('id_materi')
-          .eq('id_elemen', elemenId);
+        const { data: materiByElemen, error: materiByElemenError } = await supabase.from('materi').select('id_materi').eq('id_elemen', elemenId);
 
         if (materiByElemenError) {
           console.error('❌ Error fetching materi by elemen for progress denominator:', materiByElemenError);
         } else {
-          materiIdsForElemen = [
-            ...new Set([
-              ...materiIdsForElemen,
-              ...((materiByElemen || []).map((item: any) => Number(item.id_materi)).filter((value: number) => Number.isFinite(value) && value > 0) as number[]),
-            ]),
-          ];
+          materiIdsForElemen = [...new Set([...materiIdsForElemen, ...((materiByElemen || []).map((item: any) => Number(item.id_materi)).filter((value: number) => Number.isFinite(value) && value > 0) as number[])])];
         }
       }
 
@@ -148,7 +140,7 @@ export default function ProgresMateri() {
         console.error('❌ Error fetching bab_materi for progress denominator:', babRowsForElemenError);
       }
 
-      const babIdsForElemen = ((babRowsForElemen || []).map((item: any) => Number(item.id_bab)).filter((value: number) => Number.isFinite(value) && value > 0) as number[]);
+      const babIdsForElemen = (babRowsForElemen || []).map((item: any) => Number(item.id_bab)).filter((value: number) => Number.isFinite(value) && value > 0) as number[];
 
       let totalSubBabAcrossSintak = 0;
       if (babIdsForElemen.length > 0) {

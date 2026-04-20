@@ -323,6 +323,8 @@ export default function PBLSiswa() {
   const [expandedMateriBabs, setExpandedMateriBabs] = useState<number[]>([]);
   const [expandedMateriPreviews, setExpandedMateriPreviews] = useState<number[]>([]);
   const [completedBySintak, setCompletedBySintak] = useState<Record<number, Record<number, boolean>>>({});
+  const [progressHydrated, setProgressHydrated] = useState(false);
+  const [serverCompletedCount, setServerCompletedCount] = useState<number | null>(null);
   const [confirmCompleteSubBabId, setConfirmCompleteSubBabId] = useState<number | null>(null);
   const [currentPageSubmissionInfo, setCurrentPageSubmissionInfo] = useState(1);
   const [rowsPerPageSubmissionInfo, setRowsPerPageSubmissionInfo] = useState(10);
@@ -377,15 +379,24 @@ export default function PBLSiswa() {
       } else {
         setActiveSintak(1);
       }
+
+      return mappedSintaks;
     } catch (error) {
       console.error('Error fetching siswa pbl:', error);
       showNotification(error instanceof Error ? error.message : 'Gagal memuat PBL', 'error');
+      return [] as ApiSintak[];
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchMateriOverviewBySintak = async (kelasId: number, currentElemenId: number, sintakOrder: number, guruPengampuId?: number | null): Promise<MateriOverview | null> => {
+  const fetchMateriOverviewBySintak = async (
+    kelasId: number,
+    currentElemenId: number,
+    sintakOrder: number,
+    guruPengampuId?: number | null,
+    sintakId?: number | null,
+  ): Promise<MateriOverview | null> => {
     try {
       let resolvedMateriRows: Array<any> = [];
 
@@ -442,7 +453,15 @@ export default function PBLSiswa() {
 
       const materiDetails = await Promise.all(
         resolvedMateriRows.map(async (item) => {
-          const response = await fetch(`/api/materi/${item.id_materi}`);
+          const query = new URLSearchParams({
+            sintak_order: String(sintakOrder),
+          });
+
+          if (Number.isFinite(Number(sintakId)) && Number(sintakId) > 0) {
+            query.set('sintak_materi', String(sintakId));
+          }
+
+          const response = await fetch(`/api/materi/${item.id_materi}?${query.toString()}`);
           if (!response.ok) {
             return {
               id_materi: item.id_materi,
@@ -473,10 +492,16 @@ export default function PBLSiswa() {
     }
   };
 
-  const fetchAllMateriBySintak = async (kelasId: number, currentElemenId: number, guruPengampuId?: number | null) => {
+  const fetchAllMateriBySintak = async (
+    kelasId: number,
+    currentElemenId: number,
+    guruPengampuId?: number | null,
+    sintakReferences?: ApiSintak[],
+  ) => {
     const entries = await Promise.all(
       [1, 2, 3, 4, 5].map(async (order) => {
-        const materi = await fetchMateriOverviewBySintak(kelasId, currentElemenId, order, guruPengampuId);
+        const targetSintak = (sintakReferences || sintakState).find((item) => item.order === order);
+        const materi = await fetchMateriOverviewBySintak(kelasId, currentElemenId, order, guruPengampuId, targetSintak?.id_sintak ?? null);
         return [order, materi] as const;
       }),
     );
@@ -530,8 +555,8 @@ export default function PBLSiswa() {
         if (elemenId) {
           // Materi diambil per sintak supaya panel belajar bisa dibuka cepat per tahap.
           const selectedElemen = ((elemenData as Array<any>) || []).find((item) => item.id_elemen === elemenId);
-          await fetchPblData(session.id_siswa, elemenId, preferredSintakOrder);
-          await fetchAllMateriBySintak(session.kelas_siswa, elemenId, selectedElemen?.guru_pengampu ?? null);
+          const fetchedSintaks = await fetchPblData(session.id_siswa, elemenId, preferredSintakOrder);
+          await fetchAllMateriBySintak(session.kelas_siswa, elemenId, selectedElemen?.guru_pengampu ?? null, fetchedSintaks);
         } else {
           setLoading(false);
           setMateriBySintak({});
@@ -670,10 +695,41 @@ export default function PBLSiswa() {
     return allSubBabAcrossSintak.filter((item) => completedIds.has(item.id_sub_bab)).length;
   }, [completedBySintak, allSubBabAcrossSintak]);
 
+  const hasMateriHydrated = useMemo(() => {
+    return [1, 2, 3, 4, 5].every((order) => Object.prototype.hasOwnProperty.call(materiBySintak, order));
+  }, [materiBySintak]);
+
+  const buildCompletionMapFromCount = useCallback(
+    (completedCountFromDb: number) => {
+      let remaining = Math.max(0, Math.floor(completedCountFromDb));
+      const reconstructed: Record<number, Record<number, boolean>> = {};
+
+      [1, 2, 3, 4, 5].forEach((order) => {
+        const subBabList = (materiBySintak[order]?.bab || []).flatMap((bab) => bab.sub_bab || []);
+        const orderMap: Record<number, boolean> = {};
+
+        subBabList.forEach((subBab) => {
+          if (remaining > 0) {
+            orderMap[subBab.id_sub_bab] = true;
+            remaining -= 1;
+          }
+        });
+
+        reconstructed[order] = orderMap;
+      });
+
+      return reconstructed;
+    },
+    [materiBySintak],
+  );
+
   useEffect(() => {
     if (!siswaSession || !elemenId) {
       return;
     }
+
+    setProgressHydrated(false);
+    setServerCompletedCount(null);
 
     const initialMap: Record<number, Record<number, boolean>> = {};
     [1, 2, 3, 4, 5].forEach((order) => {
@@ -696,11 +752,44 @@ export default function PBLSiswa() {
       }
     });
 
-    setCompletedBySintak(initialMap);
+    const hasLocalProgress = Object.values(initialMap).some((orderMap) => Object.values(orderMap).some(Boolean));
+    if (hasLocalProgress) {
+      setCompletedBySintak(initialMap);
+      setProgressHydrated(true);
+      return;
+    }
+
+    fetch(`/api/siswa/progres-materi?id_siswa=${siswaSession.id_siswa}`)
+      .then(async (response) => {
+        if (!response.ok) {
+          return null;
+        }
+
+        const result = await response.json();
+        return result;
+      })
+      .then((result) => {
+        const completedFromDb = Number(result?.sub_bab_selesai ?? 0);
+        setServerCompletedCount(Number.isFinite(completedFromDb) ? Math.max(0, completedFromDb) : 0);
+      })
+      .catch((error) => {
+        console.error('Error fetching progres_materi saat init siswa pbl:', error);
+        setServerCompletedCount(0);
+      });
   }, [siswaSession?.id_siswa, elemenId]);
 
   useEffect(() => {
-    if (!siswaSession || !elemenId) {
+    if (!siswaSession || !elemenId || progressHydrated || !hasMateriHydrated || serverCompletedCount === null) {
+      return;
+    }
+
+    const reconstructed = buildCompletionMapFromCount(serverCompletedCount);
+    setCompletedBySintak(reconstructed);
+    setProgressHydrated(true);
+  }, [siswaSession, elemenId, progressHydrated, hasMateriHydrated, serverCompletedCount, buildCompletionMapFromCount]);
+
+  useEffect(() => {
+    if (!siswaSession || !elemenId || !progressHydrated) {
       return;
     }
 
