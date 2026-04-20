@@ -200,7 +200,7 @@ export default function ProfilSiswa() {
 
           {notification.show && (
             <div className={`mb-6 p-4 rounded-lg ${notification.type === 'success' ? 'bg-green-500/20 border border-green-500/50' : 'bg-red-500/20 border border-red-500/50'}`}>
-              <p className={notification.type === 'success' ? 'text-green-300' : 'text-red-300'}>{notification.message}</p>
+              <p className={notification.type === 'success' ? 'text-black' : 'text-red-300'}>{notification.message}</p>
             </div>
           )}
 
