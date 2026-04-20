@@ -39,18 +39,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json(result);
     } catch (error) {
       console.error('Error in GET /api/asesmen/[id]:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Terjadi kesalahan server' });
     }
   } else if (req.method === 'PUT') {
     try {
-      const { judul_asesmen, sampul_asesmen, waktu_mulai, waktu_terakhir, nilai_asesmen, durasi_asesmen, durasi_kuis, kelas_asesmen, elemen_asesmen, acak_soal } = req.body;
+      const { judul_asesmen, sampul_asesmen, waktu_mulai, waktu_terakhir, durasi_asesmen, durasi_kuis, kelas_asesmen, elemen_asesmen, acak_soal } = req.body;
 
       const payload: any = {
         judul_asesmen,
         sampul_asesmen,
         waktu_mulai,
         waktu_terakhir,
-        nilai_asesmen,
         durasi_asesmen: durasi_asesmen ?? durasi_kuis ?? null,
       };
 
@@ -70,7 +69,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             sampul_asesmen,
             waktu_mulai,
             waktu_terakhir,
-            nilai_asesmen,
             durasi_kuis: durasi_asesmen ?? durasi_kuis ?? null,
           })
           .eq('id_asesmen', idAsesmen)
@@ -90,7 +88,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             sampul_asesmen,
             waktu_mulai,
             waktu_terakhir,
-            nilai_asesmen,
           })
           .eq('id_asesmen', idAsesmen)
           .select()
@@ -108,7 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json(data);
     } catch (error) {
       console.error('Error in PUT /api/asesmen/[id]:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Terjadi kesalahan server' });
     }
   } else if (req.method === 'DELETE') {
     try {
@@ -159,9 +156,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ message: 'Asesmen berhasil dihapus' });
     } catch (error) {
       console.error('[DELETE ASESMEN] Exception error:', error);
-      return res.status(500).json({ error: 'Internal server error: ' + String(error) });
+      return res.status(500).json({ error: 'Terjadi kesalahan server: ' + String(error) });
     }
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Metode tidak diizinkan' });
   }
 }

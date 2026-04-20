@@ -1,19 +1,30 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type FormEvent } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import GuruNavbar from '@/components/GuruNavbar';
 import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
+import DataTablePagination from '@/components/DataTablePagination';
 import supabase from '@/lib/db';
 import { LampiranType, parseLampiran } from '@/lib/pbl';
+import { compressFile, formatFileSize } from '@/lib/fileCompression';
 import {
   FaArrowLeft,
+  FaChartBar,
+  FaChevronDown,
+  FaChevronUp,
   FaCheck,
   FaClock,
   FaCommentAlt,
+  FaCompress,
+  FaCloudUploadAlt,
+  FaDownload,
+  FaEdit,
   FaEllipsisV,
   FaExclamationCircle,
+  FaExternalLinkAlt,
   FaFileAlt,
+  FaBook,
   FaLink,
   FaPaperPlane,
   FaProjectDiagram,
@@ -26,6 +37,7 @@ import {
   FaUser,
   FaVideo,
   FaUsers,
+  FaTimes,
 } from 'react-icons/fa';
 import { FaBold, FaItalic, FaListUl, FaPlus } from 'react-icons/fa6';
 
@@ -36,6 +48,29 @@ const PBL_SYNTAX_TITLES = [
   'Sintak 4: Mengembangkan dan Menyajikan Hasil Karya',
   'Sintak 5: Menganalisis dan Mengevaluasi Proses Pemecahan Masalah',
 ] as const;
+
+function buildSintakMateriTag(order: number) {
+  return `[SINTAK-${order}]`;
+}
+
+function hasSintakMateriTag(judulMateri: unknown, order: number) {
+  if (typeof judulMateri !== 'string') {
+    return false;
+  }
+
+  return judulMateri.toUpperCase().includes(buildSintakMateriTag(order));
+}
+
+function stripSintakMateriTag(judulMateri: unknown) {
+  if (typeof judulMateri !== 'string') {
+    return '';
+  }
+
+  return judulMateri
+    .replace(/\s*\[SINTAK-\d+\]\s*/gi, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
 
 interface GuruData {
   id_guru: number;
@@ -154,6 +189,25 @@ interface NotificationState {
   message: string;
 }
 
+interface MateriSubBab {
+  id_sub_bab: number;
+  judul_sub_bab: string;
+  tautan_konten: string;
+}
+
+interface MateriBab {
+  id_bab: number;
+  judul_bab: string;
+  deskripsi_bab?: string;
+  sub_bab?: MateriSubBab[];
+}
+
+interface MateriOverview {
+  id_materi: number;
+  judul_materi?: string;
+  bab?: MateriBab[];
+}
+
 function getCurrentDate() {
   const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -223,6 +277,12 @@ function formatDurationIndonesian(totalSeconds: number) {
   return parts.slice(0, 2).join(' ');
 }
 
+function stripUnsafeHtml(html: string) {
+  const withWhitelistedDecodedTags = html.replace(/&lt;(\/?)(b|strong|i|em|u|ul|ol|li|p|br)&gt;/gi, '<$1$2>').replace(/&lt;(\/?)(span|div)&gt;/gi, '<$1$2>');
+
+  return withWhitelistedDecodedTags.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '').replace(/on\w+=['"][^'"]*['"]/gi, '');
+}
+
 function getSubmissionTimingStatus(submissionTime: string | null | undefined, deadlineTime: string | null | undefined) {
   if (!submissionTime || !deadlineTime) {
     return null;
@@ -282,7 +342,7 @@ function parseSubmissionFile(rawValue: string) {
   };
 }
 
-function RichTextEditor({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function RichTextEditor({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder?: string }) {
   const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -322,7 +382,8 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (value: 
         contentEditable
         suppressContentEditableWarning
         onInput={(event) => onChange(event.currentTarget.innerHTML)}
-        className="min-h-[220px] px-4 py-4 text-sm leading-7 text-white focus:outline-none"
+        data-placeholder={placeholder || 'Tulis deskripsi...'}
+        className="min-h-[120px] px-4 py-4 text-sm leading-7 text-white focus:outline-none empty:before:pointer-events-none empty:before:text-gray-500 empty:before:content-[attr(data-placeholder)]"
         style={{ whiteSpace: 'pre-wrap' }}
       />
     </div>
@@ -334,6 +395,21 @@ export default function PBLGuru() {
   const elemenQuery = router.query.elemen;
   const elemenId = typeof elemenQuery === 'string' ? Number(elemenQuery) : null;
 
+  useEffect(() => {
+    if (!router.isReady) {
+      return;
+    }
+
+    if (router.pathname !== '/guru/pbl') {
+      return;
+    }
+
+    router.replace({
+      pathname: '/guru/pembelajaran',
+      query: router.query,
+    });
+  }, [router]);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
@@ -344,8 +420,11 @@ export default function PBLGuru() {
   const [activeSintak, setActiveSintak] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [currentPagePengumpulan, setCurrentPagePengumpulan] = useState(1);
+  const [rowsPerPagePengumpulan, setRowsPerPagePengumpulan] = useState(10);
   const [notification, setNotification] = useState<NotificationState>({ show: false, type: 'success', message: '' });
   const [sintakState, setSintakState] = useState<SintakState[]>([]);
+  const [materiOverview, setMateriOverview] = useState<MateriOverview | null>(null);
   const [deletingSubmission, setDeletingSubmission] = useState(false);
   const [deleteSubmissionTarget, setDeleteSubmissionTarget] = useState<{
     id_pengumpulan: number;
@@ -355,6 +434,36 @@ export default function PBLGuru() {
   const [gradingDrafts, setGradingDrafts] = useState<Record<number, { nilai: string; komentar: string }>>({});
   const [savingGradingMap, setSavingGradingMap] = useState<Record<number, boolean>>({});
   const [openCommentMenu, setOpenCommentMenu] = useState<number | null>(null);
+  const [showAddBabModal, setShowAddBabModal] = useState(false);
+  const [showEditBabModal, setShowEditBabModal] = useState(false);
+  const [showAddSubBabModal, setShowAddSubBabModal] = useState(false);
+  const [showEditSubBabModal, setShowEditSubBabModal] = useState(false);
+  const [showDeleteBabModal, setShowDeleteBabModal] = useState(false);
+  const [showDeleteSubBabModal, setShowDeleteSubBabModal] = useState(false);
+  const [deleteBabTarget, setDeleteBabTarget] = useState<{ id: number; judul: string } | null>(null);
+  const [deleteSubBabTarget, setDeleteSubBabTarget] = useState<MateriSubBab | null>(null);
+  const [selectedBabForEdit, setSelectedBabForEdit] = useState<MateriBab | null>(null);
+  const [selectedSubBabForEdit, setSelectedSubBabForEdit] = useState<MateriSubBab | null>(null);
+  const [selectedBabForSubBab, setSelectedBabForSubBab] = useState<MateriBab | null>(null);
+  const [expandedMateriBabs, setExpandedMateriBabs] = useState<number[]>([]);
+  const [expandedMateriPreviews, setExpandedMateriPreviews] = useState<number[]>([]);
+  const [savingBab, setSavingBab] = useState(false);
+  const [savingSubBab, setSavingSubBab] = useState(false);
+  const [addBabFormError, setAddBabFormError] = useState('');
+  const [addSubBabFormError, setAddSubBabFormError] = useState('');
+  const [isUploadingMateri, setIsUploadingMateri] = useState(false);
+  const [fileTypeMateri, setFileTypeMateri] = useState<'dokumen' | 'video' | 'tautan'>('dokumen');
+  const [uploadedMateriFile, setUploadedMateriFile] = useState<File | null>(null);
+  const [compressionProgressMateri, setCompressionProgressMateri] = useState(0);
+  const [compressionMessageMateri, setCompressionMessageMateri] = useState('');
+  const [isCompressingMateri, setIsCompressingMateri] = useState(false);
+  const [compressionInfoMateri, setCompressionInfoMateri] = useState<{
+    originalSize: number;
+    compressedSize: number;
+    reductionPercent: number;
+  } | null>(null);
+  const [babForm, setBabForm] = useState({ judul_bab: '', deskripsi_bab: '' });
+  const [subBabForm, setSubBabForm] = useState({ judul_sub_bab: '', tautan_konten: '' });
   const notificationTimerRef = useRef<number | null>(null);
   const startDateTimeRef = useRef<HTMLInputElement>(null);
   const endDateTimeRef = useRef<HTMLInputElement>(null);
@@ -435,7 +544,73 @@ export default function PBLGuru() {
     );
   };
 
-  const fetchPblData = async (guruId: number, currentElemenId: number) => {
+  const fetchMateriOverview = async (guruId: number, currentElemenId: number, sintakOrder: number) => {
+    try {
+      const materiListResponse = await fetch(`/api/materi?id_guru=${guruId}`);
+      if (!materiListResponse.ok) {
+        setMateriOverview(null);
+        return;
+      }
+
+      const materiList = await materiListResponse.json();
+      const materiByElemen = ((materiList as Array<any>) || []).filter((item) => item.kelas_materi === currentElemenId || item.id_elemen === currentElemenId || item.elemen?.id_elemen === currentElemenId);
+      const taggedMateri = materiByElemen.filter((item) => hasSintakMateriTag(item.judul_materi, sintakOrder));
+      let selectedMateri = taggedMateri[0] || null;
+
+      // Backward compatibility: old data without sintak tag is treated as Sintak 1.
+      if (!selectedMateri && sintakOrder === 1) {
+        selectedMateri = materiByElemen.find((item) => !/\[SINTAK-\d+\]/i.test(String(item.judul_materi || ''))) || null;
+      }
+
+      // Ensure every sintak has its own materi container.
+      if (!selectedMateri?.id_materi) {
+        const elemen = elemenOptions.find((item) => item.id_elemen === currentElemenId);
+        const sintakTag = buildSintakMateriTag(sintakOrder);
+        const elemenLabel = elemen?.nama_elemen ? `Materi ${elemen.nama_elemen}` : 'Materi Pembelajaran';
+        const createResponse = await fetch('/api/materi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            judul_materi: `${sintakTag} ${elemenLabel}`,
+            deskripsi_materi: `${elemenLabel} untuk sintak ${sintakOrder}`,
+            kelas_materi: currentElemenId,
+            guru_materi: guruId,
+          }),
+        });
+
+        if (createResponse.ok) {
+          selectedMateri = await createResponse.json();
+        }
+      }
+
+      if (!selectedMateri?.id_materi) {
+        setMateriOverview(null);
+        return;
+      }
+
+      const materiDetailResponse = await fetch(`/api/materi/${selectedMateri.id_materi}`);
+      if (!materiDetailResponse.ok) {
+        setMateriOverview({
+          id_materi: selectedMateri.id_materi,
+          judul_materi: stripSintakMateriTag(selectedMateri.judul_materi),
+          bab: [],
+        });
+        return;
+      }
+
+      const materiDetail = await materiDetailResponse.json();
+      setMateriOverview({
+        id_materi: materiDetail.id_materi,
+        judul_materi: stripSintakMateriTag(materiDetail.judul_materi),
+        bab: Array.isArray(materiDetail.bab) ? materiDetail.bab : [],
+      });
+    } catch (error) {
+      console.error('Error fetching materi overview:', error);
+      setMateriOverview(null);
+    }
+  };
+
+  const fetchPblData = async (guruId: number, currentElemenId: number, preferredOrder?: number) => {
     try {
       setLoading(true);
       const response = await fetch(`/api/pbl?elemen=${currentElemenId}&guru=${guruId}`);
@@ -486,10 +661,14 @@ export default function PBLGuru() {
           replyingTo: null,
         })),
       );
-      // Only set to 1 if no sintak query parameter exists
-      if (!router.query.sintak) {
-        setActiveSintak(1);
-      }
+
+      const availableOrders = new Set((result.sintaks || []).map((item: any) => Number(item.order)));
+      const sintakQueryValue = router.query.sintak;
+      const parsedSintakOrder = typeof sintakQueryValue === 'string' ? Number(sintakQueryValue) : Number(Array.isArray(sintakQueryValue) ? sintakQueryValue[0] : sintakQueryValue);
+      const requestedOrder = preferredOrder ?? parsedSintakOrder ?? activeSintak;
+      const targetOrder = Number.isFinite(requestedOrder) && requestedOrder >= 1 && requestedOrder <= 5 && availableOrders.has(requestedOrder) ? requestedOrder : 1;
+      setActiveSintak(targetOrder);
+      await fetchMateriOverview(guruId, currentElemenId, targetOrder);
     } catch (error) {
       console.error('Error fetching PBL data:', error);
       showNotification(error instanceof Error ? error.message : 'Gagal memuat halaman PBL', 'error');
@@ -499,11 +678,12 @@ export default function PBLGuru() {
   };
 
   useEffect(() => {
+    // Inisialisasi halaman: cek sesi guru, ambil elemen, lalu load detail PBL elemen aktif.
     const loadInitialData = async () => {
       try {
         const guruSession = localStorage.getItem('guru_session');
         if (!guruSession) {
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -539,13 +719,14 @@ export default function PBLGuru() {
         }
 
         if (router.isReady && elemenId) {
+          // Kalau elemen sudah dipilih di URL, langsung hydrate data sintak + materi.
           await fetchPblData(sessionData.id_guru, elemenId);
         } else {
           setLoading(false);
         }
       } catch (error) {
         console.error('Error checking guru auth:', error);
-        router.push('/');
+        window.location.replace('/');
       }
     };
 
@@ -567,9 +748,54 @@ export default function PBLGuru() {
     }
   }, [router.isReady, router.query.sintak, router.query.elemen, loading]);
 
+  useEffect(() => {
+    if (!guruData || !elemenId || loading) {
+      return;
+    }
+
+    fetchMateriOverview(guruData.id_guru, elemenId, activeSintak).catch((error) => {
+      console.error('Error refreshing materi per sintak:', error);
+    });
+  }, [guruData?.id_guru, elemenId, activeSintak, loading]);
+
   const updateSintak = (order: number, updater: (current: SintakState) => SintakState) => {
     setSintakState((current) => current.map((item) => (item.order === order ? updater(item) : item)));
   };
+
+  const syncSintakQuery = useCallback(
+    (order: number) => {
+      if (!router.isReady || !elemenId) {
+        return;
+      }
+
+      const currentQueryOrder = typeof router.query.sintak === 'string' ? Number(router.query.sintak) : Number(Array.isArray(router.query.sintak) ? router.query.sintak[0] : null);
+      if (currentQueryOrder === order) {
+        return;
+      }
+
+      router.replace(
+        {
+          pathname: '/guru/pembelajaran',
+          query: {
+            ...router.query,
+            elemen: elemenId,
+            sintak: order,
+          },
+        },
+        undefined,
+        { shallow: true },
+      );
+    },
+    [router, elemenId],
+  );
+
+  const handleSintakChange = useCallback(
+    (order: number) => {
+      setActiveSintak(order);
+      syncSintakQuery(order);
+    },
+    [syncSintakQuery],
+  );
 
   const activeSintakState = sintakState.find((item) => item.order === activeSintak) || null;
 
@@ -632,6 +858,15 @@ export default function PBLGuru() {
       .sort((left, right) => (sortOrder === 'asc' ? left.nama.localeCompare(right.nama) : right.nama.localeCompare(left.nama)));
   }, [activeSintakState, searchTerm, sortOrder]);
 
+  const totalPagesPengumpulan = Math.max(1, Math.ceil(filteredPengumpulan.length / rowsPerPagePengumpulan));
+  const safePagePengumpulan = Math.min(currentPagePengumpulan, totalPagesPengumpulan);
+  const startIndexPengumpulan = (safePagePengumpulan - 1) * rowsPerPagePengumpulan;
+  const paginatedPengumpulan = useMemo(() => filteredPengumpulan.slice(startIndexPengumpulan, startIndexPengumpulan + rowsPerPagePengumpulan), [filteredPengumpulan, startIndexPengumpulan, rowsPerPagePengumpulan]);
+
+  useEffect(() => {
+    setCurrentPagePengumpulan(1);
+  }, [activeSintak, searchTerm, sortOrder]);
+
   const groupedKomentar = useMemo(() => {
     if (!activeSintakState) {
       return [] as ApiKomentar[];
@@ -678,7 +913,7 @@ export default function PBLGuru() {
                   <button
                     type="button"
                     onClick={() => setOpenCommentMenu(openCommentMenu === reply.id_komentar ? null : reply.id_komentar)}
-                    className="inline-flex items-center justify-center rounded-lg border border-white/10 p-2 text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
+                    className="comment-menu-btn inline-flex items-center justify-center rounded-lg border border-white/10 p-2 text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
                   >
                     <FaEllipsisV />
                   </button>
@@ -704,7 +939,7 @@ export default function PBLGuru() {
                           }}
                           className="flex w-full items-center gap-2 px-3 py-2.5 text-xs sm:text-sm text-red-300 transition hover:bg-red-500/20"
                         >
-                          <FaTrash />
+                          <FaTrash className="h-4 w-4 shrink-0" />
                           Hapus
                         </button>
                       )}
@@ -777,7 +1012,7 @@ export default function PBLGuru() {
         throw new Error(result.error || 'Gagal menambahkan kelompok');
       }
 
-      await fetchPblData(guruData.id_guru, elemenId);
+      await fetchPblData(guruData.id_guru, elemenId, activeSintak);
       showNotification('Kelompok berhasil ditambahkan.', 'success');
     } catch (error) {
       console.error('Error creating kelompok:', error);
@@ -798,7 +1033,7 @@ export default function PBLGuru() {
         throw new Error(result.error || 'Gagal menghapus kelompok');
       }
 
-      await fetchPblData(guruData.id_guru, elemenId);
+      await fetchPblData(guruData.id_guru, elemenId, activeSintak);
       showNotification('Kelompok berhasil dihapus.', 'success');
     } catch (error) {
       console.error('Error deleting kelompok:', error);
@@ -923,7 +1158,7 @@ export default function PBLGuru() {
         throw new Error(result.error || 'Gagal menyimpan sintak PBL');
       }
 
-      await fetchPblData(guruData.id_guru, elemenId);
+      await fetchPblData(guruData.id_guru, elemenId, activeSintak);
       showNotification(`Sintak ${activeSintak} berhasil disimpan.`, 'success');
     } catch (error) {
       console.error('Error saving PBL:', error);
@@ -966,7 +1201,7 @@ export default function PBLGuru() {
         throw new Error(result.error || 'Gagal menambahkan komentar');
       }
 
-      await fetchPblData(guruData.id_guru, elemenId);
+      await fetchPblData(guruData.id_guru, elemenId, activeSintak);
       showNotification('Komentar berhasil ditambahkan.', 'success');
     } catch (error) {
       console.error('Error creating comment:', error);
@@ -989,7 +1224,7 @@ export default function PBLGuru() {
         throw new Error(result.error || 'Gagal menghapus komentar');
       }
 
-      await fetchPblData(guruData.id_guru, elemenId);
+      await fetchPblData(guruData.id_guru, elemenId, activeSintak);
       showNotification('Komentar berhasil dihapus.', 'success');
     } catch (error) {
       console.error('Error deleting comment:', error);
@@ -1103,7 +1338,7 @@ export default function PBLGuru() {
         throw new Error(result.error || 'Gagal menyimpan nilai/komentar PBL');
       }
 
-      await fetchPblData(guruData.id_guru, elemenId);
+      await fetchPblData(guruData.id_guru, elemenId, activeSintak);
       showNotification('Nilai dan komentar PBL berhasil disimpan.', 'success');
     } catch (error) {
       console.error('Error saving submission grading:', error);
@@ -1140,13 +1375,665 @@ export default function PBLGuru() {
       }
 
       setDeleteSubmissionTarget(null);
-      await fetchPblData(guruData.id_guru, elemenId);
+      await fetchPblData(guruData.id_guru, elemenId, activeSintak);
       showNotification('File pengumpulan siswa berhasil dihapus.', 'success');
     } catch (error) {
       console.error('Error deleting pengumpulan pbl:', error);
       showNotification(error instanceof Error ? error.message : 'Gagal menghapus file pengumpulan siswa', 'error');
     } finally {
       setDeletingSubmission(false);
+    }
+  };
+
+  const getSubBabDescription = () => subBabForm.tautan_konten.split('|')[1] || '';
+
+  const setSubBabDescription = (descriptionHtml: string) => {
+    const currentType = subBabForm.tautan_konten.split('|')[0] || fileTypeMateri;
+    const currentFile = subBabForm.tautan_konten.split('|')[2] || '';
+    setSubBabForm((prev) => ({ ...prev, tautan_konten: `${currentType}|${descriptionHtml}|${currentFile}` }));
+  };
+
+  const getFileTypeFromUrl = (tautanKonten: string): 'dokumen' | 'video' | 'tautan' => {
+    const parts = tautanKonten.split('|');
+    const detected = parts[0];
+    if (detected === 'dokumen' || detected === 'video' || detected === 'tautan') {
+      return detected;
+    }
+    return 'tautan';
+  };
+
+  const getFileUrlFromContent = (tautanKonten: string): string => {
+    const parts = tautanKonten.split('|');
+    if (parts.length >= 3) {
+      return parts[2] || '';
+    }
+    return '';
+  };
+
+  const getDescriptionFromContent = (tautanKonten: string): string => {
+    const parts = tautanKonten.split('|');
+    if (parts.length >= 3) {
+      return parts[1] || '';
+    }
+    return '';
+  };
+
+  const convertYouTubeUrl = (url: string): string => {
+    if (url.includes('youtube.com/watch')) {
+      const videoId = url.split('v=')[1]?.split('&')[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    if (url.includes('youtu.be/')) {
+      const videoId = url.split('youtu.be/')[1]?.split('?')[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    return url;
+  };
+
+  const handleDownloadFile = async (fileUrl: string, fileName: string) => {
+    try {
+      const response = await fetch(fileUrl);
+      if (!response.ok) {
+        throw new Error('Gagal mengunduh file');
+      }
+
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      showNotification('File berhasil diunduh', 'success');
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      showNotification('Gagal mengunduh file', 'error');
+    }
+  };
+
+  const handleMateriFileSelection = async (file: File) => {
+    try {
+      const maxSize = 50 * 1024 * 1024;
+      if (file.size > maxSize) {
+        showNotification(`File terlalu besar! Maksimal ${formatFileSize(maxSize)}`, 'error');
+        return null;
+      }
+
+      setIsCompressingMateri(true);
+      setCompressionProgressMateri(0);
+      setCompressionMessageMateri('Mempersiapkan kompresi...');
+
+      const result = await compressFile(file, (progress, message) => {
+        setCompressionProgressMateri(progress);
+        setCompressionMessageMateri(message);
+      });
+
+      setIsCompressingMateri(false);
+
+      if (result.reductionPercent > 0) {
+        setCompressionInfoMateri({
+          originalSize: result.originalSize,
+          compressedSize: result.compressedSize,
+          reductionPercent: result.reductionPercent,
+        });
+      } else {
+        setCompressionInfoMateri(null);
+      }
+
+      return result.compressedFile;
+    } catch (error) {
+      console.error('Error handling materi file selection:', error);
+      setIsCompressingMateri(false);
+      showNotification('Gagal memproses file. Menggunakan file asli.', 'error');
+      return file;
+    }
+  };
+
+  const InlineFilePreview = ({ subBab }: { subBab: MateriSubBab }) => {
+    const [previewHeight, setPreviewHeight] = useState('400px');
+
+    useEffect(() => {
+      const handleResize = () => {
+        if (window.innerWidth < 640) {
+          setPreviewHeight('350px');
+        } else if (window.innerWidth < 1024) {
+          setPreviewHeight('450px');
+        } else {
+          setPreviewHeight('600px');
+        }
+      };
+
+      handleResize();
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const fileType = getFileTypeFromUrl(subBab.tautan_konten);
+    const fileUrl = getFileUrlFromContent(subBab.tautan_konten);
+    const description = getDescriptionFromContent(subBab.tautan_konten);
+
+    const getFileExtension = (url: string): string => {
+      const match = url.match(/\.([^.]+)$/);
+      return match ? match[1].toLowerCase() : '';
+    };
+
+    const getFileName = (url: string): string => {
+      try {
+        const urlObj = new URL(url);
+        const pathname = urlObj.pathname;
+        const fileName = pathname.split('/').pop() || 'file';
+        return decodeURIComponent(fileName);
+      } catch {
+        return `${subBab.judul_sub_bab}.${getFileExtension(url)}`;
+      }
+    };
+
+    const extension = getFileExtension(fileUrl);
+    const isOfficeDocument = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension);
+
+    let previewUrl: string;
+    if (fileUrl.includes('drive.google.com') || fileUrl.includes('docs.google.com')) {
+      const fileIdMatch = fileUrl.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+      if (fileIdMatch) {
+        previewUrl = `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
+      } else {
+        previewUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+      }
+    } else if (extension === 'pdf') {
+      previewUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+    } else if (isOfficeDocument) {
+      previewUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
+    } else {
+      previewUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+    }
+
+    return (
+      <div className="mt-3 border-t border-white/10 pt-3">
+        {description && (
+          <div
+            className="materi-richtext mb-3 text-sm leading-6 text-gray-300"
+            dangerouslySetInnerHTML={{ __html: stripUnsafeHtml(description) }}
+          />
+        )}
+        <div className="overflow-hidden rounded-lg bg-gray-800">
+          {fileType === 'dokumen' && (
+            <div
+              className="w-full bg-black/70"
+              style={{ height: previewHeight }}
+            >
+              <iframe
+                src={previewUrl}
+                className="h-full w-full"
+                title={subBab.judul_sub_bab}
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-presentation allow-top-navigation-by-user-activation"
+              />
+            </div>
+          )}
+          {fileType === 'video' && (
+            <div
+              className="w-full bg-black/70"
+              style={{ height: previewHeight }}
+            >
+              {fileUrl.includes('youtube.com') || fileUrl.includes('youtu.be') ? (
+                <iframe
+                  src={convertYouTubeUrl(fileUrl)}
+                  className="h-full w-full"
+                  title={subBab.judul_sub_bab}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
+                />
+              ) : (
+                <video
+                  src={fileUrl}
+                  controls
+                  className="h-full w-full"
+                />
+              )}
+            </div>
+          )}
+          {fileType === 'tautan' && (
+            <div className="p-6 text-center">
+              <FaLink className="mx-auto mb-4 text-5xl text-blue-400" />
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mb-5 block break-all text-sm text-blue-400 hover:underline"
+              >
+                {fileUrl}
+              </a>
+              <div className="flex flex-col justify-center gap-2 sm:flex-row">
+                <button
+                  onClick={() => handleDownloadFile(fileUrl, getFileName(fileUrl))}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-green-700"
+                >
+                  <FaDownload /> Download
+                </button>
+                <a
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-blue-700"
+                >
+                  <FaExternalLinkAlt /> Buka di Tab Baru
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {fileType !== 'tautan' && (
+          <div className="mt-3 flex flex-col flex-wrap gap-2 sm:flex-row">
+            <button
+              onClick={() => handleDownloadFile(fileUrl, getFileName(fileUrl))}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+            >
+              <FaDownload /> Download
+            </button>
+            <a
+              href={fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+            >
+              <FaExternalLinkAlt /> Buka di Tab Baru
+            </a>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const handleCreateBab = async (e: FormEvent) => {
+    e.preventDefault();
+    setAddBabFormError('');
+
+    if (!materiOverview?.id_materi) {
+      setAddBabFormError('Data materi belum tersedia untuk elemen ini.');
+      return;
+    }
+
+    if (!babForm.judul_bab.trim()) {
+      setAddBabFormError('Judul BAB wajib diisi.');
+      return;
+    }
+
+    setSavingBab(true);
+    try {
+      const response = await fetch('/api/bab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nama_materi: materiOverview.id_materi,
+          judul_bab: babForm.judul_bab.trim(),
+          deskripsi_bab: babForm.deskripsi_bab.trim(),
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Gagal menambahkan BAB');
+      }
+
+      setShowAddBabModal(false);
+      setBabForm({ judul_bab: '', deskripsi_bab: '' });
+      setAddBabFormError('');
+      if (guruData && elemenId) {
+        await fetchMateriOverview(guruData.id_guru, elemenId, activeSintak);
+      }
+      showNotification('BAB berhasil ditambahkan.', 'success');
+    } catch (error) {
+      console.error('Error creating bab from PBL page:', error);
+      setAddBabFormError(error instanceof Error ? error.message : 'Gagal menambahkan BAB');
+    } finally {
+      setSavingBab(false);
+    }
+  };
+
+  const handleCreateSubBab = async (e: FormEvent) => {
+    e.preventDefault();
+    setAddSubBabFormError('');
+
+    if (!selectedBabForSubBab?.id_bab) {
+      setAddSubBabFormError('BAB tujuan tidak ditemukan.');
+      return;
+    }
+
+    if (!subBabForm.judul_sub_bab.trim()) {
+      setAddSubBabFormError('Judul sub-bab wajib diisi.');
+      return;
+    }
+
+    const desc = subBabForm.tautan_konten.split('|')[1] || '';
+    if (
+      !desc
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .trim()
+    ) {
+      setAddSubBabFormError('Deskripsi sub-bab wajib diisi.');
+      return;
+    }
+
+    if (fileTypeMateri === 'dokumen' && !uploadedMateriFile) {
+      setAddSubBabFormError('Pilih file dokumen terlebih dahulu.');
+      return;
+    }
+
+    const url = subBabForm.tautan_konten.split('|')[2] || '';
+    if ((fileTypeMateri === 'video' || fileTypeMateri === 'tautan') && !url.trim()) {
+      setAddSubBabFormError('URL materi wajib diisi.');
+      return;
+    }
+
+    setSavingSubBab(true);
+    setIsUploadingMateri(true);
+    try {
+      let finalTautanKonten = subBabForm.tautan_konten;
+
+      if (fileTypeMateri === 'dokumen' && uploadedMateriFile) {
+        const reader = new FileReader();
+        const fileBase64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(uploadedMateriFile);
+        });
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            file: fileBase64,
+            fileName: uploadedMateriFile.name,
+            fileType: uploadedMateriFile.type,
+          }),
+        });
+
+        const uploadData = await uploadResponse.json();
+        if (!uploadResponse.ok) {
+          throw new Error(uploadData.details || uploadData.error || 'Gagal upload file materi');
+        }
+
+        finalTautanKonten = `dokumen|${desc}|${uploadData.url}`;
+      }
+
+      const response = await fetch('/api/sub-bab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nama_bab: selectedBabForSubBab.id_bab,
+          judul_sub_bab: subBabForm.judul_sub_bab.trim(),
+          tautan_konten: finalTautanKonten,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Gagal menambahkan sub-bab');
+      }
+
+      setShowAddSubBabModal(false);
+      setSelectedBabForSubBab(null);
+      setSubBabForm({ judul_sub_bab: '', tautan_konten: '' });
+      setAddSubBabFormError('');
+      setFileTypeMateri('dokumen');
+      setUploadedMateriFile(null);
+      setCompressionInfoMateri(null);
+      setExpandedMateriBabs((current) => (current.includes(selectedBabForSubBab.id_bab) ? current : [...current, selectedBabForSubBab.id_bab]));
+      if (guruData && elemenId) {
+        await fetchMateriOverview(guruData.id_guru, elemenId, activeSintak);
+      }
+      showNotification('Sub-bab berhasil ditambahkan.', 'success');
+    } catch (error) {
+      console.error('Error creating sub-bab from PBL page:', error);
+      setAddSubBabFormError(error instanceof Error ? error.message : 'Gagal menambahkan sub-bab');
+    } finally {
+      setIsUploadingMateri(false);
+      setSavingSubBab(false);
+    }
+  };
+
+  const openEditBabModal = (bab: MateriBab) => {
+    setSelectedBabForEdit(bab);
+    setBabForm({
+      judul_bab: bab.judul_bab,
+      deskripsi_bab: bab.deskripsi_bab || '',
+    });
+    setShowEditBabModal(true);
+  };
+
+  const handleEditBab = async (e: FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedBabForEdit?.id_bab) {
+      showNotification('BAB yang dipilih tidak valid.', 'error');
+      return;
+    }
+
+    if (!babForm.judul_bab.trim()) {
+      showNotification('Judul BAB wajib diisi.', 'error');
+      return;
+    }
+
+    setSavingBab(true);
+    try {
+      const response = await fetch(`/api/bab/${selectedBabForEdit.id_bab}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          judul_bab: babForm.judul_bab.trim(),
+          deskripsi_bab: babForm.deskripsi_bab.trim(),
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Gagal mengedit BAB');
+      }
+
+      setShowEditBabModal(false);
+      setSelectedBabForEdit(null);
+      setBabForm({ judul_bab: '', deskripsi_bab: '' });
+      if (guruData && elemenId) {
+        await fetchMateriOverview(guruData.id_guru, elemenId, activeSintak);
+      }
+      showNotification('BAB berhasil diperbarui.', 'success');
+    } catch (error) {
+      console.error('Error editing bab from PBL page:', error);
+      showNotification(error instanceof Error ? error.message : 'Gagal mengedit BAB', 'error');
+    } finally {
+      setSavingBab(false);
+    }
+  };
+
+  const openEditSubBabModal = (subBab: MateriSubBab) => {
+    setSelectedSubBabForEdit(subBab);
+    const detectedType = getFileTypeFromUrl(subBab.tautan_konten);
+    setFileTypeMateri(detectedType);
+    setUploadedMateriFile(null);
+    setCompressionInfoMateri(null);
+    setSubBabForm({
+      judul_sub_bab: subBab.judul_sub_bab,
+      tautan_konten: subBab.tautan_konten,
+    });
+    setShowEditSubBabModal(true);
+  };
+
+  const handleEditSubBab = async (e: FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedSubBabForEdit?.id_sub_bab) {
+      showNotification('Sub-bab yang dipilih tidak valid.', 'error');
+      return;
+    }
+
+    if (!subBabForm.judul_sub_bab.trim()) {
+      showNotification('Judul sub-bab wajib diisi.', 'error');
+      return;
+    }
+
+    const desc = subBabForm.tautan_konten.split('|')[1] || '';
+    if (
+      !desc
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .trim()
+    ) {
+      showNotification('Deskripsi sub-bab wajib diisi.', 'error');
+      return;
+    }
+
+    const url = subBabForm.tautan_konten.split('|')[2] || '';
+    if (fileTypeMateri !== 'dokumen' && !url.trim()) {
+      showNotification('URL materi wajib diisi.', 'error');
+      return;
+    }
+
+    setSavingSubBab(true);
+    setIsUploadingMateri(true);
+    try {
+      let finalTautanKonten = subBabForm.tautan_konten;
+
+      if (fileTypeMateri === 'dokumen' && uploadedMateriFile) {
+        const oldFileUrl = getFileUrlFromContent(selectedSubBabForEdit.tautan_konten);
+        const oldFileType = getFileTypeFromUrl(selectedSubBabForEdit.tautan_konten);
+
+        if (oldFileUrl && oldFileType === 'dokumen' && oldFileUrl.includes('weboost-storage')) {
+          await fetch('/api/delete-file', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileUrl: oldFileUrl }),
+          });
+        }
+
+        const reader = new FileReader();
+        const fileBase64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(uploadedMateriFile);
+        });
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            file: fileBase64,
+            fileName: uploadedMateriFile.name,
+            fileType: uploadedMateriFile.type,
+          }),
+        });
+
+        const uploadData = await uploadResponse.json();
+        if (!uploadResponse.ok) {
+          throw new Error(uploadData.details || uploadData.error || 'Gagal upload file materi');
+        }
+
+        finalTautanKonten = `dokumen|${desc}|${uploadData.url}`;
+      }
+
+      const response = await fetch(`/api/sub-bab/${selectedSubBabForEdit.id_sub_bab}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          judul_sub_bab: subBabForm.judul_sub_bab.trim(),
+          tautan_konten: finalTautanKonten,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Gagal mengedit sub-bab');
+      }
+
+      setShowEditSubBabModal(false);
+      setSelectedSubBabForEdit(null);
+      setSubBabForm({ judul_sub_bab: '', tautan_konten: '' });
+      setFileTypeMateri('dokumen');
+      setUploadedMateriFile(null);
+      setCompressionInfoMateri(null);
+      if (guruData && elemenId) {
+        await fetchMateriOverview(guruData.id_guru, elemenId, activeSintak);
+      }
+      showNotification('Sub-bab berhasil diperbarui.', 'success');
+    } catch (error) {
+      console.error('Error editing sub-bab from PBL page:', error);
+      showNotification(error instanceof Error ? error.message : 'Gagal mengedit sub-bab', 'error');
+    } finally {
+      setIsUploadingMateri(false);
+      setSavingSubBab(false);
+    }
+  };
+
+  const openDeleteSubBabModal = (subBab: MateriSubBab) => {
+    setDeleteSubBabTarget(subBab);
+    setShowDeleteSubBabModal(true);
+  };
+
+  const handleDeleteSubBabInline = async (subBab: MateriSubBab) => {
+    if (!guruData || !elemenId) {
+      return;
+    }
+
+    try {
+      const fileUrl = getFileUrlFromContent(subBab.tautan_konten);
+      const fileType = getFileTypeFromUrl(subBab.tautan_konten);
+      if (fileUrl && fileType === 'dokumen' && fileUrl.includes('weboost-storage')) {
+        await fetch('/api/delete-file', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileUrl }),
+        });
+      }
+
+      const response = await fetch(`/api/sub-bab/${subBab.id_sub_bab}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Gagal menghapus sub-bab');
+      }
+
+      await fetchMateriOverview(guruData.id_guru, elemenId, activeSintak);
+      showNotification('Sub-bab berhasil dihapus.', 'success');
+    } catch (error) {
+      console.error('Error deleting sub-bab from PBL page:', error);
+      showNotification(error instanceof Error ? error.message : 'Gagal menghapus sub-bab', 'error');
+    }
+  };
+
+  const toggleMateriBab = (babId: number) => {
+    setExpandedMateriBabs((current) => (current.includes(babId) ? current.filter((id) => id !== babId) : [...current, babId]));
+  };
+
+  const openDeleteBabModal = (babId: number, babTitle: string) => {
+    setDeleteBabTarget({ id: babId, judul: babTitle });
+    setShowDeleteBabModal(true);
+  };
+
+  const handleDeleteBabInline = async (babId: number, babTitle: string) => {
+    if (!guruData || !elemenId) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/bab/${babId}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Gagal menghapus BAB');
+      }
+
+      await fetchMateriOverview(guruData.id_guru, elemenId, activeSintak);
+      showNotification('BAB berhasil dihapus.', 'success');
+    } catch (error) {
+      console.error('Error deleting bab from PBL page:', error);
+      showNotification(error instanceof Error ? error.message : 'Gagal menghapus BAB', 'error');
     }
   };
 
@@ -1159,7 +2046,7 @@ export default function PBLGuru() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
+    <div className="pbl-theme-scope min-h-screen bg-black text-white relative overflow-hidden">
       <StarBackground />
       {guruData && <GuruNavbar guruName={guruData.nama_guru} />}
 
@@ -1176,9 +2063,29 @@ export default function PBLGuru() {
           </div>
 
           {notification.show && (
-            <div className={`mb-6 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm ${notification.type === 'success' ? 'border-green-500/40 bg-green-500/15 text-green-200' : 'border-red-500/40 bg-red-500/15 text-red-200'}`}>
-              {notification.type === 'success' ? <FaCheck /> : <FaExclamationCircle />}
-              <span>{notification.message}</span>
+            <div
+              className={`mb-6 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm ${
+                notification.type === 'success'
+                  ? 'border-green-500/40 bg-green-500/15 text-green-200'
+                  : notification.message === 'Pilih dokumen terlebih dahulu.' || notification.message === 'Nama kelompok wajib diisi.' || notification.message === 'Pilih minimal satu anggota kelompok.'
+                    ? 'border-[#b91c1c] bg-[#7f1d1d] !text-white shadow-[0_10px_24px_rgba(127,29,29,0.35)]'
+                    : notification.message === 'Belum ada sub-bab untuk dilihat progresnya'
+                      ? 'border-black bg-black text-white shadow-[0_10px_24px_rgba(15,23,42,0.35)]'
+                      : 'border-red-500/40 bg-red-500/15 text-red-200'
+              }`}
+            >
+              {notification.type === 'success' ? (
+                <FaCheck
+                  className={notification.message === 'Pilih dokumen terlebih dahulu.' || notification.message === 'Nama kelompok wajib diisi.' || notification.message === 'Pilih minimal satu anggota kelompok.' ? '!text-white' : ''}
+                />
+              ) : (
+                <FaExclamationCircle
+                  className={notification.message === 'Pilih dokumen terlebih dahulu.' || notification.message === 'Nama kelompok wajib diisi.' || notification.message === 'Pilih minimal satu anggota kelompok.' ? '!text-white' : ''}
+                />
+              )}
+              <span className={notification.message === 'Pilih dokumen terlebih dahulu.' || notification.message === 'Nama kelompok wajib diisi.' || notification.message === 'Pilih minimal satu anggota kelompok.' ? '!text-white' : ''}>
+                {notification.message}
+              </span>
             </div>
           )}
 
@@ -1186,7 +2093,7 @@ export default function PBLGuru() {
             <div className="mb-8">
               <div className="mb-6 flex items-center gap-3">
                 <FaProjectDiagram className="text-2xl text-[#FFFFFF]" />
-                <h2 className="text-2xl font-bold">Pilih Elemen untuk Mengelola PBL</h2>
+                <h2 className="text-2xl font-bold">Pilih Elemen Pembelajaran</h2>
               </div>
               {elemenOptions.length === 0 ? (
                 <p className="text-gray-400">Belum ada elemen yang Anda ampu.</p>
@@ -1202,11 +2109,11 @@ export default function PBLGuru() {
                           className="card-front bg-gradient-to-br from-gray-900 to-gray-800 border border-white/20 rounded-xl overflow-hidden shadow-lg hover:shadow-[0_0_30px_rgba(0,128,255,0.3)] transition-all duration-300 cursor-pointer"
                           role="button"
                           tabIndex={0}
-                          onClick={() => router.push(`/guru/pbl?elemen=${option.id_elemen}`)}
+                          onClick={() => router.push(`/guru/pembelajaran?elemen=${option.id_elemen}`)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault();
-                              router.push(`/guru/pbl?elemen=${option.id_elemen}`);
+                              router.push(`/guru/pembelajaran?elemen=${option.id_elemen}`);
                             }
                           }}
                         >
@@ -1231,80 +2138,43 @@ export default function PBLGuru() {
                           role="button"
                           tabIndex={0}
                         >
-                          <h3 className="text-lg font-bold mb-3 text-white">Sintak Problem Based Learning:</h3>
+                          <h3 className="text-lg font-bold mb-3 text-white">Pilih Sintak PBL:</h3>
                           <div className="space-y-2 overflow-y-auto max-h-44 pr-1">
-                            <ol className="list-decimal list-inside text-white/95 text-sm space-y-2">
-                              <li
-                                onClick={() => router.push(`/guru/pbl?elemen=${option.id_elemen}&sintak=1`)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    router.push(`/guru/pbl?elemen=${option.id_elemen}&sintak=1`);
-                                  }
-                                }}
-                                className="rounded-lg border border-white/30 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm transition-colors hover:bg-white/20 cursor-pointer"
-                                role="button"
-                                tabIndex={0}
-                              >
-                                Sintak 1: Orientasi pada Masalah
-                              </li>
-                              <li
-                                onClick={() => router.push(`/guru/pbl?elemen=${option.id_elemen}&sintak=2`)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    router.push(`/guru/pbl?elemen=${option.id_elemen}&sintak=2`);
-                                  }
-                                }}
-                                className="rounded-lg border border-white/30 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm transition-colors hover:bg-white/20 cursor-pointer"
-                                role="button"
-                                tabIndex={0}
-                              >
-                                Sintak 2: Mengatur Peserta Didik untuk Belajar
-                              </li>
-                              <li
-                                onClick={() => router.push(`/guru/pbl?elemen=${option.id_elemen}&sintak=3`)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    router.push(`/guru/pbl?elemen=${option.id_elemen}&sintak=3`);
-                                  }
-                                }}
-                                className="rounded-lg border border-white/30 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm transition-colors hover:bg-white/20 cursor-pointer"
-                                role="button"
-                                tabIndex={0}
-                              >
-                                Sintak 3: Membimbing Pengalaman Individu Maupun Kelompok
-                              </li>
-                              <li
-                                onClick={() => router.push(`/guru/pbl?elemen=${option.id_elemen}&sintak=4`)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    router.push(`/guru/pbl?elemen=${option.id_elemen}&sintak=4`);
-                                  }
-                                }}
-                                className="rounded-lg border border-white/30 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm transition-colors hover:bg-white/20 cursor-pointer"
-                                role="button"
-                                tabIndex={0}
-                              >
-                                Sintak 4: Mengembangkan dan Menyajikan Hasil Karya
-                              </li>
-                              <li
-                                onClick={() => router.push(`/guru/pbl?elemen=${option.id_elemen}&sintak=5`)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    router.push(`/guru/pbl?elemen=${option.id_elemen}&sintak=5`);
-                                  }
-                                }}
-                                className="rounded-lg border border-white/30 bg-white/10 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm transition-colors hover:bg-white/20 cursor-pointer"
-                                role="button"
-                                tabIndex={0}
-                              >
-                                Sintak 5: Menganalisis dan Mengevaluasi Proses Pemecahan Masalah
-                              </li>
-                            </ol>
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/guru/pembelajaran?elemen=${option.id_elemen}&sintak=1`)}
+                              className="w-full rounded-lg border border-white/30 bg-white/55 px-3 py-2 text-left text-sm font-semibold text-slate-900 transition-colors hover:bg-white/75 focus:outline-none focus:ring-2 focus:ring-white/45"
+                            >
+                              Sintak 1: Orientasi pada Masalah
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/guru/pembelajaran?elemen=${option.id_elemen}&sintak=2`)}
+                              className="w-full rounded-lg border border-white/30 bg-white/55 px-3 py-2 text-left text-sm font-semibold text-slate-900 transition-colors hover:bg-white/75 focus:outline-none focus:ring-2 focus:ring-white/45"
+                            >
+                              Sintak 2: Mengatur Peserta Didik untuk Belajar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/guru/pembelajaran?elemen=${option.id_elemen}&sintak=3`)}
+                              className="w-full rounded-lg border border-white/30 bg-white/55 px-3 py-2 text-left text-sm font-semibold text-slate-900 transition-colors hover:bg-white/75 focus:outline-none focus:ring-2 focus:ring-white/45"
+                            >
+                              Sintak 3: Membimbing Pengalaman Individu Maupun Kelompok
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/guru/pembelajaran?elemen=${option.id_elemen}&sintak=4`)}
+                              className="w-full rounded-lg border border-white/30 bg-white/55 px-3 py-2 text-left text-sm font-semibold text-slate-900 transition-colors hover:bg-white/75 focus:outline-none focus:ring-2 focus:ring-white/45"
+                            >
+                              Sintak 4: Mengembangkan dan Menyajikan Hasil Karya
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/guru/pembelajaran?elemen=${option.id_elemen}&sintak=5`)}
+                              className="w-full rounded-lg border border-white/30 bg-white/55 px-3 py-2 text-left text-sm font-semibold text-slate-900 transition-colors hover:bg-white/75 focus:outline-none focus:ring-2 focus:ring-white/45"
+                            >
+                              Sintak 5: Menganalisis dan Mengevaluasi Proses Pemecahan Masalah
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -1327,7 +2197,7 @@ export default function PBLGuru() {
               <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <h2 className="flex items-center gap-3 text-3xl font-bold">
                   <FaProjectDiagram className="text-[#FFFFFF]" />
-                  PBL {elemenName}
+                  Pembelajaran {elemenName}
                 </h2>
               </div>
 
@@ -1336,7 +2206,7 @@ export default function PBLGuru() {
                   <button
                     key={item.order}
                     type="button"
-                    onClick={() => setActiveSintak(item.order)}
+                    onClick={() => handleSintakChange(item.order)}
                     className={`rounded-xl px-4 py-4 text-center text-sm font-semibold transition-all ${item.order === activeSintak ? 'bg-[#0E5BFF] text-white shadow-[0_12px_30px_rgba(14,91,255,0.35)]' : 'bg-white text-black hover:bg-white/90'}`}
                   >
                     Sintak {item.order}
@@ -1346,8 +2216,181 @@ export default function PBLGuru() {
 
               <h3 className="mb-6 text-2xl font-bold">{activeSintakState.title}</h3>
 
+              <section className="materi-sintak-panel materi-lms-panel materi-modern-panel mb-6 rounded-3xl border border-white/10 bg-white/5 p-4 sm:p-6 backdrop-blur-xl">
+                <div className="materi-panel-head mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="flex items-center gap-2 text-xl font-bold">
+                    <FaBook className="text-white" />
+                    {materiOverview?.judul_materi || `Materi ${elemenName}`}
+                  </h3>
+
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const firstSubBabId = materiOverview?.bab?.flatMap((bab) => bab.sub_bab || []).find((subBab) => Boolean(subBab.id_sub_bab))?.id_sub_bab;
+                        if (!firstSubBabId) {
+                          showNotification('Belum ada sub-bab untuk dilihat progresnya', 'error');
+                          return;
+                        }
+                        router.push(`/guru/materi/progres/${firstSubBabId}`);
+                      }}
+                      className="materi-action-btn mana-btn mana-btn--success inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white"
+                    >
+                      <FaChartBar className="text-xs" />
+                      Progres
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddBabFormError('');
+                        setShowAddBabModal(true);
+                      }}
+                      className="materi-action-btn mana-btn mana-btn--primary inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white"
+                    >
+                      <FaPlus className="text-xs" />
+                      Tambah BAB
+                    </button>
+                  </div>
+                </div>
+
+                {!materiOverview?.bab || materiOverview.bab.length === 0 ? (
+                  <div className="materi-empty-state rounded-2xl border border-white/10 bg-black/25 px-4 py-6 text-center text-gray-300">Belum ada BAB. Tambahkan BAB terlebih dahulu.</div>
+                ) : (
+                  <div className="materi-list-stack space-y-4">
+                    {materiOverview.bab.map((bab, index) => {
+                      const isExpanded = expandedMateriBabs.includes(bab.id_bab);
+
+                      return (
+                        <div
+                          key={bab.id_bab}
+                          className="materi-bab-card overflow-hidden rounded-lg border border-white/10 bg-gray-900/50 backdrop-blur-sm"
+                        >
+                          <div className="overflow-visible p-3 sm:p-6">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <button
+                                type="button"
+                                onClick={() => toggleMateriBab(bab.id_bab)}
+                                className="materi-bab-toggle flex w-full items-start gap-2 sm:gap-3 pl-2 sm:pl-3 pr-1 text-left"
+                              >
+                                <span className="mt-0.5 shrink-0 text-slate-300">{isExpanded ? <FaChevronUp className="text-slate-300" /> : <FaChevronDown className="text-slate-300" />}</span>
+                                <div className="min-w-0">
+                                  <h4 className="text-base font-bold text-white break-words sm:text-xl sm:truncate">
+                                    Bab {index + 1}: {bab.judul_bab}
+                                  </h4>
+                                  {bab.deskripsi_bab ? (
+                                    <div
+                                      className="materi-richtext mt-1 text-sm sm:ml-0 leading-7 text-gray-300"
+                                      dangerouslySetInnerHTML={{ __html: stripUnsafeHtml(bab.deskripsi_bab) }}
+                                    />
+                                  ) : (
+                                    <p className="mt-1 text-sm text-gray-400">Belum ada deskripsi bab.</p>
+                                  )}
+                                </div>
+                              </button>
+
+                              <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAddSubBabFormError('');
+                                    setSelectedBabForSubBab(bab);
+                                    setFileTypeMateri('dokumen');
+                                    setUploadedMateriFile(null);
+                                    setCompressionInfoMateri(null);
+                                    setSubBabForm({ judul_sub_bab: '', tautan_konten: 'dokumen||' });
+                                    setShowAddSubBabModal(true);
+                                  }}
+                                  className="materi-action-btn mana-btn mana-btn--success inline-flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold text-white sm:px-5 sm:py-2.5 sm:text-base"
+                                >
+                                  <FaPlus className="h-4 w-4 sm:h-5 sm:w-5" />
+                                  Tambah Sub-bab
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openEditBabModal(bab)}
+                                  className="materi-icon-btn inline-flex items-center justify-center rounded-full bg-blue-600 p-2.5 text-white transition hover:bg-blue-700 sm:p-3"
+                                  title="Edit BAB"
+                                >
+                                  <FaEdit className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openDeleteBabModal(bab.id_bab, bab.judul_bab)}
+                                  className="materi-icon-btn inline-flex items-center justify-center rounded-full bg-red-600 p-2.5 text-white transition hover:bg-red-700 sm:p-3"
+                                  title="Hapus BAB"
+                                >
+                                  <FaTrash className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {isExpanded && (
+                              <div className="mt-4 space-y-2 sm:ml-9">
+                                {bab.sub_bab && bab.sub_bab.length > 0 ? (
+                                  bab.sub_bab.map((subBab) => (
+                                    <div
+                                      key={subBab.id_sub_bab}
+                                      className="materi-subbab-card materi-subbab-row overflow-hidden rounded-lg border border-white/10 bg-gray-800/50"
+                                    >
+                                      <div className="materi-subbab-head flex items-center justify-between gap-2 p-3 sm:p-4">
+                                        <button
+                                          type="button"
+                                          onClick={() => setExpandedMateriPreviews((current) => (current.includes(subBab.id_sub_bab) ? current.filter((id) => id !== subBab.id_sub_bab) : [...current, subBab.id_sub_bab]))}
+                                          className="materi-subbab-toggle flex min-w-0 flex-1 items-center gap-2 sm:gap-3 pl-2 sm:pl-3 pr-1 text-left"
+                                        >
+                                          <span className="shrink-0 text-slate-300">{expandedMateriPreviews.includes(subBab.id_sub_bab) ? <FaChevronUp className="text-slate-300" /> : <FaChevronDown className="text-slate-300" />}</span>
+                                          {getFileTypeFromUrl(subBab.tautan_konten) === 'dokumen' && <FaFileAlt className="text-blue-400" />}
+                                          {getFileTypeFromUrl(subBab.tautan_konten) === 'video' && <FaVideo className="text-red-400" />}
+                                          {getFileTypeFromUrl(subBab.tautan_konten) === 'tautan' && <FaLink className="text-green-400" />}
+                                          <p className="text-base font-bold text-white break-words sm:text-xl sm:truncate">{subBab.judul_sub_bab}</p>
+                                        </button>
+
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => openEditSubBabModal(subBab)}
+                                            className="materi-icon-btn inline-flex items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-white transition hover:bg-blue-700"
+                                            title="Edit Sub-bab"
+                                          >
+                                            <FaEdit className="h-3.5 w-3.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => openDeleteSubBabModal(subBab)}
+                                            className="materi-icon-btn inline-flex items-center justify-center rounded-md bg-red-600 px-3 py-2 text-white transition hover:bg-red-700"
+                                            title="Hapus Sub-bab"
+                                          >
+                                            <FaTrash className="h-3.5 w-3.5" />
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {expandedMateriPreviews.includes(subBab.id_sub_bab) && (
+                                        <div className="px-2 sm:px-3 md:px-4 pb-2 sm:pb-3 md:pb-4">
+                                          <InlineFilePreview subBab={subBab} />
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-sm text-gray-500">Belum ada sub-bab.</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
               <div className="space-y-6">
-                <section className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+                <section
+                  id="penugasan-sintak"
+                  className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl"
+                >
                   <h3 className="mb-4 flex items-center gap-2 text-xl font-bold">
                     <FaFileAlt className="text-white" />
                     Lampiran Tugas
@@ -1447,7 +2490,7 @@ export default function PBLGuru() {
                               onClick={() => updateSintak(activeSintakState.order, (current) => ({ ...current, lampiran: current.lampiran.filter((_, itemIndex) => itemIndex !== index) }))}
                               className="inline-flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-red-300 transition hover:bg-red-500/20"
                             >
-                              <FaTrash />
+                              <FaTrash className="h-4 w-4 shrink-0" />
                               Hapus
                             </button>
                           </div>
@@ -1477,43 +2520,27 @@ export default function PBLGuru() {
                     <div className="space-y-3 sm:space-y-5">
                       <div>
                         <label className="mb-1.5 sm:mb-2 block text-xs sm:text-sm font-semibold text-gray-300">Waktu Mulai</label>
-                        <div className="relative">
-                          <input
-                            ref={startDateTimeRef}
-                            type="datetime-local"
-                            value={activeSintakState.waktu_mulai}
-                            onChange={(event) => updateSintak(activeSintakState.order, (current) => ({ ...current, waktu_mulai: event.target.value }))}
-                            className="w-full rounded-lg sm:rounded-xl border border-white/10 bg-black/20 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-[#0080FF]"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => openDateTimePicker(startDateTimeRef.current)}
-                            className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-400 transition hover:text-white"
-                            aria-label="Buka picker waktu mulai"
-                          >
-                            <FaClock className="text-sm sm:text-base" />
-                          </button>
-                        </div>
+                        <input
+                          ref={startDateTimeRef}
+                          type="datetime-local"
+                          value={activeSintakState.waktu_mulai}
+                          onChange={(event) => updateSintak(activeSintakState.order, (current) => ({ ...current, waktu_mulai: event.target.value }))}
+                          onClick={() => openDateTimePicker(startDateTimeRef.current)}
+                          onFocus={() => openDateTimePicker(startDateTimeRef.current)}
+                          className="w-full rounded-lg sm:rounded-xl border border-white/10 bg-black/20 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-[#0080FF]"
+                        />
                       </div>
                       <div>
                         <label className="mb-1.5 sm:mb-2 block text-xs sm:text-sm font-semibold text-gray-300">Waktu Terakhir</label>
-                        <div className="relative">
-                          <input
-                            ref={endDateTimeRef}
-                            type="datetime-local"
-                            value={activeSintakState.waktu_selesai}
-                            onChange={(event) => updateSintak(activeSintakState.order, (current) => ({ ...current, waktu_selesai: event.target.value }))}
-                            className="w-full rounded-lg sm:rounded-xl border border-white/10 bg-black/20 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-[#0080FF]"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => openDateTimePicker(endDateTimeRef.current)}
-                            className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-400 transition hover:text-white"
-                            aria-label="Buka picker waktu terakhir"
-                          >
-                            <FaClock className="text-sm sm:text-base" />
-                          </button>
-                        </div>
+                        <input
+                          ref={endDateTimeRef}
+                          type="datetime-local"
+                          value={activeSintakState.waktu_selesai}
+                          onChange={(event) => updateSintak(activeSintakState.order, (current) => ({ ...current, waktu_selesai: event.target.value }))}
+                          onClick={() => openDateTimePicker(endDateTimeRef.current)}
+                          onFocus={() => openDateTimePicker(endDateTimeRef.current)}
+                          className="w-full rounded-lg sm:rounded-xl border border-white/10 bg-black/20 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white outline-none transition focus:border-[#0080FF]"
+                        />
                       </div>
                     </div>
                   </section>
@@ -1667,7 +2694,7 @@ export default function PBLGuru() {
                                   onClick={() => handleDeleteKelompok(group.id_kelompok)}
                                   className="inline-flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300 transition hover:bg-red-500/20"
                                 >
-                                  <FaTrash />
+                                  <FaTrash className="h-4 w-4 shrink-0" />
                                   Hapus
                                 </button>
                               </div>
@@ -1705,12 +2732,12 @@ export default function PBLGuru() {
                             </td>
                           </tr>
                         ) : (
-                          filteredPengumpulan.map((item, index) => (
+                          paginatedPengumpulan.map((item, index) => (
                             <tr
                               key={item.key}
                               className="border-b border-white/5 last:border-b-0 hover:bg-white/5"
                             >
-                              <td className="px-4 py-4">{index + 1}</td>
+                              <td className="px-4 py-4">{startIndexPengumpulan + index + 1}</td>
                               <td className="px-4 py-4">{item.nama}</td>
                               <td className="px-4 py-4">{item.anggotaLabel}</td>
                               <td className="px-4 py-4">{item.kelas}</td>
@@ -1782,8 +2809,8 @@ export default function PBLGuru() {
                                     onClick={() => openDeleteSubmissionModal(item.submission!, item.nama)}
                                     className="inline-flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300 transition hover:bg-red-500/20"
                                   >
-                                    <FaTrash />
-                                    Hapus File
+                                    <FaTrash className="h-4 w-4 shrink-0" />
+                                    Hapus
                                   </button>
                                 ) : (
                                   <span className="text-gray-400">-</span>
@@ -1795,6 +2822,16 @@ export default function PBLGuru() {
                       </tbody>
                     </table>
                   </div>
+
+                  {filteredPengumpulan.length > 0 && (
+                    <DataTablePagination
+                      totalItems={filteredPengumpulan.length}
+                      currentPage={safePagePengumpulan}
+                      rowsPerPage={rowsPerPagePengumpulan}
+                      onPageChange={setCurrentPagePengumpulan}
+                      onRowsPerPageChange={setRowsPerPagePengumpulan}
+                    />
+                  )}
                 </section>
 
                 <section className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
@@ -1829,7 +2866,7 @@ export default function PBLGuru() {
                                 <button
                                   type="button"
                                   onClick={() => setOpenCommentMenu(openCommentMenu === comment.id_komentar ? null : comment.id_komentar)}
-                                  className="inline-flex items-center justify-center rounded-lg border border-white/10 p-2 text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
+                                  className="comment-menu-btn inline-flex items-center justify-center rounded-lg border border-white/10 p-2 text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
                                 >
                                   <FaEllipsisV />
                                 </button>
@@ -1855,7 +2892,7 @@ export default function PBLGuru() {
                                         }}
                                         className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-red-300 transition hover:bg-red-500/20"
                                       >
-                                        <FaTrash />
+                                        <FaTrash className="h-4 w-4 shrink-0" />
                                         Hapus
                                       </button>
                                     )}
@@ -1886,15 +2923,15 @@ export default function PBLGuru() {
                     )}
 
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                      <div className="hidden sm:flex h-10 sm:h-12 items-center justify-center rounded-full border border-white/10 bg-white/10 flex-shrink-0">
-                        <FaCommentAlt className="text-sm text-white" />
+                      <div className="hidden sm:flex h-10 sm:h-12 items-center justify-center flex-shrink-0 text-gray-400">
+                        <FaCommentAlt className="text-base" />
                       </div>
                       <input
                         type="text"
                         value={activeSintakState.commentInput}
                         onChange={(event) => updateSintak(activeSintakState.order, (current) => ({ ...current, commentInput: event.target.value }))}
                         placeholder="Tambahkan komentar..."
-                        className="flex-1 rounded-xl border border-transparent bg-transparent px-3 py-2 sm:py-3 text-sm text-white outline-none placeholder:text-gray-300"
+                        className="flex-1 rounded-xl border border-transparent bg-transparent px-3 py-2 sm:py-3 text-sm text-white outline-none placeholder:text-gray-500"
                       />
                       <button
                         type="button"
@@ -1903,7 +2940,7 @@ export default function PBLGuru() {
                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#0E5BFF] px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-white transition hover:bg-[#0B49CB] disabled:cursor-not-allowed disabled:opacity-60 flex-shrink-0"
                       >
                         <FaPaperPlane className="text-xs sm:text-sm" />
-                        <span className="hidden sm:inline">Kirim</span>
+                        <span>Kirim</span>
                       </button>
                     </div>
                   </div>
@@ -1951,8 +2988,624 @@ export default function PBLGuru() {
                 disabled={deletingSubmission}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <FaTrash />
+                <FaTrash className="h-4 w-4 shrink-0" />
                 {deletingSubmission ? 'Menghapus...' : 'Ya, Hapus Permanen'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddBabModal && (
+        <div className="materi-form-overlay fixed inset-0 z-[70] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="materi-form-modal mx-4 w-full max-w-2xl rounded-2xl border border-white/20 bg-gray-900 p-8 shadow-2xl">
+            <h2 className="mb-6 text-center text-3xl font-bold text-white">Tambah BAB Materi</h2>
+
+            <form
+              onSubmit={handleCreateBab}
+              className="space-y-6"
+            >
+              {addBabFormError && (
+                <div className="mb-4 flex items-start gap-2 rounded-lg border border-[#b91c1c] bg-[#7f1d1d] px-4 py-3 !text-white">
+                  <FaExclamationCircle className="mt-0.5 !text-white" />
+                  <span className="!text-white">{addBabFormError}</span>
+                </div>
+              )}
+
+              <div className="mb-6">
+                <label className="mb-2 block text-lg font-semibold text-white">Nama BAB</label>
+                <input
+                  type="text"
+                  value={babForm.judul_bab}
+                  onChange={(event) => setBabForm((prev) => ({ ...prev, judul_bab: event.target.value }))}
+                  className="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-3 text-white focus:border-blue-500 focus:outline-none"
+                  placeholder="Nama Bab:"
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="mb-2 block text-lg font-semibold text-white">Deskripsi Bab</label>
+                <RichTextEditor
+                  value={babForm.deskripsi_bab}
+                  onChange={(value) => setBabForm((prev) => ({ ...prev, deskripsi_bab: value }))}
+                  placeholder="Deskripsi Bab"
+                />
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddBabModal(false);
+                    setBabForm({ judul_bab: '', deskripsi_bab: '' });
+                    setAddBabFormError('');
+                  }}
+                  className="materi-cancel-btn flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 font-semibold transition-colors"
+                >
+                  <FaTimes />
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingBab}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  style={{ color: '#ffffff' }}
+                >
+                  <FaPlus style={{ color: '#ffffff' }} />
+                  {savingBab ? 'Menyimpan...' : 'Tambah'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showEditBabModal && (
+        <div className="materi-form-overlay fixed inset-0 z-[70] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="materi-form-modal mx-4 w-full max-w-2xl rounded-2xl border border-white/20 bg-gray-900 p-8 shadow-2xl">
+            <h2 className="mb-6 text-center text-3xl font-bold text-white">Edit BAB Materi</h2>
+
+            <form
+              onSubmit={handleEditBab}
+              className="space-y-6"
+            >
+              <div className="mb-6">
+                <label className="mb-2 block text-lg font-semibold text-white">Nama Bab</label>
+                <input
+                  type="text"
+                  value={babForm.judul_bab}
+                  onChange={(event) => setBabForm((prev) => ({ ...prev, judul_bab: event.target.value }))}
+                  className="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-3 text-white focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="mb-2 block text-lg font-semibold text-white">Deskripsi Bab</label>
+                <RichTextEditor
+                  value={babForm.deskripsi_bab}
+                  onChange={(value) => setBabForm((prev) => ({ ...prev, deskripsi_bab: value }))}
+                  placeholder="Deskripsi Bab"
+                />
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditBabModal(false);
+                    setSelectedBabForEdit(null);
+                    setBabForm({ judul_bab: '', deskripsi_bab: '' });
+                  }}
+                  className="materi-cancel-btn flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 font-semibold transition-colors"
+                >
+                  <FaTimes />
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingBab}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <FaSave />
+                  {savingBab ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showAddSubBabModal && (
+        <div className="materi-form-overlay fixed inset-0 z-[70] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="materi-form-modal mx-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/20 bg-gray-900 p-8 shadow-2xl">
+            <h2 className="mb-2 text-center text-3xl font-bold text-white">Tambah Sub-bab Materi</h2>
+            <p className="mb-6 text-center text-sm text-gray-300">BAB tujuan: {selectedBabForSubBab?.judul_bab || '-'}</p>
+
+            <form
+              onSubmit={handleCreateSubBab}
+              className="mt-5 space-y-4"
+            >
+              {addSubBabFormError && (
+                <div className="mb-4 flex items-start gap-2 rounded-lg border border-[#b91c1c] bg-[#7f1d1d] px-4 py-3 !text-white">
+                  <FaExclamationCircle className="mt-0.5 !text-white" />
+                  <span className="!text-white">{addSubBabFormError}</span>
+                </div>
+              )}
+
+              <div className="mb-6">
+                <label className="mb-2 block text-lg font-semibold text-white">Nama Sub-bab</label>
+                <input
+                  type="text"
+                  value={subBabForm.judul_sub_bab}
+                  onChange={(event) => setSubBabForm((prev) => ({ ...prev, judul_sub_bab: event.target.value }))}
+                  className="w-full rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-[#0E5BFF]"
+                  placeholder="Contoh: Sintaks HTML"
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="mb-2 block text-lg font-semibold text-white">Deskripsi Sub-bab</label>
+                <RichTextEditor
+                  value={getSubBabDescription()}
+                  onChange={setSubBabDescription}
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="mb-2 block text-lg font-semibold text-white">Unggah File</label>
+
+                <div className="mb-4 grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFileTypeMateri('dokumen');
+                      const desc = getSubBabDescription();
+                      setSubBabForm((prev) => ({ ...prev, tautan_konten: `dokumen|${desc}|` }));
+                    }}
+                    className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                      fileTypeMateri === 'dokumen' ? 'border-blue-500 bg-blue-600 text-white [&_svg]:text-white' : 'border-white/10 bg-gray-800 text-gray-400 hover:border-blue-500/50'
+                    }`}
+                    style={fileTypeMateri === 'dokumen' ? { color: '#ffffff' } : undefined}
+                  >
+                    <FaFileAlt /> Dokumen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFileTypeMateri('video');
+                      const desc = getSubBabDescription();
+                      setSubBabForm((prev) => ({ ...prev, tautan_konten: `video|${desc}|` }));
+                    }}
+                    className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                      fileTypeMateri === 'video' ? 'border-blue-500 bg-blue-600 text-white [&_svg]:text-white' : 'border-white/10 bg-gray-800 text-gray-400 hover:border-blue-500/50'
+                    }`}
+                    style={fileTypeMateri === 'video' ? { color: '#ffffff' } : undefined}
+                  >
+                    <FaVideo /> Video
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFileTypeMateri('tautan');
+                      const desc = getSubBabDescription();
+                      setSubBabForm((prev) => ({ ...prev, tautan_konten: `tautan|${desc}|` }));
+                    }}
+                    className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                      fileTypeMateri === 'tautan' ? 'border-blue-500 bg-blue-600 text-white [&_svg]:text-white' : 'border-white/10 bg-gray-800 text-gray-400 hover:border-blue-500/50'
+                    }`}
+                    style={fileTypeMateri === 'tautan' ? { color: '#ffffff' } : undefined}
+                  >
+                    <FaLink /> Tautan
+                  </button>
+                </div>
+
+                {fileTypeMateri === 'dokumen' && (
+                  <div>
+                    <div className="rounded-lg border-2 border-dashed border-white/20 p-6 text-center transition-colors hover:border-blue-500/50">
+                      <FaCloudUploadAlt className="mx-auto mb-3 text-4xl text-gray-400" />
+                      <p className="mb-2 text-gray-400">Unggah Dokumen</p>
+                      <p className="mb-4 text-xs text-gray-500">Format: .docx, .pdf, .xlsx, .pptx (max 50MB)</p>
+                      <input
+                        id="pbl-materi-dokumen-upload"
+                        type="file"
+                        accept=".docx,.pdf,.xlsx,.pptx,.doc,.xls,.ppt"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) {
+                            return;
+                          }
+                          const compressedFile = await handleMateriFileSelection(file);
+                          if (compressedFile) {
+                            setUploadedMateriFile(compressedFile);
+                            const desc = getSubBabDescription();
+                            setSubBabForm((prev) => ({ ...prev, tautan_konten: `dokumen|${desc}|${compressedFile.name}` }));
+                          }
+                        }}
+                        className="hidden"
+                        disabled={isCompressingMateri}
+                      />
+                      <label
+                        htmlFor="pbl-materi-dokumen-upload"
+                        className={`inline-flex cursor-pointer items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-white transition-colors hover:bg-blue-700 ${isCompressingMateri ? 'cursor-not-allowed opacity-60' : ''}`}
+                        style={{ color: '#ffffff' }}
+                      >
+                        <FaCloudUploadAlt style={{ color: '#ffffff' }} />
+                        {isCompressingMateri ? 'Mengompres...' : 'Pilih File'}
+                      </label>
+                    </div>
+
+                    {isCompressingMateri && (
+                      <div className="mt-3 rounded-lg border border-blue-500/30 bg-blue-900/20 p-3">
+                        <div className="mb-2 flex items-center gap-2">
+                          <FaCompress className="animate-pulse text-blue-400" />
+                          <p className="text-sm text-blue-400">{compressionMessageMateri}</p>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-gray-700">
+                          <div
+                            className="h-2 rounded-full bg-blue-500 transition-all duration-300"
+                            style={{ width: `${compressionProgressMateri}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {uploadedMateriFile && !isCompressingMateri && (
+                      <div className="mt-3 rounded-lg border border-white/10 bg-gray-800 p-3">
+                        <p className="text-sm text-gray-300">File terpilih:</p>
+                        <p className="font-medium text-blue-400">{uploadedMateriFile.name}</p>
+                        <p className="text-xs text-gray-500">Ukuran: {formatFileSize(uploadedMateriFile.size)}</p>
+                        {compressionInfoMateri && compressionInfoMateri.reductionPercent > 0 && (
+                          <p className="mt-1 text-xs text-green-400">
+                            Dikompres {compressionInfoMateri.reductionPercent}% ({formatFileSize(compressionInfoMateri.originalSize)} → {formatFileSize(compressionInfoMateri.compressedSize)})
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {fileTypeMateri === 'video' && (
+                  <input
+                    type="url"
+                    onChange={(e) => {
+                      const desc = getSubBabDescription();
+                      setSubBabForm((prev) => ({ ...prev, tautan_konten: `video|${desc}|${e.target.value}` }));
+                    }}
+                    className="w-full rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-[#0E5BFF]"
+                    placeholder="https://youtube.com/... atau https://drive.google.com/..."
+                  />
+                )}
+
+                {fileTypeMateri === 'tautan' && (
+                  <input
+                    type="url"
+                    onChange={(e) => {
+                      const desc = getSubBabDescription();
+                      setSubBabForm((prev) => ({ ...prev, tautan_konten: `tautan|${desc}|${e.target.value}` }));
+                    }}
+                    className="w-full rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-[#0E5BFF]"
+                    placeholder="https://contoh-link.com/..."
+                  />
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddSubBabModal(false);
+                    setSelectedBabForSubBab(null);
+                    setAddSubBabFormError('');
+                    setFileTypeMateri('dokumen');
+                    setUploadedMateriFile(null);
+                    setCompressionInfoMateri(null);
+                    setSubBabForm({ judul_sub_bab: '', tautan_konten: '' });
+                  }}
+                  className="materi-cancel-btn rounded-xl border px-4 py-2.5 text-sm font-semibold transition"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <FaTimes /> Batal
+                  </span>
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingSubBab || isUploadingMateri}
+                  className="rounded-xl bg-green-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  style={{ color: '#ffffff' }}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <FaPlus style={{ color: '#ffffff' }} />
+                    {savingSubBab || isUploadingMateri ? 'Menyimpan...' : 'Simpan Sub-bab'}
+                  </span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showEditSubBabModal && (
+        <div className="materi-form-overlay fixed inset-0 z-[70] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="materi-form-modal mx-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/20 bg-gray-900 p-8 shadow-2xl">
+            <h2 className="mb-2 text-center text-3xl font-bold text-white">Edit Sub-bab Materi</h2>
+            <p className="mb-6 text-center text-sm text-gray-300">Perbarui judul, deskripsi, dan materi pada sub-bab ini.</p>
+
+            <form
+              onSubmit={handleEditSubBab}
+              className="mt-5 space-y-4"
+            >
+              <div className="mb-6">
+                <label className="mb-2 block text-lg font-semibold text-white">Nama Sub-bab</label>
+                <input
+                  type="text"
+                  value={subBabForm.judul_sub_bab}
+                  onChange={(event) => setSubBabForm((prev) => ({ ...prev, judul_sub_bab: event.target.value }))}
+                  className="w-full rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-[#0E5BFF]"
+                  placeholder="Contoh: Sintaks HTML"
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="mb-2 block text-lg font-semibold text-white">Deskripsi Sub-bab</label>
+                <RichTextEditor
+                  value={getSubBabDescription()}
+                  onChange={setSubBabDescription}
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="mb-2 block text-lg font-semibold text-white">Tipe Konten</label>
+
+                <div className="mb-4 grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFileTypeMateri('dokumen');
+                      const desc = getSubBabDescription();
+                      setSubBabForm((prev) => ({ ...prev, tautan_konten: `dokumen|${desc}|` }));
+                    }}
+                    className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                      fileTypeMateri === 'dokumen' ? 'border-blue-500 bg-blue-600 text-white [&_svg]:text-white' : 'border-white/10 bg-gray-800 text-gray-400 hover:border-blue-500/50'
+                    }`}
+                    style={fileTypeMateri === 'dokumen' ? { color: '#ffffff' } : undefined}
+                  >
+                    <FaFileAlt /> Dokumen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFileTypeMateri('video');
+                      const desc = getSubBabDescription();
+                      setSubBabForm((prev) => ({ ...prev, tautan_konten: `video|${desc}|` }));
+                    }}
+                    className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                      fileTypeMateri === 'video' ? 'border-blue-500 bg-blue-600 text-white [&_svg]:text-white' : 'border-white/10 bg-gray-800 text-gray-400 hover:border-blue-500/50'
+                    }`}
+                    style={fileTypeMateri === 'video' ? { color: '#ffffff' } : undefined}
+                  >
+                    <FaVideo /> Video
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFileTypeMateri('tautan');
+                      const desc = getSubBabDescription();
+                      setSubBabForm((prev) => ({ ...prev, tautan_konten: `tautan|${desc}|` }));
+                    }}
+                    className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                      fileTypeMateri === 'tautan' ? 'border-blue-500 bg-blue-600 text-white [&_svg]:text-white' : 'border-white/10 bg-gray-800 text-gray-400 hover:border-blue-500/50'
+                    }`}
+                    style={fileTypeMateri === 'tautan' ? { color: '#ffffff' } : undefined}
+                  >
+                    <FaLink /> Tautan
+                  </button>
+                </div>
+
+                {fileTypeMateri === 'dokumen' && (
+                  <div>
+                    {getFileUrlFromContent(subBabForm.tautan_konten) && !uploadedMateriFile && (
+                      <div className="mb-3 rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-gray-300">
+                        Dokumen saat ini: <span className="text-blue-300 break-all">{getFileUrlFromContent(subBabForm.tautan_konten)}</span>
+                      </div>
+                    )}
+                    <div className="rounded-lg border-2 border-dashed border-white/20 p-6 text-center transition-colors hover:border-blue-500/50">
+                      <FaCloudUploadAlt className="mx-auto mb-3 text-4xl text-gray-400" />
+                      <p className="mb-2 text-gray-400">{uploadedMateriFile || getFileUrlFromContent(subBabForm.tautan_konten) ? 'Ganti Dokumen' : 'Unggah Dokumen'}</p>
+                      <p className="mb-4 text-xs text-gray-500">Format: .docx, .pdf, .xlsx, .pptx (max 50MB)</p>
+                      <input
+                        id="pbl-materi-dokumen-upload-edit"
+                        type="file"
+                        accept=".docx,.pdf,.xlsx,.pptx,.doc,.xls,.ppt"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) {
+                            return;
+                          }
+                          const compressedFile = await handleMateriFileSelection(file);
+                          if (compressedFile) {
+                            setUploadedMateriFile(compressedFile);
+                            const desc = getSubBabDescription();
+                            setSubBabForm((prev) => ({ ...prev, tautan_konten: `dokumen|${desc}|${compressedFile.name}` }));
+                          }
+                        }}
+                        className="hidden"
+                        disabled={isCompressingMateri}
+                      />
+                      <label
+                        htmlFor="pbl-materi-dokumen-upload-edit"
+                        className={`inline-flex cursor-pointer items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-white transition-colors hover:bg-blue-700 ${isCompressingMateri ? 'cursor-not-allowed opacity-60' : ''}`}
+                        style={{ color: '#ffffff' }}
+                      >
+                        <FaCloudUploadAlt style={{ color: '#ffffff' }} />
+                        {isCompressingMateri ? 'Mengompres...' : 'Pilih File'}
+                      </label>
+                    </div>
+
+                    {isCompressingMateri && (
+                      <div className="mt-3 rounded-lg border border-blue-500/30 bg-blue-900/20 p-3">
+                        <div className="mb-2 flex items-center gap-2">
+                          <FaCompress className="animate-pulse text-blue-400" />
+                          <p className="text-sm text-blue-400">{compressionMessageMateri}</p>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-gray-700">
+                          <div
+                            className="h-2 rounded-full bg-blue-500 transition-all duration-300"
+                            style={{ width: `${compressionProgressMateri}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {uploadedMateriFile && !isCompressingMateri && (
+                      <div className="mt-3 rounded-lg border border-white/10 bg-gray-800 p-3">
+                        <p className="text-sm text-gray-300">File terpilih:</p>
+                        <p className="font-medium text-blue-400">{uploadedMateriFile.name}</p>
+                        <p className="text-xs text-gray-500">Ukuran: {formatFileSize(uploadedMateriFile.size)}</p>
+                        {compressionInfoMateri && compressionInfoMateri.reductionPercent > 0 && (
+                          <p className="mt-1 text-xs text-green-400">
+                            Dikompres {compressionInfoMateri.reductionPercent}% ({formatFileSize(compressionInfoMateri.originalSize)} → {formatFileSize(compressionInfoMateri.compressedSize)})
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {fileTypeMateri === 'video' && (
+                  <input
+                    type="url"
+                    value={getFileUrlFromContent(subBabForm.tautan_konten)}
+                    onChange={(e) => {
+                      const desc = getSubBabDescription();
+                      setSubBabForm((prev) => ({ ...prev, tautan_konten: `video|${desc}|${e.target.value}` }));
+                    }}
+                    className="w-full rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-[#0E5BFF]"
+                    placeholder="https://youtube.com/... atau https://drive.google.com/..."
+                  />
+                )}
+
+                {fileTypeMateri === 'tautan' && (
+                  <input
+                    type="url"
+                    value={getFileUrlFromContent(subBabForm.tautan_konten)}
+                    onChange={(e) => {
+                      const desc = getSubBabDescription();
+                      setSubBabForm((prev) => ({ ...prev, tautan_konten: `tautan|${desc}|${e.target.value}` }));
+                    }}
+                    className="w-full rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-[#0E5BFF]"
+                    placeholder="https://contoh-link.com/..."
+                  />
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditSubBabModal(false);
+                    setSelectedSubBabForEdit(null);
+                    setFileTypeMateri('dokumen');
+                    setUploadedMateriFile(null);
+                    setCompressionInfoMateri(null);
+                    setSubBabForm({ judul_sub_bab: '', tautan_konten: '' });
+                  }}
+                  className="materi-cancel-btn rounded-xl border px-4 py-2.5 text-sm font-semibold transition"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <FaTimes /> Batal
+                  </span>
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingSubBab || isUploadingMateri}
+                  className="rounded-xl bg-green-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  style={{ color: '#ffffff' }}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <FaSave style={{ color: '#ffffff' }} />
+                    {savingSubBab || isUploadingMateri ? 'Menyimpan...' : 'Simpan Perubahan'}
+                  </span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showDeleteBabModal && deleteBabTarget && (
+        <div className="delete-confirm-overlay fixed inset-0 z-[75] flex items-center justify-center bg-black/35 px-4">
+          <div className="delete-confirm-modal w-full max-w-md rounded-2xl border border-red-500/40 bg-gray-900 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="rounded-full bg-red-500/20 p-3 text-red-300">
+                <FaTrash className="h-5 w-5" />
+              </div>
+              <h4 className="text-xl font-bold text-white">Konfirmasi Penghapusan</h4>
+            </div>
+            <p className="mb-6 text-sm text-gray-300">
+              Apakah Anda yakin ingin menghapus BAB <span className="font-semibold text-white">{deleteBabTarget.judul}</span>?
+              <br />
+              <span className="text-red-300">Semua sub-bab di dalam BAB ini akan ikut terhapus.</span>
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteBabModal(false);
+                  setDeleteBabTarget(null);
+                }}
+                className="delete-modal-cancel-btn flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-semibold transition"
+              >
+                <FaTimes /> Batal
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await handleDeleteBabInline(deleteBabTarget.id, deleteBabTarget.judul);
+                  setShowDeleteBabModal(false);
+                  setDeleteBabTarget(null);
+                }}
+                className="delete-modal-confirm-btn flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-semibold transition"
+              >
+                <FaTrash /> Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteSubBabModal && deleteSubBabTarget && (
+        <div className="delete-confirm-overlay fixed inset-0 z-[75] flex items-center justify-center bg-black/35 px-4">
+          <div className="delete-confirm-modal w-full max-w-md rounded-2xl border border-red-500/40 bg-gray-900 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="rounded-full bg-red-500/20 p-3 text-red-300">
+                <FaTrash className="h-5 w-5" />
+              </div>
+              <h4 className="text-xl font-bold text-white">Konfirmasi Penghapusan</h4>
+            </div>
+            <p className="mb-6 text-sm text-gray-300">
+              Apakah Anda yakin ingin menghapus sub-bab <span className="font-semibold text-white">{deleteSubBabTarget.judul_sub_bab}</span>?
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteSubBabModal(false);
+                  setDeleteSubBabTarget(null);
+                }}
+                className="delete-modal-cancel-btn flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-semibold transition"
+              >
+                <FaTimes /> Batal
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await handleDeleteSubBabInline(deleteSubBabTarget);
+                  setShowDeleteSubBabModal(false);
+                  setDeleteSubBabTarget(null);
+                }}
+                className="delete-modal-confirm-btn flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-semibold transition"
+              >
+                <FaTrash /> Hapus
               </button>
             </div>
           </div>

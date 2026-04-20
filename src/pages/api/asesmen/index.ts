@@ -46,11 +46,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json(result);
     } catch (error) {
       console.error('Error in GET /api/asesmen:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Terjadi kesalahan server' });
     }
   } else if (req.method === 'POST') {
     try {
-      const { judul_asesmen, sampul_asesmen, guru_asesmen, id_elemen, nilai_asesmen, waktu_mulai, waktu_terakhir, durasi_asesmen, durasi_kuis, kelas_asesmen, elemen_asesmen, acak_soal } = req.body;
+      const { judul_asesmen, sampul_asesmen, guru_asesmen, id_elemen, waktu_mulai, waktu_terakhir, durasi_asesmen, durasi_kuis, kelas_asesmen, elemen_asesmen, acak_soal } = req.body;
 
       console.log('📨 POST /api/asesmen received:', {
         judul_asesmen,
@@ -71,7 +71,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         sampul_asesmen: sampul_asesmen || '',
         guru_asesmen,
         id_elemen,
-        nilai_asesmen: nilai_asesmen || 0,
         waktu_mulai,
         waktu_terakhir,
         durasi_asesmen: durasi_asesmen ?? durasi_kuis ?? null,
@@ -94,7 +93,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               sampul_asesmen: sampul_asesmen || '',
               guru_asesmen,
               id_elemen,
-              nilai_asesmen: nilai_asesmen || 0,
               waktu_mulai,
               waktu_terakhir,
               durasi_kuis: durasi_asesmen ?? durasi_kuis ?? null,
@@ -117,7 +115,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               sampul_asesmen: sampul_asesmen || '',
               guru_asesmen,
               id_elemen,
-              nilai_asesmen: nilai_asesmen || 0,
               waktu_mulai,
               waktu_terakhir,
             },
@@ -148,11 +145,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('❌ Error in POST /api/asesmen:', error);
       return res.status(500).json({
-        error: 'Internal server error',
+        error: 'Terjadi kesalahan server',
         message: error instanceof Error ? error.message : String(error),
       });
     }
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Metode tidak diizinkan' });
   }
 }

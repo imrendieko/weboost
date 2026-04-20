@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/router';
 import StarBackground from '@/components/StarBackground';
 import AuthBb8Mascot from '@/components/AuthBb8Mascot';
+import { isValidEmailFormat } from '@/lib/utils';
 import { FaUserGraduate, FaChalkboardTeacher, FaEye, FaEyeSlash, FaHome, FaUserPlus, FaCheckCircle } from 'react-icons/fa';
 
 type UserType = 'siswa' | 'guru';
@@ -21,19 +22,21 @@ interface Kelas {
 
 export default function Register() {
   const router = useRouter();
+  // userType nentuin form ini lagi mode daftar siswa atau guru.
   const [userType, setUserType] = useState<UserType>('siswa');
   const [formData, setFormData] = useState({
     nama: '',
     email: '',
     password: '',
     nisn: '',
-    nip: '',
+    nuptk: '',
     sekolah: '',
     kelas: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [lembagaList, setLembagaList] = useState<Lembaga[]>([]);
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
@@ -42,6 +45,7 @@ export default function Register() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Isi dropdown sekolah/lembaga dari API.
         // Fetch lembaga
         const lembagaResponse = await fetch('/api/lembaga');
         const lembagaData = await lembagaResponse.json();
@@ -49,6 +53,7 @@ export default function Register() {
           setLembagaList(lembagaData);
         }
 
+        // Isi dropdown kelas dari API.
         // Fetch kelas
         const kelasResponse = await fetch('/api/kelas');
         const kelasData = await kelasResponse.json();
@@ -64,9 +69,21 @@ export default function Register() {
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+
+    // Khusus NISN/NUPTK kita paksa angka biar user gak bisa ketik huruf.
+    if (name === 'nisn' || name === 'nuptk') {
+      const numericOnly = value.replace(/\D/g, '');
+      setFormData({
+        ...formData,
+        [name]: numericOnly,
+      });
+      return;
+    }
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
   };
 
@@ -74,23 +91,83 @@ export default function Register() {
     e.preventDefault();
     setError('');
 
+    // Validasi dasar dulu biar request yang dikirim sudah rapi.
+    if (!formData.nama.trim()) {
+      setError('Nama lengkap wajib diisi!');
+      return;
+    }
+
+    if (!formData.email.trim()) {
+      setError('Email wajib diisi!');
+      return;
+    }
+
+    if (!isValidEmailFormat(formData.email)) {
+      setError('Format email tidak valid!');
+      return;
+    }
+
+    if (!formData.sekolah) {
+      setError('Sekolah/Lembaga wajib dipilih!');
+      return;
+    }
+
+    if (userType === 'siswa' && !formData.kelas) {
+      setError('Kelas wajib dipilih!');
+      return;
+    }
+
+    if (userType === 'siswa' && !formData.nisn) {
+      setError('NISN wajib diisi!');
+      return;
+    }
+
+    if (userType === 'guru' && !formData.nuptk) {
+      setError('NUPTK wajib diisi!');
+      return;
+    }
+
     if (formData.password.length < 6) {
       setError('Password minimal 6 karakter!');
       return;
     }
 
+    if (userType === 'siswa' && !/^\d+$/.test(formData.nisn)) {
+      setError('NISN hanya boleh berisi angka!');
+      return;
+    }
+
+    if (userType === 'siswa' && formData.nisn.length < 10) {
+      setError('NISN tidak boleh kurang dari 10 digit!');
+      return;
+    }
+
+    if (userType === 'guru' && !/^\d+$/.test(formData.nuptk)) {
+      setError('NUPTK hanya boleh berisi angka!');
+      return;
+    }
+
+    if (userType === 'guru' && formData.nuptk.length !== 16) {
+      setError('NUPTK harus terdiri dari tepat 16 digit!');
+      return;
+    }
+
+    const normalizedEmail = formData.email.trim().toLowerCase();
+
     setLoading(true);
 
     try {
+      // Endpoint beda tergantung role pendaftar.
       // Determine API endpoint based on user type
       const endpoint = userType === 'siswa' ? '/api/auth/register-siswa' : '/api/auth/register-guru';
 
+      // Bentuk payload disesuaikan sama kebutuhan endpoint.
       // Prepare request data
       const requestData =
         userType === 'siswa'
           ? {
               nama: formData.nama,
-              email: formData.email,
+              email: normalizedEmail,
               password: formData.password,
               nisn: formData.nisn,
               lembaga: formData.sekolah,
@@ -98,9 +175,9 @@ export default function Register() {
             }
           : {
               nama: formData.nama,
-              email: formData.email,
+              email: normalizedEmail,
               password: formData.password,
-              nip: formData.nip,
+              nuptk: formData.nuptk,
               lembaga: formData.sekolah,
             };
 
@@ -118,8 +195,10 @@ export default function Register() {
         throw new Error(data.error || 'Terjadi kesalahan saat registrasi');
       }
 
+      // Kalau sukses, tampilkan notifikasi lalu otomatis arahkan ke login.
       // Registration successful - show success message and redirect after 3 seconds
       setSuccess(true);
+      setSuccessMessage(data.message || 'Registrasi berhasil! Akun Anda menunggu validasi admin sebelum bisa login.');
       setError('');
       setTimeout(() => {
         router.push('/login');
@@ -211,16 +290,18 @@ export default function Register() {
                   transition={{ duration: 0.3 }}
                   className="auth-alert-success px-5 py-4 rounded-xl mb-4 flex items-center gap-3"
                 >
-                  <FaCheckCircle className="text-green-400 text-2xl flex-shrink-0 animate-bounce" />
+                  <FaCheckCircle className="auth-alert-success-icon text-2xl flex-shrink-0" />
                   <div className="flex-1">
                     <p className="font-bold text-base mb-1">Registrasi Berhasil!</p>
-                    <p className="text-sm text-green-200">Mengarahkan ke halaman login...</p>
+                    <p className="text-sm">{successMessage}</p>
+                    <p className="text-sm mt-1 opacity-95">Mengarahkan ke halaman login...</p>
                   </div>
                 </motion.div>
               )}
 
               <form
                 onSubmit={handleSubmit}
+                noValidate
                 className="auth-form space-y-4"
               >
                 {/* Nama */}
@@ -254,7 +335,7 @@ export default function Register() {
                 {/* Password */}
                 <div>
                   <label className="auth-field-label font-semibold mb-2 block">Password</label>
-                  <div className="relative">
+                  <div className="password-input-wrapper relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       name="password"
@@ -267,14 +348,27 @@ export default function Register() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="auth-password-toggle absolute right-4 top-1/2 -translate-y-1/2 transition-colors"
+                      className="password-input-toggle text-gray-500"
+                      aria-label={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                      style={{
+                        position: 'absolute',
+                        right: '1rem',
+                        top: '50%',
+                        transform: 'translateY(calc(-50% + 1px))',
+                        width: '22px',
+                        height: '22px',
+                        padding: 0,
+                        border: 'none',
+                        background: 'transparent',
+                        boxShadow: 'none',
+                      }}
                     >
-                      {showPassword ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
+                      {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
                     </button>
                   </div>
                 </div>
 
-                {/* NISN (Siswa) or NIP (Guru) */}
+                {/* NISN (Siswa) or NUPTK (Guru) */}
                 {userType === 'siswa' ? (
                   <div>
                     <label className="auth-field-label font-semibold mb-2 block">NISN</label>
@@ -283,6 +377,9 @@ export default function Register() {
                       name="nisn"
                       value={formData.nisn}
                       onChange={handleChange}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={10}
                       required
                       className="auth-field-input w-full rounded-xl px-4 py-3 focus:outline-none"
                       placeholder="10 digit Nomor Induk Siswa Nasional"
@@ -290,15 +387,18 @@ export default function Register() {
                   </div>
                 ) : (
                   <div>
-                    <label className="auth-field-label font-semibold mb-2 block">NIP</label>
+                    <label className="auth-field-label font-semibold mb-2 block">NUPTK</label>
                     <input
                       type="text"
-                      name="nip"
-                      value={formData.nip}
+                      name="nuptk"
+                      value={formData.nuptk}
                       onChange={handleChange}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={16}
                       required
                       className="auth-field-input w-full rounded-xl px-4 py-3 focus:outline-none"
-                      placeholder="18 digit Nomor Induk Pegawai"
+                      placeholder="16 digit NUPTK"
                     />
                   </div>
                 )}
@@ -415,10 +515,3 @@ export default function Register() {
     </div>
   );
 }
-
-export const getStaticProps = async () => {
-  return {
-    props: {},
-    revalidate: 3600,
-  };
-};

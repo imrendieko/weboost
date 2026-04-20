@@ -1,8 +1,9 @@
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
-import { FaArrowLeft, FaChartLine, FaLightbulb, FaPoll, FaTrophy, FaUser } from 'react-icons/fa';
+import { useEffect, useMemo, useState } from 'react';
+import { FaArrowLeft, FaChartLine, FaLightbulb, FaPoll, FaSearch, FaTable, FaTrophy, FaUser } from 'react-icons/fa';
 import AdminNavbar from '@/components/AdminNavbar';
 import StarBackground from '@/components/StarBackground';
+import DataTablePagination from '@/components/DataTablePagination';
 
 interface AdminSession {
   id_admin: number;
@@ -32,6 +33,27 @@ interface AnalisisGuruResponse {
   analysis: TPAnalysisGuru[];
 }
 
+interface AsesmenDetail {
+  judul_asesmen?: string;
+}
+
+interface AttemptRow {
+  id_attempt: number;
+  skor_total: number;
+  skor_maksimum: number;
+  siswa?: {
+    nama_siswa: string;
+    kelas?: {
+      nama_kelas: string;
+    } | null;
+    lembaga?: {
+      nama_lembaga: string;
+    } | null;
+  } | null;
+}
+
+type StatusFilter = 'all' | 'lulus' | 'tidak_lulus';
+
 function CircularProgress({ percentage, label }: { percentage: number; label: string }) {
   const safePercentage = Math.max(0, Math.min(100, percentage));
   const radius = 72;
@@ -40,11 +62,11 @@ function CircularProgress({ percentage, label }: { percentage: number; label: st
   const progressLength = (safePercentage / 100) * arcLength;
 
   return (
-    <div className="relative w-[220px] h-[220px] rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
-      <div className="absolute inset-0 flex items-center justify-center">
+    <div className="flex w-[240px] flex-col items-center">
+      <div className="relative flex h-[200px] w-[200px] items-center justify-center">
         <svg
-          width="190"
-          height="190"
+          width="200"
+          height="200"
           viewBox="0 0 190 190"
           className="-rotate-[135deg]"
         >
@@ -70,12 +92,9 @@ function CircularProgress({ percentage, label }: { percentage: number; label: st
             style={{ transition: 'stroke-dasharray 600ms ease' }}
           />
         </svg>
+        <p className="absolute text-[30px] font-bold leading-none text-white">{Math.round(safePercentage)}%</p>
       </div>
-
-      <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
-        <p className="text-2xl font-bold text-white leading-none mt-7">{Math.round(safePercentage)}%</p>
-        <p className="mt-3 text-[13px] leading-5 text-gray-200 line-clamp-2">{label}</p>
-      </div>
+      <p className="mt-1 w-full px-2 text-center text-[13px] leading-5 text-gray-200">{label}</p>
     </div>
   );
 }
@@ -90,8 +109,17 @@ export default function AnalisisAsesmenAdminPage() {
   const [summaryData, setSummaryData] = useState<SummaryGuru | null>(null);
   const [analysisData, setAnalysisData] = useState<TPAnalysisGuru[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [asesmenTitle, setAsesmenTitle] = useState('');
+  const [scoreRows, setScoreRows] = useState<AttemptRow[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchName, setSearchName] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+
+  const isLulus = (row: AttemptRow) => row.skor_maksimum > 0 && row.skor_total >= row.skor_maksimum * 0.75;
 
   useEffect(() => {
+    // Admin melihat analisis agregat: summary TP, saran, plus data skor siswa.
     const loadData = async () => {
       try {
         const rawSession = localStorage.getItem('admin_session');
@@ -108,19 +136,30 @@ export default function AnalisisAsesmenAdminPage() {
           return;
         }
 
-        const response = await fetch(`/api/asesmen/analisis-guru?id_asesmen=${asesmenId}`);
-        const data: AnalisisGuruResponse = await response.json();
+        const [analysisRes, asesmenRes, progresRes] = await Promise.all([fetch(`/api/asesmen/analisis-guru?id_asesmen=${asesmenId}`), fetch(`/api/asesmen/${asesmenId}`), fetch(`/api/asesmen/progres/${asesmenId}`)]);
 
-        if (!response.ok) {
+        const analysisDataRes: AnalisisGuruResponse = await analysisRes.json();
+
+        if (!analysisRes.ok) {
           throw new Error('Gagal mengambil data analisis asesmen');
         }
 
-        setSummaryData(data.summary);
-        setAnalysisData(data.analysis || []);
+        setSummaryData(analysisDataRes.summary);
+        setAnalysisData(analysisDataRes.analysis || []);
 
-        if (data.analysis && data.analysis.length > 0) {
+        if (asesmenRes.ok) {
+          const asesmenData: AsesmenDetail = await asesmenRes.json();
+          setAsesmenTitle(asesmenData.judul_asesmen || '');
+        }
+
+        if (progresRes.ok) {
+          const progresData: AttemptRow[] = await progresRes.json();
+          setScoreRows(progresData || []);
+        }
+
+        if (analysisDataRes.analysis && analysisDataRes.analysis.length > 0) {
           const newSuggestions: string[] = [];
-          data.analysis.forEach((item) => {
+          analysisDataRes.analysis.forEach((item) => {
             if (item.saran_guru) {
               newSuggestions.push(item.saran_guru);
             }
@@ -139,6 +178,47 @@ export default function AnalisisAsesmenAdminPage() {
     }
   }, [router.isReady, asesmenId]);
 
+  const filteredScoreRows = useMemo(() => {
+    // Search dan filter status dipakai untuk mempercepat review hasil siswa.
+    const keyword = searchName.trim().toLowerCase();
+    let rows = scoreRows;
+
+    if (keyword) {
+      rows = rows.filter((item) => (item.siswa?.nama_siswa || '').toLowerCase().includes(keyword));
+    }
+
+    if (statusFilter === 'lulus') {
+      rows = rows.filter((item) => isLulus(item));
+    }
+
+    if (statusFilter === 'tidak_lulus') {
+      rows = rows.filter((item) => !isLulus(item));
+    }
+
+    return [...rows].sort((a, b) => {
+      const statusA = isLulus(a) ? 0 : 1;
+      const statusB = isLulus(b) ? 0 : 1;
+
+      if (statusA !== statusB) {
+        return statusA - statusB;
+      }
+
+      return (a.siswa?.nama_siswa || '').localeCompare(b.siswa?.nama_siswa || '', 'id');
+    });
+  }, [scoreRows, searchName, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredScoreRows.length / rowsPerPage));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * rowsPerPage;
+  const paginatedScoreRows = useMemo(() => filteredScoreRows.slice(startIndex, startIndex + rowsPerPage), [filteredScoreRows, startIndex, rowsPerPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchName, statusFilter]);
+
+  const totalLulus = scoreRows.filter((item) => isLulus(item)).length;
+  const totalTidakLulus = scoreRows.length - totalLulus;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -152,7 +232,7 @@ export default function AnalisisAsesmenAdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
+    <div className="analisis-theme-scope min-h-screen bg-black text-white relative overflow-hidden">
       <StarBackground />
       <AdminNavbar adminName={adminSession.nama_admin} />
 
@@ -161,9 +241,9 @@ export default function AnalisisAsesmenAdminPage() {
           <button
             type="button"
             onClick={() => router.back()}
-            className="mana-btn mana-btn--neutral mb-6 inline-flex items-center gap-2 rounded-lg px-4 py-2 transition-all"
+            className="mb-6 flex items-center gap-2 rounded-lg border border-white/10 bg-gray-800/50 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-300 transition-all hover:bg-gray-700/50 hover:text-white"
           >
-            <FaArrowLeft className="text-white" />
+            <FaArrowLeft />
             Kembali
           </button>
 
@@ -173,6 +253,7 @@ export default function AnalisisAsesmenAdminPage() {
               Hasil Analisis Asesmen
             </h2>
           </div>
+          <p className="-mt-6 mb-8 text-base text-gray-300 font-medium">{asesmenTitle || (asesmenId ? `Asesmen #${asesmenId}` : 'Asesmen')}</p>
 
           <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-gray-800/50 to-gray-900/50 p-8">
@@ -228,16 +309,113 @@ export default function AnalisisAsesmenAdminPage() {
           <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-gray-800/50 to-gray-900/50 p-6 md:p-8">
             <div className="space-y-3">
               {suggestions.length > 0 ? (
-                suggestions.map((suggestion, index) => (
-                  <p
-                    key={index}
-                    className="text-base text-gray-300 leading-relaxed"
-                  >
-                    {suggestion}
-                  </p>
-                ))
+                <ol className="list-decimal pl-5 space-y-3">
+                  {suggestions.map((suggestion, index) => (
+                    <li
+                      key={index}
+                      className="text-base text-gray-300 leading-relaxed"
+                    >
+                      {suggestion}
+                    </li>
+                  ))}
+                </ol>
               ) : (
                 <p className="text-base text-gray-400">Belum ada saran pembelajaran.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-10">
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+              <FaTable className="text-white" />
+              Nilai Asesmen Siswa
+            </h2>
+
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="relative flex-1">
+                <div className="pointer-events-none absolute inset-y-0 left-3 z-10 flex items-center">
+                  <FaSearch className="h-4 w-4 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
+                  placeholder="Cari nama siswa"
+                  className="nilai-asesmen-filter h-10 w-full rounded-lg border border-white/10 bg-gray-800/60 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+                className="nilai-asesmen-filter h-10 rounded-lg border border-white/10 bg-gray-800/60 px-3 text-sm text-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="all">Semua Status</option>
+                <option value="lulus">Lulus</option>
+                <option value="tidak_lulus">Tidak Lulus</option>
+              </select>
+            </div>
+
+            <div className="mb-4 flex flex-wrap gap-2 text-xs sm:text-sm">
+              <span className="inline-flex items-center rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-emerald-300">Lulus: {totalLulus}</span>
+              <span className="inline-flex items-center rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-amber-300">Tidak Lulus: {totalTidakLulus}</span>
+            </div>
+
+            <div className="nilai-asesmen-table-wrap rounded-2xl border border-white/10 bg-gray-900/60 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="nilai-asesmen-table w-full min-w-[760px] text-sm">
+                  <thead className="bg-white/5">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold">No</th>
+                      <th className="px-4 py-3 text-left font-semibold">Nama Siswa</th>
+                      <th className="px-4 py-3 text-left font-semibold">Kelas</th>
+                      <th className="px-4 py-3 text-left font-semibold">Sekolah</th>
+                      <th className="px-4 py-3 text-left font-semibold">Nilai</th>
+                      <th className="px-4 py-3 text-left font-semibold">Keterangan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredScoreRows.length === 0 ? (
+                      <tr>
+                        <td
+                          className="px-4 py-8 text-center text-gray-400"
+                          colSpan={6}
+                        >
+                          Belum ada data nilai siswa.
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedScoreRows.map((item, index) => {
+                        const lulus = isLulus(item);
+                        return (
+                          <tr
+                            key={item.id_attempt}
+                            className="border-t border-white/10"
+                          >
+                            <td className="px-4 py-3">{startIndex + index + 1}</td>
+                            <td className="px-4 py-3">{item.siswa?.nama_siswa || '-'}</td>
+                            <td className="px-4 py-3">{item.siswa?.kelas?.nama_kelas || '-'}</td>
+                            <td className="px-4 py-3">{item.siswa?.lembaga?.nama_lembaga || '-'}</td>
+                            <td className="px-4 py-3 font-semibold">{item.skor_total}</td>
+                            <td className={`px-4 py-3 font-semibold ${lulus ? 'text-emerald-300' : 'text-amber-300'}`}>{lulus ? 'Lulus' : 'Tidak Lulus'}</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {filteredScoreRows.length > 0 && (
+                <div className="px-4 pb-4">
+                  <DataTablePagination
+                    totalItems={filteredScoreRows.length}
+                    currentPage={safePage}
+                    rowsPerPage={rowsPerPage}
+                    onPageChange={setCurrentPage}
+                    onRowsPerPageChange={setRowsPerPage}
+                  />
+                </div>
               )}
             </div>
           </div>

@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import GuruNavbar from '@/components/GuruNavbar';
 import StarBackground from '@/components/StarBackground';
 import supabase from '@/lib/db';
-import { FaArrowLeft, FaPlus, FaGripVertical, FaTrash, FaCopy, FaImage, FaCheck, FaTimes, FaExclamationTriangle, FaSave, FaCode, FaAlignLeft, FaListUl, FaChevronDown, FaBold, FaItalic, FaUnderline, FaRandom } from 'react-icons/fa';
+import { FaArrowLeft, FaPlus, FaGripVertical, FaTrash, FaCopy, FaImage, FaCheck, FaTimes, FaExclamationTriangle, FaCode, FaAlignLeft, FaListUl, FaChevronDown, FaBold, FaItalic, FaUnderline, FaRandom } from 'react-icons/fa';
 import { Asesmen, SoalAsesmen, PilihanGandaEditor, EditorSoalState, TujuanPembelajaran, GuruData } from '@/types/asesmen.d';
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
@@ -34,6 +34,20 @@ const TIPE_SOAL_OPTIONS = [
   { value: 'baris_kode' as TipeSoal, label: 'Baris Kode Program', Icon: FaCode },
 ];
 
+const getSoalPreviewText = (rawText: string, maxLength = 48) => {
+  const plainText = (rawText || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!plainText) return 'Buat soal';
+  return plainText.length > maxLength ? `${plainText.slice(0, maxLength)}...` : plainText;
+};
+
 function RichTextEditorSoal({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -50,7 +64,7 @@ function RichTextEditorSoal({ value, onChange }: { value: string; onChange: (val
   };
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5">
+    <div className="asesmen-richtext-editor rounded-2xl border border-white/10 bg-white/5">
       <div className="flex flex-wrap gap-2 border-b border-white/10 px-4 py-3">
         {[
           { key: 'bold', label: 'Bold', icon: <FaBold /> },
@@ -62,7 +76,7 @@ function RichTextEditorSoal({ value, onChange }: { value: string; onChange: (val
             key={item.key}
             type="button"
             onClick={() => applyCommand(item.key as 'bold' | 'italic' | 'underline' | 'insertUnorderedList')}
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-black/20 text-gray-200 transition hover:border-[#0080FF]/60 hover:text-white"
+            className="asesmen-richtext-tool flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-black/20 text-gray-200 transition hover:border-[#0080FF]/60 hover:text-white"
             title={item.label}
           >
             {item.icon}
@@ -110,6 +124,7 @@ export default function KelolaSoalAsesmen() {
   const [editorState, setEditorState] = useState<EditorSoalState | null>(null);
   const [saving, setSaving] = useState(false);
   const [isSoalRandomized, setIsSoalRandomized] = useState(false);
+  const [isRandomizingSoal, setIsRandomizingSoal] = useState(false);
   const [notification, setNotification] = useState<NotificationState>({
     show: false,
     message: '',
@@ -118,6 +133,9 @@ export default function KelolaSoalAsesmen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; text: string } | null>(null);
   const [showTipeSoalMenu, setShowTipeSoalMenu] = useState(false);
+  const [lastAutoSavedAt, setLastAutoSavedAt] = useState<Date | null>(null);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipAutosaveRef = useRef(false);
 
   const showNotification = (message: string, type: NotificationType) => {
     setNotification({ show: true, message, type });
@@ -141,6 +159,7 @@ export default function KelolaSoalAsesmen() {
 
   // Check auth & fetch data
   useEffect(() => {
+    // Begitu halaman kebuka, kita validasi guru lalu hydrate data asesmen + soal.
     const checkGuruAuth = async () => {
       try {
         const guruSession = localStorage.getItem('guru_session');
@@ -199,6 +218,7 @@ export default function KelolaSoalAsesmen() {
 
       const data = await res.json();
       console.log('✅ Asesmen data loaded:', data);
+      // Simpan metadata asesmen supaya editor soal punya konteks lengkap.
       setAsesmenData(data);
 
       // Set randomization status from database
@@ -234,6 +254,7 @@ export default function KelolaSoalAsesmen() {
 
   const fetchSoalByAsesmen = async (idAsesmen: number, selectedId?: number) => {
     try {
+      // Semua soal asesmen di-load sekaligus karena editor butuh navigasi antar soal.
       const res = await fetch(`/api/asesmen/soal?id_asesmen=${idAsesmen}`);
       if (!res.ok) {
         console.error('Error fetching soal:', res.status);
@@ -264,8 +285,10 @@ export default function KelolaSoalAsesmen() {
     }
 
     try {
+      setSaving(true);
       let gambarSoalUrl = editorState.gambar_soal_preview || '';
       let pilihanGandaPayload = editorState.tipe_soal === 'pilihan_ganda' ? [...(editorState.pilihan_ganda || [])] : [];
+      let shouldSyncEditorState = false;
 
       // Handle gambar soal upload if needed
       if (editorState.gambar_soal_file) {
@@ -289,6 +312,7 @@ export default function KelolaSoalAsesmen() {
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json();
           gambarSoalUrl = uploadData.url;
+          shouldSyncEditorState = true;
         }
       }
 
@@ -325,11 +349,13 @@ export default function KelolaSoalAsesmen() {
               if (uploadRes.ok) {
                 const uploadData = await uploadRes.json();
                 gambarPilihanUrl = uploadData.url;
+                shouldSyncEditorState = true;
               }
             }
 
             if (gambarPilihanUrl.startsWith('data:')) {
               gambarPilihanUrl = '';
+              shouldSyncEditorState = true;
             }
 
             return {
@@ -368,24 +394,56 @@ export default function KelolaSoalAsesmen() {
       });
 
       if (res.ok) {
-        setEditorState((current) =>
-          current
-            ? {
-                ...current,
-                gambar_soal_preview: gambarSoalUrl,
-                gambar_soal_file: undefined,
-                pilihan_ganda: current.tipe_soal === 'pilihan_ganda' ? pilihanGandaPayload : current.pilihan_ganda,
-              }
-            : current,
-        );
+        if (shouldSyncEditorState) {
+          skipAutosaveRef.current = true;
+          setEditorState((current) =>
+            current
+              ? {
+                  ...current,
+                  gambar_soal_preview: gambarSoalUrl,
+                  gambar_soal_file: undefined,
+                  pilihan_ganda: current.tipe_soal === 'pilihan_ganda' ? pilihanGandaPayload : current.pilihan_ganda,
+                }
+              : current,
+          );
+        }
+        setLastAutoSavedAt(new Date());
+        setSaving(false);
         return true;
       }
+      setSaving(false);
       return false;
     } catch (error) {
       console.error('Error auto-saving soal:', error);
+      setSaving(false);
       return false;
     }
   };
+
+  useEffect(() => {
+    if (!editorState || !idAsesmen) {
+      return;
+    }
+
+    if (skipAutosaveRef.current) {
+      skipAutosaveRef.current = false;
+      return;
+    }
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = setTimeout(() => {
+      void autoSaveCurrentSoal();
+    }, 1200);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [editorState, idAsesmen]);
 
   const handleSelectSoal = async (soal: SoalAsesmen) => {
     // Auto-save current soal before switching
@@ -426,6 +484,7 @@ export default function KelolaSoalAsesmen() {
 
     console.log('📝 Loading soal with pilihan_ganda:', pilihan_ganda_editor);
 
+    skipAutosaveRef.current = true;
     setEditorState({
       id_soal: soal.id_soal,
       teks_soal: soal.teks_soal,
@@ -444,6 +503,8 @@ export default function KelolaSoalAsesmen() {
     if (!idAsesmen) return;
 
     try {
+      await autoSaveCurrentSoal();
+
       // Get max urutan_soal
       const maxUrutan = soalList.length > 0 ? Math.max(...soalList.map((s) => s.urutan_soal)) + 1 : 1;
 
@@ -499,6 +560,8 @@ export default function KelolaSoalAsesmen() {
     if (!idAsesmen) return;
 
     try {
+      await autoSaveCurrentSoal();
+
       const maxUrutan = Math.max(...soalList.map((s) => s.urutan_soal)) + 1;
 
       const res = await fetch('/api/asesmen/soal', {
@@ -554,11 +617,12 @@ export default function KelolaSoalAsesmen() {
     }
   };
 
-  const handleDeleteSoal = (idSoal: number) => {
+  const handleDeleteSoal = async (idSoal: number) => {
+    await autoSaveCurrentSoal();
     const target = soalList.find((soal) => soal.id_soal === idSoal);
     setDeleteTarget({
       id: idSoal,
-      text: target?.teks_soal || 'Soal ini',
+      text: getSoalPreviewText(target?.teks_soal || '', 260),
     });
     setShowDeleteModal(true);
   };
@@ -590,160 +654,6 @@ export default function KelolaSoalAsesmen() {
     } finally {
       setShowDeleteModal(false);
       setDeleteTarget(null);
-    }
-  };
-
-  const handleSaveSoal = async () => {
-    if (!editorState || !idAsesmen) return;
-
-    if (editorState.tipe_soal === 'pilihan_ganda' && editorState.pilihan_ganda) {
-      const invalidOption = editorState.pilihan_ganda.find((item) => !item.teks_pilgan?.trim() && !item.gambar_pilgan?.trim());
-      if (invalidOption) {
-        showNotification(`Pilihan ${invalidOption.opsi_pilgan} harus diisi teks atau gambar.`, 'error');
-        return;
-      }
-    }
-
-    setSaving(true);
-
-    try {
-      let gambarSoalUrl = editorState.gambar_soal_preview || '';
-      let pilihanGandaPayload = editorState.tipe_soal === 'pilihan_ganda' ? [...(editorState.pilihan_ganda || [])] : [];
-
-      if (editorState.gambar_soal_file) {
-        const reader = new FileReader();
-        const base64File = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(editorState.gambar_soal_file as File);
-        });
-
-        const uploadRes = await fetch('/api/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileData: base64File,
-            fileName: editorState.gambar_soal_file.name,
-            fileType: editorState.gambar_soal_file.type,
-          }),
-        });
-
-        if (!uploadRes.ok) {
-          const uploadErr = await uploadRes.json();
-          console.error('Error uploading gambar soal:', uploadErr);
-          showNotification('Gagal upload gambar soal', 'error');
-          setSaving(false);
-          return;
-        }
-
-        const uploadData = await uploadRes.json();
-        gambarSoalUrl = uploadData.url;
-      }
-
-      if (editorState.tipe_soal === 'pilihan_ganda' && pilihanGandaPayload.length > 0) {
-        pilihanGandaPayload = await Promise.all(
-          pilihanGandaPayload.map(async (pilihan) => {
-            let gambarPilihanUrl = pilihan.gambar_pilgan || '';
-
-            if (pilihan.gambar_file) {
-              let fileToUpload = pilihan.gambar_file;
-              if (fileToUpload.size > 500 * 1024) {
-                const compression = await compressFile(fileToUpload);
-                fileToUpload = compression.compressedFile;
-              }
-
-              const reader = new FileReader();
-              const base64File = await new Promise<string>((resolve, reject) => {
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(fileToUpload);
-              });
-
-              const uploadRes = await fetch('/api/upload', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  fileData: base64File,
-                  fileName: fileToUpload.name,
-                  fileType: fileToUpload.type,
-                }),
-              });
-
-              if (!uploadRes.ok) {
-                const uploadErr = await uploadRes.json();
-                throw new Error(uploadErr?.error || `Gagal upload gambar pada pilihan ${pilihan.opsi_pilgan}`);
-              }
-
-              const uploadData = await uploadRes.json();
-              gambarPilihanUrl = uploadData.url;
-            }
-
-            // Never send data URL previews to API payload.
-            if (gambarPilihanUrl.startsWith('data:')) {
-              gambarPilihanUrl = '';
-            }
-
-            return {
-              ...pilihan,
-              gambar_pilgan: gambarPilihanUrl,
-              gambar_file: undefined,
-            };
-          }),
-        );
-      }
-
-      const res = await fetch(`/api/asesmen/soal/${editorState.id_soal}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          teks_soal: editorState.teks_soal,
-          teks_jawaban: editorState.teks_jawaban,
-          gambar_soal: gambarSoalUrl,
-          nilai_soal: editorState.nilai_soal,
-          id_tp: editorState.id_tp,
-          kunci_teks: editorState.kunci_teks,
-          tipe_soal: editorState.tipe_soal,
-          pilihan_ganda:
-            editorState.tipe_soal === 'pilihan_ganda'
-              ? pilihanGandaPayload.map((pilihan) => ({
-                  id_pilgan: pilihan.id_pilgan,
-                  opsi_pilgan: pilihan.opsi_pilgan,
-                  urutan_pilgan: pilihan.urutan_pilgan,
-                  teks_pilgan: pilihan.teks_pilgan,
-                  gambar_pilgan: pilihan.gambar_pilgan,
-                  kunci_pilgan: pilihan.kunci_pilgan,
-                }))
-              : [],
-        }),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        console.error('Error updating soal:', error);
-        showNotification('Gagal menyimpan soal', 'error');
-        setSaving(false);
-        return;
-      }
-
-      setEditorState((current) =>
-        current
-          ? {
-              ...current,
-              gambar_soal_preview: gambarSoalUrl,
-              gambar_soal_file: undefined,
-              pilihan_ganda: current.tipe_soal === 'pilihan_ganda' ? pilihanGandaPayload : current.pilihan_ganda,
-            }
-          : current,
-      );
-
-      await fetchSoalByAsesmen(idAsesmen, editorState.id_soal);
-
-      showNotification('Soal berhasil disimpan!', 'success');
-      setSaving(false);
-    } catch (error) {
-      console.error('Error saving soal:', error);
-      showNotification('Gagal menyimpan soal', 'error');
-      setSaving(false);
     }
   };
 
@@ -859,11 +769,13 @@ export default function KelolaSoalAsesmen() {
   };
 
   const handleRandomizeSoal = async () => {
-    if (!soalList || soalList.length === 0 || !idAsesmen) return;
+    if (!soalList || soalList.length === 0 || !idAsesmen || isRandomizingSoal) return;
 
+    setIsRandomizingSoal(true);
     try {
+      await autoSaveCurrentSoal();
+
       let updatedList: SoalAsesmen[];
-      let newRandomizedStatus = false;
 
       if (isSoalRandomized) {
         // Cancel randomize - restore original order
@@ -956,6 +868,8 @@ export default function KelolaSoalAsesmen() {
     } catch (error) {
       console.error('Error randomizing soal:', error);
       showNotification(isSoalRandomized ? 'Gagal membatalkan pengacakan' : 'Gagal mengacak soal', 'error');
+    } finally {
+      setIsRandomizingSoal(false);
     }
   };
 
@@ -968,7 +882,7 @@ export default function KelolaSoalAsesmen() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
+    <div className="asesmen-theme-scope min-h-screen bg-black text-white relative overflow-hidden">
       <StarBackground />
 
       {guruData && <GuruNavbar guruName={guruData.nama_guru} />}
@@ -980,7 +894,10 @@ export default function KelolaSoalAsesmen() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
               <button
                 type="button"
-                onClick={() => router.back()}
+                onClick={async () => {
+                  await autoSaveCurrentSoal();
+                  router.back();
+                }}
                 className="mb-6 flex items-center gap-2 rounded-lg border border-white/10 bg-gray-800/50 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-300 transition-all hover:bg-gray-700/50 hover:text-white"
               >
                 <FaArrowLeft />
@@ -1012,15 +929,19 @@ export default function KelolaSoalAsesmen() {
                 <div className="bg-gray-800/30 border-b border-white/10 px-3 sm:px-4 py-2 flex items-center gap-2">
                   <button
                     onClick={handleRandomizeSoal}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm rounded transition-all whitespace-nowrap ${
+                    disabled={isRandomizingSoal}
+                    className={`acak-soal-btn flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm rounded transition-all whitespace-nowrap disabled:opacity-60 disabled:cursor-wait ${isRandomizingSoal ? 'cursor-wait' : ''} ${
                       isSoalRandomized
                         ? 'bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/50 text-emerald-400 hover:text-emerald-300'
                         : 'bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 text-blue-400 hover:text-blue-300'
                     }`}
                     title={isSoalRandomized ? 'Batalkan pengacakan soal' : 'Acak urutan soal untuk siswa'}
                   >
-                    <FaRandom size={12} />
-                    {isSoalRandomized ? 'Soal Teracak ✓' : 'Acak Soal'}
+                    <FaRandom
+                      size={12}
+                      className={isRandomizingSoal ? 'animate-spin' : ''}
+                    />
+                    {isRandomizingSoal ? (isSoalRandomized ? 'Membatalkan...' : 'Mengacak...') : isSoalRandomized ? 'Soal Teracak ✓' : 'Acak Soal'}
                   </button>
                 </div>
               )}
@@ -1049,7 +970,7 @@ export default function KelolaSoalAsesmen() {
                           />
                           <div className="flex-1 min-w-0">
                             <p className="text-xs text-gray-400 mb-0.5">Soal {idx + 1}</p>
-                            <p className="text-xs sm:text-sm font-medium truncate">{(soal.teks_soal || '').trim() ? `${soal.teks_soal.substring(0, 40)}${soal.teks_soal.length > 40 ? '...' : ''}` : 'Buat soal'}</p>
+                            <p className="text-xs sm:text-sm font-medium truncate">{getSoalPreviewText(soal.teks_soal)}</p>
                             <p className="text-xs text-gray-500">{soal.nilai_soal} poin</p>
                           </div>
                         </div>
@@ -1077,7 +998,7 @@ export default function KelolaSoalAsesmen() {
                       <FaCopy size={13} />
                     </button>
                     <button
-                      onClick={() => handleDeleteSoal(editorState.id_soal)}
+                      onClick={() => void handleDeleteSoal(editorState.id_soal)}
                       className="p-1.5 sm:p-2 hover:bg-red-600/20 rounded transition-all text-red-400"
                       title="Hapus soal"
                     >
@@ -1114,6 +1035,7 @@ export default function KelolaSoalAsesmen() {
                               teks_jawaban: value,
                             })
                           }
+                          className="soal-code-editor"
                           theme="dark"
                           height="220px"
                         />
@@ -1298,6 +1220,7 @@ export default function KelolaSoalAsesmen() {
                                 kunci_teks: value,
                               })
                             }
+                            className="soal-code-editor"
                             theme="dark"
                             height="200px"
                           />
@@ -1320,16 +1243,10 @@ export default function KelolaSoalAsesmen() {
                   )}
                 </div>
 
-                {/* Save Button */}
                 <div className="bg-gray-800/50 border-t border-white/10 px-4 py-3">
-                  <button
-                    onClick={handleSaveSoal}
-                    disabled={saving}
-                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg py-2 font-medium transition-all inline-flex items-center justify-center gap-2"
-                  >
-                    <FaSave size={13} />
-                    {saving ? 'Menyimpan...' : 'Simpan Soal'}
-                  </button>
+                  <p className="text-xs sm:text-sm text-gray-300 text-center">
+                    {saving ? 'Menyimpan perubahan otomatis...' : lastAutoSavedAt ? `Perubahan tersimpan otomatis • ${lastAutoSavedAt.toLocaleTimeString('id-ID')}` : 'Autosave aktif. Perubahan disimpan otomatis.'}
+                  </p>
                 </div>
               </div>
             ) : (
@@ -1356,7 +1273,7 @@ export default function KelolaSoalAsesmen() {
                       <button
                         type="button"
                         onClick={() => setShowTipeSoalMenu((prev) => !prev)}
-                        className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-white flex items-center justify-between hover:border-blue-500/70 transition-all"
+                        className="tipe-soal-trigger w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-white flex items-center justify-between hover:border-blue-500/70 transition-all"
                       >
                         <span className="inline-flex items-center gap-2">
                           {(() => {
@@ -1381,7 +1298,7 @@ export default function KelolaSoalAsesmen() {
                       </button>
 
                       {showTipeSoalMenu && (
-                        <div className="absolute z-30 mt-1 w-full bg-gray-900 border border-white/15 rounded-lg overflow-hidden shadow-xl">
+                        <div className="tipe-soal-menu absolute z-30 mt-1 w-full bg-gray-900 border border-white/15 rounded-lg overflow-hidden shadow-xl">
                           {TIPE_SOAL_OPTIONS.map((option) => {
                             const OptionIcon = option.Icon;
                             const isActive = option.value === editorState.tipe_soal;
@@ -1399,11 +1316,11 @@ export default function KelolaSoalAsesmen() {
                                   });
                                   setShowTipeSoalMenu(false);
                                 }}
-                                className={`w-full px-3 py-2 text-left flex items-center gap-2 text-sm transition-all ${isActive ? 'bg-blue-600/40 text-white' : 'text-gray-200 hover:bg-gray-800'}`}
+                                className={`tipe-soal-option w-full px-3 py-2 text-left flex items-center gap-2 text-sm transition-all ${isActive ? 'bg-blue-600/40 text-white' : 'text-gray-200 hover:bg-gray-800'}`}
                               >
                                 <OptionIcon
                                   size={12}
-                                  className={isActive ? 'text-white' : 'text-gray-400'}
+                                  className={`tipe-soal-option-icon ${isActive ? 'text-white' : 'text-gray-400'}`}
                                 />
                                 <span>{option.label}</span>
                               </button>
@@ -1525,6 +1442,39 @@ export default function KelolaSoalAsesmen() {
         .properti-sidebar .text-\[11px\] {
           font-size: 0.95rem !important;
         }
+
+        body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .tipe-soal-trigger,
+        body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .tipe-soal-trigger * {
+          color: #0f172a !important;
+        }
+
+        body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .tipe-soal-trigger {
+          background: #ffffff !important;
+          border-color: rgba(15, 23, 42, 0.16) !important;
+        }
+
+        body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .tipe-soal-menu {
+          background: #ffffff !important;
+          border-color: rgba(15, 23, 42, 0.16) !important;
+        }
+
+        body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .tipe-soal-option,
+        body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .tipe-soal-option * {
+          color: #0f172a !important;
+        }
+
+        body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .tipe-soal-option:hover {
+          background: #f1f5f9 !important;
+        }
+
+        body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .tipe-soal-option.bg-blue-600\/40 {
+          background: #c7d2fe !important;
+        }
+
+        body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .acak-soal-btn,
+        body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .acak-soal-btn * {
+          color: #0f172a !important;
+        }
       `}</style>
 
       {notification.show && (
@@ -1539,7 +1489,14 @@ export default function KelolaSoalAsesmen() {
       )}
 
       {showDeleteModal && deleteTarget && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          style={{
+            backgroundColor: 'rgba(2, 6, 23, 0.55)',
+            backdropFilter: 'blur(16px) saturate(120%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(120%)',
+          }}
+        >
           <div className="w-full max-w-md bg-gray-900 border border-white/15 rounded-xl shadow-2xl">
             <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-red-500/20 text-red-300 flex items-center justify-center">
@@ -1562,15 +1519,22 @@ export default function KelolaSoalAsesmen() {
                   setShowDeleteModal(false);
                   setDeleteTarget(null);
                 }}
-                className="px-4 py-2 rounded-md border border-white/15 bg-gray-800 hover:bg-gray-700 text-sm text-gray-200"
+                className="px-4 py-2 rounded-md border border-gray-300 bg-white hover:bg-gray-100 text-sm !text-slate-900 inline-flex items-center gap-2"
               >
+                <FaTimes
+                  size={12}
+                  className="text-slate-900"
+                />
                 Batal
               </button>
               <button
                 onClick={confirmDeleteSoal}
-                className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-sm text-white inline-flex items-center gap-2"
+                className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-sm !text-white inline-flex items-center gap-2"
               >
-                <FaTrash size={12} />
+                <FaTrash
+                  size={12}
+                  className="text-white"
+                />
                 Hapus Soal
               </button>
             </div>

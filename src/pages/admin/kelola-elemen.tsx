@@ -5,6 +5,7 @@ import supabase from '@/lib/db';
 import AdminNavbar from '@/components/AdminNavbar';
 import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
+import DataTablePagination from '@/components/DataTablePagination';
 import { FaBook, FaEdit, FaTrash, FaCheck, FaTimes, FaSearch, FaPlus, FaMinus, FaChartLine, FaUpload } from 'react-icons/fa';
 import Image from 'next/image';
 
@@ -83,6 +84,8 @@ export default function KelolaElemen() {
   const [search, setSearch] = useState('');
   const [filterKelas, setFilterKelas] = useState('all');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; nama: string } | null>(null);
 
@@ -107,12 +110,13 @@ export default function KelolaElemen() {
   useEffect(() => {
     if (!router.isReady) return;
 
+    // Halaman ini butuh banyak data awal (kelas, guru, elemen), jadi dimuat berurutan.
     const checkAdminAuth = async () => {
       try {
         const adminSession = localStorage.getItem('admin_session');
 
         if (!adminSession) {
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -123,7 +127,7 @@ export default function KelolaElemen() {
         if (adminError || !admin) {
           console.error('Error fetching admin data:', adminError);
           localStorage.removeItem('admin_session');
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -134,7 +138,7 @@ export default function KelolaElemen() {
         setLoading(false);
       } catch (error) {
         console.error('Error checking admin auth:', error);
-        router.push('/');
+        window.location.replace('/');
       }
     };
 
@@ -165,6 +169,7 @@ export default function KelolaElemen() {
 
   const fetchElemenData = async () => {
     try {
+      // Search/filter/sort dikirim ke API supaya hasil tabel konsisten dengan kontrol UI.
       const response = await fetch(`/api/elemen?search=${search}&kelas=${filterKelas}&sortBy=nama_elemen&sortOrder=${sortOrder}`);
       const data = await response.json();
 
@@ -183,6 +188,7 @@ export default function KelolaElemen() {
   };
 
   useEffect(() => {
+    // Saat kontrol list berubah, data elemen otomatis dimuat ulang.
     if (!loading) {
       fetchElemenData();
     }
@@ -462,6 +468,10 @@ export default function KelolaElemen() {
 
   const renderTable = () => {
     const safeElemenList = Array.isArray(elemenList) ? elemenList : [];
+    const totalPages = Math.max(1, Math.ceil(safeElemenList.length / rowsPerPage));
+    const safePage = Math.min(currentPage, totalPages);
+    const startIndex = (safePage - 1) * rowsPerPage;
+    const paginatedElemenList = safeElemenList.slice(startIndex, startIndex + rowsPerPage);
 
     return (
       <div>
@@ -531,12 +541,12 @@ export default function KelolaElemen() {
                   </td>
                 </tr>
               ) : (
-                safeElemenList.map((elemen, index) => (
+                paginatedElemenList.map((elemen, index) => (
                   <tr
                     key={elemen.id_elemen}
                     className="admin-elemen-table-row border-b border-white/5 hover:bg-white/5 transition-colors"
                   >
-                    <td className="px-4 py-3 text-white">{index + 1}</td>
+                    <td className="px-4 py-3 text-white">{startIndex + index + 1}</td>
                     <td className="px-4 py-3">
                       {elemen.sampul_elemen ? (
                         <img
@@ -615,9 +625,23 @@ export default function KelolaElemen() {
             </tbody>
           </table>
         </div>
+
+        {safeElemenList.length > 0 && (
+          <DataTablePagination
+            totalItems={safeElemenList.length}
+            currentPage={safePage}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setCurrentPage}
+            onRowsPerPageChange={setRowsPerPage}
+          />
+        )}
       </div>
     );
   };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterKelas, sortOrder]);
 
   if (loading) {
     return (
@@ -810,14 +834,16 @@ export default function KelolaElemen() {
                     });
                     setPreviewImage(null);
                   }}
-                  className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  className="flex-1 px-6 py-3 bg-white hover:bg-gray-100 !text-black rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaTimes size={14} />
                   Batal
                 </button>
                 <button
                   onClick={handleSaveNew}
-                  className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  className="flex-1 px-6 py-3 bg-blue-700 hover:bg-blue-800 !text-white rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaCheck size={14} />
                   Simpan
                 </button>
               </div>
@@ -992,14 +1018,16 @@ export default function KelolaElemen() {
                     setEditingElemen(null);
                     setPreviewImage(null);
                   }}
-                  className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  className="flex-1 px-6 py-3 bg-white hover:bg-gray-100 !text-black rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaTimes size={14} />
                   Batal
                 </button>
                 <button
                   onClick={handleSaveEdit}
-                  className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  className="flex-1 px-6 py-3 bg-blue-700 hover:bg-blue-800 !text-white rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaCheck size={14} />
                   Simpan
                 </button>
               </div>

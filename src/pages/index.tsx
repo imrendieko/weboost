@@ -11,11 +11,13 @@ import { FaRocket, FaHandshake, FaUserPlus, FaSignInAlt } from 'react-icons/fa';
 const HERO_TYPED_WORDS = ['Boost', 'Tingkatkan'];
 
 const Home = () => {
+  // Tiga state ini dipakai buat efek teks ketik-hapus otomatis di judul hero.
   const [wordIndex, setWordIndex] = useState(0);
   const [typedWord, setTypedWord] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
+    // Ambil kata aktif berdasarkan index, lalu ketik/hapus per karakter.
     const currentWord = HERO_TYPED_WORDS[wordIndex];
     const isWordComplete = typedWord === currentWord;
     const isWordEmpty = typedWord === '';
@@ -27,17 +29,20 @@ const Home = () => {
     }
 
     const timeout = setTimeout(() => {
+      // Kalau sudah selesai ngetik, tunggu sebentar lalu mulai hapus.
       if (isWordComplete && !isDeleting) {
         setIsDeleting(true);
         return;
       }
 
+      // Kalau sudah habis terhapus, pindah ke kata berikutnya.
       if (isWordEmpty && isDeleting) {
         setIsDeleting(false);
         setWordIndex((prevIndex) => (prevIndex + 1) % HERO_TYPED_WORDS.length);
         return;
       }
 
+      // Tambah atau kurangin panjang teks satu-satu biar animasinya natural.
       const nextLength = typedWord.length + (isDeleting ? -1 : 1);
       setTypedWord(currentWord.slice(0, nextLength));
     }, timeoutDelay);
@@ -79,7 +84,7 @@ const Home = () => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="mana-btn mana-btn--primary px-8 py-3 font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(0,128,255,0.5)] flex items-center gap-2"
+                  className="mana-btn mana-btn--primary px-6 py-3 font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(0,128,255,0.5)] flex items-center gap-2"
                 >
                   <FaUserPlus size={18} />
                   Daftar
@@ -89,7 +94,7 @@ const Home = () => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="mana-btn mana-btn--neutral px-8 py-3 font-semibold rounded-xl border border-white/20 transition-all duration-300 flex items-center gap-2"
+                  className="mana-btn mana-btn--neutral landing-login-btn px-6 py-3 font-semibold rounded-xl border border-white/20 transition-all duration-300 flex items-center gap-2"
                 >
                   <FaSignInAlt size={18} />
                   Masuk
@@ -142,27 +147,48 @@ const Home = () => {
           className="text-center max-w-4xl mx-auto"
         >
           <h2 className="text-white text-4xl md:text-5xl font-bold mb-12 flex items-center justify-center gap-3">
-            Mitra Kami <FaHandshake className="text-current" />
+            Mitra WeBoost <FaHandshake className="text-current" />
           </h2>
 
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="inline-block bg-black/30 backdrop-blur-md border border-white/10 rounded-2xl p-8 hover:shadow-[0_0_40px_rgba(0,229,255,0.4)] transition-all duration-300"
+          <motion.article
+            whileHover={{ y: -4 }}
+            transition={{ duration: 0.35 }}
+            className="mitra-hover-card mx-auto"
           >
-            <div className="w-55 h-55 relative">
-              <Image
-                src="/logo_smkypm4taman.png"
-                alt="SMK YPM 4 Taman Logo"
-                fill
-                className="object-contain"
-              />
+            <div className="mitra-slide mitra-slide-front">
+              <div className="mitra-slide-content">
+                <div className="mitra-logo-wrap">
+                  <Image
+                    src="/logo_smkypm4taman.png"
+                    alt="SMK YPM 4 Taman Logo"
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+                <h3 className="mitra-front-title">SMKS YPM 4 Taman</h3>
+              </div>
             </div>
-          </motion.div>
+
+            <div className="mitra-slide mitra-slide-back">
+              <div className="mitra-slide-content">
+                <h3 className="mitra-back-title">Lokasi Mitra</h3>
+                <p className="mitra-back-description">Lihat lokasi resmi SMKS YPM 4 Taman di Google Maps.</p>
+                <a
+                  href="https://maps.app.goo.gl/JyeSNBwLUAMH5uVt8"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mitra-map-link"
+                >
+                  Lihat Lokasi Mitra
+                </a>
+              </div>
+            </div>
+          </motion.article>
         </motion.div>
       </section>
 
       {/* Footer */}
-      <footer className="relative py-8 px-6 border-t border-white/10">
+      <footer className="landing-footer relative py-8 px-6 border-t border-white/10">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-gray-400 text-sm">
             Copyright © 2026 All right reserved | This website is made with ❤️ by{' '}
@@ -179,13 +205,6 @@ const Home = () => {
       </footer>
     </div>
   );
-};
-
-export const getStaticProps = async () => {
-  return {
-    props: {},
-    revalidate: 3600, // Revalidate every hour
-  };
 };
 
 export default Home;

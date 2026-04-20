@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import { FaUserCircle, FaChevronDown, FaHome, FaUsers, FaSchool, FaDoorOpen, FaChalkboardTeacher, FaBook, FaBars, FaTimes, FaUserGraduate } from 'react-icons/fa';
+import PublicThemeToggle from '@/components/PublicThemeToggle';
 import { useAdminTheme } from '@/contexts/AdminThemeContext';
 
 interface AdminNavbarProps {
@@ -20,7 +21,7 @@ export default function AdminNavbar({ adminName }: AdminNavbarProps) {
   const penggunaRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const { theme, mounted, toggleTheme } = useAdminTheme();
+  const { theme, mounted } = useAdminTheme();
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -39,7 +40,7 @@ export default function AdminNavbar({ adminName }: AdminNavbarProps) {
 
   const handleLogout = () => {
     localStorage.removeItem('admin_session');
-    router.push('/');
+    window.location.replace('/');
   };
 
   const toggleMobileMenu = () => {
@@ -66,7 +67,7 @@ export default function AdminNavbar({ adminName }: AdminNavbarProps) {
             className="flex items-center group"
           >
             {/* Mobile - Square Logo */}
-            <div className="relative w-12 h-12 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden md:hidden">
+            <div className="relative w-12 h-12 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden xl:hidden">
               <Image
                 src="/logo_weboost_persegi.png"
                 alt="WeBoost Logo"
@@ -75,7 +76,7 @@ export default function AdminNavbar({ adminName }: AdminNavbarProps) {
               />
             </div>
             {/* Desktop - Original Logo */}
-            <div className="relative w-45 h-16 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden hidden md:block">
+            <div className="relative w-45 h-16 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden hidden xl:block">
               <Image
                 src="/logo_weboost.png"
                 alt="WeBoost Logo"
@@ -86,7 +87,7 @@ export default function AdminNavbar({ adminName }: AdminNavbarProps) {
           </Link>
 
           {/* Desktop Navigation Menu */}
-          <div className="hidden md:flex items-center gap-10">
+          <div className="hidden xl:flex items-center gap-10">
             <Link
               href="/admin"
               className="admin-nav-link transition-colors duration-300 font-medium relative group flex items-center gap-2"
@@ -158,76 +159,12 @@ export default function AdminNavbar({ adminName }: AdminNavbarProps) {
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#0080FF] transition-all duration-300 group-hover:w-full"></span>
             </Link>
 
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="admin-theme-toggle admin-theme-toggle-bb8"
-              aria-label={`Aktifkan ${isLightTheme ? 'mode gelap' : 'mode terang'}`}
-              title={`Aktifkan ${isLightTheme ? 'mode gelap' : 'mode terang'}`}
-            >
-              <input
-                className="slider"
-                type="checkbox"
-                checked={isLightTheme}
-                readOnly
-                tabIndex={-1}
-                aria-hidden="true"
-              />
-              <div
-                className="switch"
-                aria-hidden="true"
-              >
-                <div className="suns" />
-                <div className="moons">
-                  <div className="star star-1" />
-                  <div className="star star-2" />
-                  <div className="star star-3" />
-                  <div className="star star-4" />
-                  <div className="star star-5" />
-                  <div className="first-moon" />
-                </div>
-                <div className="sand" />
-                <div className="bb8">
-                  <div className="antennas">
-                    <div className="antenna short" />
-                    <div className="antenna long" />
-                  </div>
-                  <div className="head">
-                    <div className="stripe one" />
-                    <div className="stripe two" />
-                    <div className="eyes">
-                      <div className="eye one" />
-                      <div className="eye two" />
-                    </div>
-                    <div className="stripe detail">
-                      <div className="detail zero" />
-                      <div className="detail zero" />
-                      <div className="detail one" />
-                      <div className="detail two" />
-                      <div className="detail three" />
-                      <div className="detail four" />
-                      <div className="detail five" />
-                      <div className="detail five" />
-                    </div>
-                    <div className="stripe three" />
-                  </div>
-                  <div className="ball">
-                    <div className="lines one" />
-                    <div className="lines two" />
-                    <div className="ring one" />
-                    <div className="ring two" />
-                    <div className="ring three" />
-                  </div>
-                  <div className="shadow" />
-                </div>
-              </div>
-              <span className="sr-only">{isLightTheme ? 'Mode terang aktif' : 'Mode gelap aktif'}</span>
-            </button>
+            <PublicThemeToggle />
           </div>
 
           {/* Desktop Admin Profile Dropdown */}
           <div
-            className="hidden md:block relative"
+            className="hidden xl:block relative"
             ref={profileRef}
           >
             <button
@@ -282,7 +219,7 @@ export default function AdminNavbar({ adminName }: AdminNavbarProps) {
           {/* Mobile Hamburger Button */}
           <button
             onClick={toggleMobileMenu}
-            className="mana-btn mana-btn--neutral h-11 w-11 p-0 inline-flex items-center justify-center text-lg z-50 md:hidden"
+            className="mana-btn mana-btn--neutral h-11 w-11 p-0 inline-flex items-center justify-center text-lg z-50 xl:hidden"
             aria-label="Toggle menu"
           >
             {isMobileMenuOpen ? <FaTimes /> : <FaBars />}
@@ -297,7 +234,7 @@ export default function AdminNavbar({ adminName }: AdminNavbarProps) {
             opacity: isMobileMenuOpen ? 1 : 0,
           }}
           transition={{ duration: 0.3, ease: 'easeInOut' }}
-          className="admin-mobile-menu md:hidden overflow-hidden backdrop-blur-xl"
+          className="admin-mobile-menu xl:hidden overflow-hidden backdrop-blur-xl"
         >
           <div className="flex flex-col space-y-4 px-6 py-6">
             <Link
@@ -368,69 +305,7 @@ export default function AdminNavbar({ adminName }: AdminNavbarProps) {
               Elemen
             </Link>
 
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="admin-theme-toggle admin-theme-toggle-bb8 admin-theme-toggle-bb8-mobile"
-            >
-              <input
-                className="slider"
-                type="checkbox"
-                checked={isLightTheme}
-                readOnly
-                tabIndex={-1}
-                aria-hidden="true"
-              />
-              <div
-                className="switch"
-                aria-hidden="true"
-              >
-                <div className="suns" />
-                <div className="moons">
-                  <div className="star star-1" />
-                  <div className="star star-2" />
-                  <div className="star star-3" />
-                  <div className="star star-4" />
-                  <div className="star star-5" />
-                  <div className="first-moon" />
-                </div>
-                <div className="sand" />
-                <div className="bb8">
-                  <div className="antennas">
-                    <div className="antenna short" />
-                    <div className="antenna long" />
-                  </div>
-                  <div className="head">
-                    <div className="stripe one" />
-                    <div className="stripe two" />
-                    <div className="eyes">
-                      <div className="eye one" />
-                      <div className="eye two" />
-                    </div>
-                    <div className="stripe detail">
-                      <div className="detail zero" />
-                      <div className="detail zero" />
-                      <div className="detail one" />
-                      <div className="detail two" />
-                      <div className="detail three" />
-                      <div className="detail four" />
-                      <div className="detail five" />
-                      <div className="detail five" />
-                    </div>
-                    <div className="stripe three" />
-                  </div>
-                  <div className="ball">
-                    <div className="lines one" />
-                    <div className="lines two" />
-                    <div className="ring one" />
-                    <div className="ring two" />
-                    <div className="ring three" />
-                  </div>
-                  <div className="shadow" />
-                </div>
-              </div>
-              <span className="sr-only">{isLightTheme ? 'Mode terang aktif' : 'Mode gelap aktif'}</span>
-            </button>
+            <PublicThemeToggle mobile />
 
             {/* Mobile Profile Section */}
             <div className="mt-4 pt-4 border-t border-white/20">
@@ -455,7 +330,7 @@ export default function AdminNavbar({ adminName }: AdminNavbarProps) {
                   closeMobileMenu();
                   handleLogout();
                 }}
-                className="w-full px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-all duration-300 shadow-lg flex items-center justify-center gap-2"
+                className="mobile-logout-btn w-full px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-all duration-300 shadow-lg flex items-center justify-center gap-2"
               >
                 Keluar
               </button>

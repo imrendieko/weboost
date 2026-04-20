@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import supabase from '@/lib/db';
+import supabaseAdmin from '@/lib/supabaseAdmin';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'PUT') {
@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Update status_siswa to true (validated)
-      const { data, error } = await supabase.from('siswa').update({ status_siswa: true }).eq('id_siswa', id_siswa).select();
+      const { data, error } = await supabaseAdmin.from('siswa').update({ status_siswa: true }).eq('id_siswa', id_siswa).select();
 
       if (error) {
         console.error('Error validating siswa:', error);
@@ -25,5 +25,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  return res.status(405).json({ error: 'Method not allowed' });
+  return res.status(405).json({ error: 'Metode tidak diizinkan' });
 }

@@ -36,7 +36,7 @@ export function useAuth(role: UserRole) {
 
         if (!sessionData) {
           // Redirect to landing page if not authenticated
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -48,7 +48,7 @@ export function useAuth(role: UserRole) {
 
           if (error || !admin) {
             localStorage.removeItem(sessionKey);
-            router.push('/');
+            window.location.replace('/');
             return;
           }
 
@@ -60,7 +60,7 @@ export function useAuth(role: UserRole) {
 
           if (error || !guru) {
             localStorage.removeItem(sessionKey);
-            router.push('/');
+            window.location.replace('/');
             return;
           }
 
@@ -72,7 +72,7 @@ export function useAuth(role: UserRole) {
 
           if (error || !siswa) {
             localStorage.removeItem(sessionKey);
-            router.push('/');
+            window.location.replace('/');
             return;
           }
 
@@ -82,7 +82,7 @@ export function useAuth(role: UserRole) {
         }
       } catch (error) {
         console.error(`Error checking ${role} auth:`, error);
-        router.push('/');
+        window.location.replace('/');
       }
     };
 
@@ -108,7 +108,7 @@ export function useSimpleAuth(role: UserRole) {
     const sessionData = localStorage.getItem(sessionKey);
 
     if (!sessionData) {
-      router.push('/');
+      window.location.replace('/');
       return;
     }
 

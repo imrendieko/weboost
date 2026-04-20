@@ -5,7 +5,7 @@ import { verifyPassword } from '@/lib/password';
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
-    return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
   }
 
   try {
@@ -37,8 +37,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Check siswa
-    const { data: siswaData, error: siswaError } = await supabaseAdmin.from('siswa').select('id_siswa, nama_siswa, email_siswa, password_siswa, nisn_siswa, kelas_siswa, lembaga_siswa').eq('email_siswa', emailLower).limit(1).maybeSingle();
+    // Check validated siswa first.
+    const { data: siswaData, error: siswaError } = await supabaseAdmin
+      .from('siswa')
+      .select('id_siswa, nama_siswa, email_siswa, password_siswa, nisn_siswa, kelas_siswa, lembaga_siswa, status_siswa')
+      .eq('email_siswa', emailLower)
+      .eq('status_siswa', true)
+      .limit(1)
+      .maybeSingle();
 
     if (siswaError) {
       console.error('Error checking siswa login:', siswaError);
@@ -55,14 +61,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           nisn: siswaData.nisn_siswa,
           kelas: siswaData.kelas_siswa,
           lembaga: siswaData.lembaga_siswa,
+          status: siswaData.status_siswa,
         },
+      });
+    }
+
+    // If siswa exists but not validated, return a clear validation error.
+    const { data: unvalidatedSiswa, error: unvalidatedSiswaError } = await supabaseAdmin.from('siswa').select('id_siswa, password_siswa').eq('email_siswa', emailLower).eq('status_siswa', false).limit(1).maybeSingle();
+
+    if (unvalidatedSiswaError) {
+      console.error('Error checking unvalidated siswa login:', unvalidatedSiswaError);
+    }
+
+    if (unvalidatedSiswa && (await verifyPassword(passwordValue, unvalidatedSiswa.password_siswa))) {
+      return res.status(403).json({
+        error: 'Akun Anda belum divalidasi oleh admin. Silakan hubungi admin untuk aktivasi akun.',
       });
     }
 
     // Check validated guru first to avoid legacy duplicate data blocking login.
     const { data: guruData, error: guruError } = await supabaseAdmin
       .from('guru')
-      .select('id_guru, nama_guru, email_guru, password_guru, nip_guru, lembaga_guru, status_guru')
+      .select('id_guru, nama_guru, email_guru, password_guru, nuptk_guru, lembaga_guru, status_guru')
       .eq('email_guru', emailLower)
       .eq('status_guru', true)
       .limit(1)
@@ -80,7 +100,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           id: guruData.id_guru,
           email: guruData.email_guru,
           nama: guruData.nama_guru,
-          nip: guruData.nip_guru,
+          nuptk: guruData.nuptk_guru,
           lembaga: guruData.lembaga_guru,
           status: guruData.status_guru,
         },

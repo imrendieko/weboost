@@ -5,7 +5,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { id } = req.query;
 
   if (!id || Array.isArray(id)) {
-    return res.status(400).json({ error: 'Invalid ID' });
+    return res.status(400).json({ error: 'ID tidak valid' });
   }
 
   const kelasId = parseInt(id);
@@ -57,6 +57,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else {
     res.setHeader('Allow', ['PUT', 'DELETE']);
-    return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
   }
 }

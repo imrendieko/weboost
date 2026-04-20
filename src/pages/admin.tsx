@@ -15,7 +15,8 @@ interface AdminData {
 interface StatsData {
   guruBelumValidasi: number;
   guruSudahValidasi: number;
-  siswaTerdaftar: number;
+  siswaBelumValidasi: number;
+  siswaSudahValidasi: number;
   sekolahTerdaftar: number;
   kelasTerdaftar: number;
   elemenTerdaftar: number;
@@ -28,7 +29,8 @@ export default function Admin() {
   const [stats, setStats] = useState<StatsData>({
     guruBelumValidasi: 0,
     guruSudahValidasi: 0,
-    siswaTerdaftar: 0,
+    siswaBelumValidasi: 0,
+    siswaSudahValidasi: 0,
     sekolahTerdaftar: 0,
     kelasTerdaftar: 0,
     elemenTerdaftar: 0,
@@ -51,13 +53,14 @@ export default function Admin() {
   useEffect(() => {
     if (!router.isReady) return;
 
+    // Cek sesi admin dulu, kalau valid baru lanjut ambil data dashboard.
     const checkAdminAuth = async () => {
       try {
         // Check if user is logged in
         const adminSession = localStorage.getItem('admin_session');
 
         if (!adminSession) {
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -69,7 +72,7 @@ export default function Admin() {
         if (adminError || !admin) {
           console.error('Error fetching admin data:', adminError);
           localStorage.removeItem('admin_session');
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -81,7 +84,7 @@ export default function Admin() {
         setLoading(false);
       } catch (error) {
         console.error('Error checking admin auth:', error);
-        router.push('/');
+        window.location.replace('/');
       }
     };
 
@@ -90,14 +93,18 @@ export default function Admin() {
 
   const fetchStats = async () => {
     try {
+      // Kita hitung statistik satu per satu biar kartu dashboard kebaca jelas.
       // Count guru belum validasi (status_guru = false)
       const { count: guruBelumValidasi, error: guruBelumError } = await supabase.from('guru').select('*', { count: 'exact', head: true }).eq('status_guru', false);
 
       // Count guru sudah validasi (status_guru = true)
       const { count: guruSudahValidasi, error: guruSudahError } = await supabase.from('guru').select('*', { count: 'exact', head: true }).eq('status_guru', true);
 
-      // Count siswa
-      const { count: totalSiswa, error: siswaError } = await supabase.from('siswa').select('*', { count: 'exact', head: true });
+      // Count siswa belum validasi (status_siswa = false)
+      const { count: siswaBelumValidasi } = await supabase.from('siswa').select('*', { count: 'exact', head: true }).eq('status_siswa', false);
+
+      // Count siswa sudah validasi (status_siswa = true)
+      const { count: siswaSudahValidasi } = await supabase.from('siswa').select('*', { count: 'exact', head: true }).eq('status_siswa', true);
 
       // Count sekolah (assuming lembaga table exists)
       // If not exists, set to 0
@@ -130,7 +137,8 @@ export default function Admin() {
       setStats({
         guruBelumValidasi: guruBelumValidasi || 0,
         guruSudahValidasi: guruSudahValidasi || 0,
-        siswaTerdaftar: totalSiswa || 0,
+        siswaBelumValidasi: siswaBelumValidasi || 0,
+        siswaSudahValidasi: siswaSudahValidasi || 0,
         sekolahTerdaftar: totalSekolah,
         kelasTerdaftar: totalKelas,
         elemenTerdaftar: totalElemen,
@@ -180,7 +188,8 @@ export default function Admin() {
           <KelolaUserStats
             guruBelumValidasi={stats.guruBelumValidasi}
             guruSudahValidasi={stats.guruSudahValidasi}
-            siswaTerdaftar={stats.siswaTerdaftar}
+            siswaBelumValidasi={stats.siswaBelumValidasi}
+            siswaSudahValidasi={stats.siswaSudahValidasi}
           />
         </div>
 

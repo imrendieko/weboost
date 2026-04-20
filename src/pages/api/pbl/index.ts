@@ -78,7 +78,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   res.setHeader('Allow', ['GET', 'POST']);
-  return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+  return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
 }
 
 async function handleGet(req: NextApiRequest, res: NextApiResponse) {
@@ -257,7 +257,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     });
   } catch (error) {
     console.error('Error in GET /api/pbl:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Terjadi kesalahan server' });
   }
 }
 
@@ -369,6 +369,6 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     return res.status(200).json({ message: 'Sintak PBL berhasil disimpan' });
   } catch (error) {
     console.error('Error in POST /api/pbl:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Terjadi kesalahan server' });
   }
 }

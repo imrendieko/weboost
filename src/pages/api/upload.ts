@@ -11,16 +11,16 @@ export const config = {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Metode tidak diizinkan' });
   }
 
   try {
     // Check if service role key is available
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('❌ SUPABASE_SERVICE_ROLE_KEY not found!');
+      console.error('❌ SUPABASE_SERVICE_ROLE_KEY tidak ditemukan!');
       return res.status(500).json({
-        error: 'Server configuration error',
-        details: 'SUPABASE_SERVICE_ROLE_KEY is not configured. Add it to .env.local file.',
+        error: 'Kesalahan konfigurasi server',
+        details: 'SUPABASE_SERVICE_ROLE_KEY belum dikonfigurasi. Tambahkan ke file .env.local.',
       });
     }
 
@@ -30,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const base64File = file || fileData;
 
     if (!base64File || !fileName) {
-      return res.status(400).json({ error: 'Missing file data' });
+      return res.status(400).json({ error: 'Data file wajib diisi' });
     }
 
     // Decode base64 to buffer
@@ -54,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (uploadError) {
       console.error('❌ Supabase upload error:', uploadError);
       return res.status(500).json({
-        error: 'Failed to upload to storage',
+        error: 'Gagal mengunggah ke penyimpanan',
         details: uploadError.message,
         hint: uploadError.message.includes('policy') ? 'RLS Error: Make sure SUPABASE_SERVICE_ROLE_KEY is set in .env.local' : 'Check if bucket "weboost-storage" exists and is public',
       });
@@ -75,8 +75,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error) {
     console.error('Error in upload API:', error);
     return res.status(500).json({
-      error: 'Server error',
-      details: error instanceof Error ? error.message : 'Unknown error',
+      error: 'Terjadi kesalahan server',
+      details: error instanceof Error ? error.message : 'Kesalahan tidak diketahui',
     });
   }
 }

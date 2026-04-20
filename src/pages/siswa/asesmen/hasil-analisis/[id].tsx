@@ -4,7 +4,7 @@ import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
 import SiswaNavbar from '@/components/SiswaNavbar';
 import JawabanSiswaTable from '@/components/JawabanSiswaTable';
-import { FaArrowLeft, FaChartLine, FaClock, FaLightbulb, FaPoll, FaTrophy, FaCheckCircle, FaExclamationCircle, FaHourglassEnd } from 'react-icons/fa';
+import { FaArrowLeft, FaChartLine, FaClock, FaLightbulb, FaPoll, FaTrophy, FaCheckCircle, FaExclamationCircle, FaHourglassEnd, FaGraduationCap } from 'react-icons/fa';
 
 interface SiswaSession {
   id_siswa: number;
@@ -35,6 +35,10 @@ interface AnalisisResponse {
   message?: string;
 }
 
+interface AsesmenDetail {
+  judul_asesmen?: string;
+}
+
 interface Jawaban {
   id_soal: string;
   urutan_soal: number;
@@ -61,11 +65,11 @@ function CircularProgress({ percentage, label }: { percentage: number; label: st
   const progressLength = (safePercentage / 100) * arcLength;
 
   return (
-    <div className="relative w-[220px] h-[220px] rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
-      <div className="absolute inset-0 flex items-center justify-center">
+    <div className="flex w-[240px] flex-col items-center">
+      <div className="relative flex h-[200px] w-[200px] items-center justify-center">
         <svg
-          width="190"
-          height="190"
+          width="200"
+          height="200"
           viewBox="0 0 190 190"
           className="-rotate-[135deg]"
         >
@@ -91,12 +95,9 @@ function CircularProgress({ percentage, label }: { percentage: number; label: st
             style={{ transition: 'stroke-dasharray 600ms ease' }}
           />
         </svg>
+        <p className="absolute text-[30px] font-bold leading-none text-white">{Math.round(safePercentage)}%</p>
       </div>
-
-      <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
-        <p className="text-2xl font-bold text-white leading-none mt-7">{Math.round(safePercentage)}%</p>
-        <p className="mt-3 text-[13px] leading-5 text-gray-200 line-clamp-2">{label}</p>
-      </div>
+      <p className="mt-1 w-full px-2 text-center text-[13px] leading-5 text-gray-200">{label}</p>
     </div>
   );
 }
@@ -112,10 +113,12 @@ export default function HasilAnalisisAsesmenSiswa() {
   const [analysisData, setAnalysisData] = useState<TPAnalysis[]>([]);
   const [overallPercentage, setOverallPercentage] = useState(0);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [asesmenTitle, setAsesmenTitle] = useState('');
   const [jawabanList, setJawabanList] = useState<Jawaban[]>([]);
   const [pendingValidation, setPendingValidation] = useState(false);
 
   useEffect(() => {
+    // Setelah asesmen selesai, halaman ini muat ringkasan attempt + analisis TP siswa.
     const loadData = async () => {
       const rawSession = localStorage.getItem('siswa_session');
       if (!rawSession) {
@@ -132,6 +135,12 @@ export default function HasilAnalisisAsesmenSiswa() {
       }
 
       try {
+        const asesmenResponse = await fetch(`/api/asesmen/${asesmenId}`);
+        if (asesmenResponse.ok) {
+          const asesmenData: AsesmenDetail = await asesmenResponse.json();
+          setAsesmenTitle(asesmenData.judul_asesmen || '');
+        }
+
         const fetchAnalisis = async () => {
           const response = await fetch(`/api/asesmen/analisis?id_asesmen=${asesmenId}&id_siswa=${session.id_siswa}`);
           const data: AnalisisResponse = await response.json();
@@ -146,6 +155,7 @@ export default function HasilAnalisisAsesmenSiswa() {
         setPendingValidation(Boolean(data.pending_validation));
 
         if (!data.pending_validation && (!data.analysis || data.analysis.length === 0)) {
+          // Kalau analisis belum tersedia, generate fallback dulu lalu fetch ulang.
           await fetch('/api/asesmen/generate-analisis-fallback', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -220,6 +230,7 @@ export default function HasilAnalisisAsesmenSiswa() {
 
   // Calculate total score from jawabanList (real-time based on validations)
   const calculateTotalScore = () => {
+    // Total skor mengikuti hasil validasi terbaru per soal.
     return jawabanList.reduce((total, jawaban) => {
       if (jawaban.status_validasi === 'validated') {
         return total + (jawaban.skor_tervalidasi || 0);
@@ -230,29 +241,39 @@ export default function HasilAnalisisAsesmenSiswa() {
   };
 
   const totalScoreSiswa = calculateTotalScore();
+  const batasLulus = attemptData.skor_maksimum * 0.75;
+  const isLulus = totalScoreSiswa >= batasLulus;
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
+    <div className="analisis-theme-scope min-h-screen bg-black text-white relative overflow-hidden">
       <StarBackground />
       <SiswaNavbar siswaName={siswaSession.nama_siswa} />
 
       <div className="relative z-10 pt-24 pb-12 px-6">
         <div className="max-w-7xl mx-auto">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="mana-btn mana-btn--neutral mb-6 inline-flex items-center gap-2 rounded-lg px-4 py-2 transition-all"
-          >
-            <FaArrowLeft className="text-white" />
-            Kembali
-          </button>
+          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="mana-btn mana-btn--neutral inline-flex items-center gap-2 rounded-lg px-4 py-2 transition-all"
+            >
+              <FaArrowLeft className="text-white" />
+              Kembali
+            </button>
+
+            <p className="text-2xl font-bold flex items-center gap-2">
+              <FaGraduationCap className="analysis-student-cap" />
+              <span className="text-white">{siswaSession.nama_siswa}</span>
+            </p>
+          </div>
 
           {/* Header */}
-          <div className="mb-8 flex items-center gap-3">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
               <FaChartLine className="text-3xl text-white" />
-              Hasil Analisis Asesmen
-            </h2>
+              Analisis Hasil Asesmen
+            </h1>
+            {asesmenTitle && <p className="mt-2 text-base text-gray-300">{asesmenTitle}</p>}
           </div>
 
           {/* Score and Duration Cards */}
@@ -262,13 +283,7 @@ export default function HasilAnalisisAsesmenSiswa() {
                 <FaPoll className="text-white" />
                 Nilai Anda
               </p>
-              {shouldHoldResult ? (
-                <div className="text-lg font-semibold text-amber-300">Menunggu validasi nilai oleh guru</div>
-              ) : (
-                <div className="text-5xl font-bold text-white">
-                  {totalScoreSiswa}/{attemptData.skor_maksimum}
-                </div>
-              )}
+              {shouldHoldResult ? <div className="text-lg font-semibold text-amber-300">Menunggu validasi nilai oleh guru</div> : <div className="text-5xl font-bold text-white">{totalScoreSiswa}</div>}
               <div className="mt-2 h-1 bg-gradient-to-r from-[#0E5BFF] to-transparent rounded-full" />
 
               {/* Validation Status Badge */}
@@ -286,6 +301,25 @@ export default function HasilAnalisisAsesmenSiswa() {
                   <>
                     <FaHourglassEnd className="text-lg flex-shrink-0 animate-pulse" />
                     <span>{validationStatus}</span>
+                  </>
+                )}
+              </div>
+
+              <div className={`kelulusan-badge mt-3 px-4 py-3 rounded-xl flex items-center gap-2 font-semibold transition-all ${shouldHoldResult ? 'kelulusan-badge--pending' : isLulus ? 'kelulusan-badge--pass' : 'kelulusan-badge--fail'}`}>
+                {shouldHoldResult ? (
+                  <>
+                    <FaHourglassEnd className="text-lg flex-shrink-0 animate-pulse" />
+                    <span>Status Kelulusan: Menunggu validasi nilai</span>
+                  </>
+                ) : isLulus ? (
+                  <>
+                    <FaCheckCircle className="text-lg flex-shrink-0" />
+                    <span>Status Kelulusan: Lulus</span>
+                  </>
+                ) : (
+                  <>
+                    <FaExclamationCircle className="text-lg flex-shrink-0" />
+                    <span>Status Kelulusan: Tidak Lulus</span>
                   </>
                 )}
               </div>
@@ -339,14 +373,16 @@ export default function HasilAnalisisAsesmenSiswa() {
               {shouldHoldResult ? (
                 <p className="text-base text-amber-200">Saran pembelajaran akan tersedia setelah guru menyelesaikan validasi nilai per soal.</p>
               ) : suggestions.length > 0 ? (
-                suggestions.map((suggestion, index) => (
-                  <p
-                    key={index}
-                    className="text-base text-gray-300 leading-relaxed"
-                  >
-                    {suggestion}
-                  </p>
-                ))
+                <ol className="list-decimal pl-5 space-y-3">
+                  {suggestions.map((suggestion, index) => (
+                    <li
+                      key={index}
+                      className="text-base text-gray-300 leading-relaxed"
+                    >
+                      {suggestion}
+                    </li>
+                  ))}
+                </ol>
               ) : (
                 <p className="text-base text-gray-400">Belum ada saran pembelajaran.</p>
               )}

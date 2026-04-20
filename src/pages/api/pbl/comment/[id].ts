@@ -10,7 +10,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method !== 'DELETE') {
     res.setHeader('Allow', ['DELETE']);
-    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+    return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
   }
 
   try {
@@ -29,6 +29,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ message: 'Komentar berhasil dihapus' });
   } catch (error) {
     console.error('Error in DELETE /api/pbl/comment/[id]:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Terjadi kesalahan server' });
   }
 }

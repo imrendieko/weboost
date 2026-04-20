@@ -4,7 +4,7 @@ import supabase from '@/lib/db';
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     try {
-      const { lembaga, kelas, sortBy = 'created_at', sortOrder = 'desc' } = req.query;
+      const { status, lembaga, kelas, sortBy = 'created_at', sortOrder = 'desc' } = req.query;
 
       let query = supabase.from('siswa').select(`
           *,
@@ -17,6 +17,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             nama_kelas
           )
         `);
+
+      // Filter by status (validated or not)
+      if (status === 'validated') {
+        query = query.eq('status_siswa', true);
+      } else if (status === 'unvalidated') {
+        query = query.eq('status_siswa', false);
+      }
 
       // Filter by lembaga
       if (lembaga && lembaga !== 'all') {
@@ -36,15 +43,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (error) {
         console.error('Error fetching siswa:', error);
-        return res.status(500).json({ error: 'Gagal mengambil data siswa' });
+        return res.status(200).json([]);
       }
 
-      return res.status(200).json(data);
+      const normalized = (data || []).map((siswa: any) => ({
+        ...siswa,
+        // Keep visible value consistent with 10-digit NISN input, including leading zeros.
+        nisn_siswa: String(siswa?.nisn_siswa ?? '')
+          .replace(/\D/g, '')
+          .padStart(10, '0'),
+      }));
+
+      return res.status(200).json(normalized);
     } catch (error) {
       console.error('Error in siswa API:', error);
-      return res.status(500).json({ error: 'Terjadi kesalahan server' });
+      return res.status(200).json([]);
     }
   }
 
-  return res.status(405).json({ error: 'Method not allowed' });
+  return res.status(405).json({ error: 'Metode tidak diizinkan' });
 }

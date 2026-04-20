@@ -13,7 +13,7 @@ function parseId(value: string | string[] | undefined): number | null {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
-    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+    return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
   }
 
   try {
@@ -161,6 +161,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (error) {
     console.error('Error in GET /api/siswa/beranda:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Terjadi kesalahan server' });
   }
 }

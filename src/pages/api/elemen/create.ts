@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .single();
 
         if (materiError) {
-          console.error('Warning: Failed to auto-create materi:', materiError);
+          console.error('Peringatan: Gagal membuat materi otomatis:', materiError);
           // Don't fail the whole request, just log the warning
         } else {
           console.log('✅ Auto-created materi for elemen:', materiData);
@@ -77,5 +77,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  return res.status(405).json({ error: 'Method not allowed' });
+  return res.status(405).json({ error: 'Metode tidak diizinkan' });
 }

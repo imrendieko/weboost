@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import GuruNavbar from '@/components/GuruNavbar';
 import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
+import DataTablePagination from '@/components/DataTablePagination';
 import supabase from '@/lib/db';
 import { FaSearch, FaSortAlphaDown, FaSortAlphaUp, FaChartBar, FaArrowLeft } from 'react-icons/fa';
 
@@ -28,8 +29,8 @@ export default function ProgresMateri() {
   const [progresData, setProgresData] = useState<ProgresData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const rowsPerPage = 10;
 
   const getCurrentDate = () => {
     const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -217,7 +218,7 @@ export default function ProgresMateri() {
     }
   });
 
-  const totalPages = Math.ceil(sortedData.length / rowsPerPage);
+  const totalPages = Math.max(1, Math.ceil(sortedData.length / rowsPerPage));
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
   const currentData = sortedData.slice(startIndex, endIndex);
@@ -226,6 +227,10 @@ export default function ProgresMateri() {
     setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     setCurrentPage(1); // Reset to first page when sorting changes
   };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   if (loading) {
     return (
@@ -318,28 +323,40 @@ export default function ProgresMateri() {
                       </td>
                     </tr>
                   ) : (
-                    currentData.map((item, index) => (
-                      <tr
-                        key={item.id_siswa}
-                        className="border-b border-white/10 hover:bg-white/5"
-                      >
-                        <td className="py-4 px-4">{startIndex + index + 1}</td>
-                        <td className="py-4 px-4">{item.nama_siswa}</td>
-                        <td className="py-4 px-4">{item.email_siswa}</td>
-                        <td className="py-4 px-4">{item.nama_kelas}</td>
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1 bg-gray-700 rounded-full h-6 overflow-hidden relative">
-                              <div
-                                className="bg-gradient-to-r from-green-500 to-green-400 h-full transition-all duration-500"
-                                style={{ width: `${item.persentase_progres}%` }}
-                              />
+                    currentData.map((item, index) => {
+                      const progressValue = Math.max(0, Math.min(100, Number(item.persentase_progres) || 0));
+                      const isZeroProgress = progressValue === 0;
+
+                      return (
+                        <tr
+                          key={item.id_siswa}
+                          className="border-b border-white/10 hover:bg-white/5"
+                        >
+                          <td className="py-4 px-4">{startIndex + index + 1}</td>
+                          <td className="py-4 px-4">{item.nama_siswa}</td>
+                          <td className="py-4 px-4">{item.email_siswa}</td>
+                          <td className="py-4 px-4">{item.nama_kelas}</td>
+                          <td className="py-4 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`relative h-6 flex-1 overflow-hidden rounded-full border ${isZeroProgress ? 'border-amber-400/70 bg-amber-100/70' : 'border-white/20 bg-gray-700'}`}>
+                                <div
+                                  className="h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-500"
+                                  style={{ width: `${progressValue}%` }}
+                                />
+                                {isZeroProgress && <div className="absolute inset-y-1 left-1 w-3 rounded-full bg-amber-500/75" />}
+                              </div>
+                              <span
+                                className={`min-w-[52px] rounded-full border px-2.5 py-0.5 text-right text-sm font-semibold ${
+                                  isZeroProgress ? 'border-amber-400/70 bg-amber-100/80 text-amber-900' : 'border-green-400/40 bg-green-500/15 text-white'
+                                }`}
+                              >
+                                {progressValue}%
+                              </span>
                             </div>
-                            <span className="text-sm font-semibold text-white min-w-[45px] text-right">{item.persentase_progres}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -347,30 +364,13 @@ export default function ProgresMateri() {
 
             {/* Pagination */}
             {sortedData.length > 0 && (
-              <div className="flex items-center justify-between mt-6">
-                <div className="text-sm text-gray-400">
-                  Rows per page: {rowsPerPage}
-                  {' | '}
-                  {startIndex + 1}-{Math.min(endIndex, sortedData.length)} of {sortedData.length}
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className="text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    ←
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    className="text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    →
-                  </button>
-                </div>
-              </div>
+              <DataTablePagination
+                totalItems={sortedData.length}
+                currentPage={currentPage}
+                rowsPerPage={rowsPerPage}
+                onPageChange={setCurrentPage}
+                onRowsPerPageChange={setRowsPerPage}
+              />
             )}
           </div>
         </div>

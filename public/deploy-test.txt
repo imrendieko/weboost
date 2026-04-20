@@ -1,2 +1,0 @@
-Test file deployed successfully - LMS WeBoost is ready!
-Deployment timestamp: 2026-03-30

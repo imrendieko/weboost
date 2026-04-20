@@ -68,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     } catch (error) {
       console.error('Error in GET /api/materi/[id]:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Terjadi kesalahan server' });
     }
   } else if (req.method === 'PUT') {
     try {
@@ -90,7 +90,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json(data);
     } catch (error) {
       console.error('Error in PUT /api/materi/[id]:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Terjadi kesalahan server' });
     }
   } else if (req.method === 'DELETE') {
     try {
@@ -116,10 +116,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ message: 'Materi berhasil dihapus' });
     } catch (error) {
       console.error('Error in DELETE /api/materi/[id]:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Terjadi kesalahan server' });
     }
   } else {
     res.setHeader('Allow', ['GET', 'PUT', 'DELETE']);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+    res.status(405).end(`Metode ${req.method} tidak diizinkan`);
   }
 }

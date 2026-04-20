@@ -21,7 +21,7 @@ interface JawabanResponse {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Metode tidak diizinkan' });
   }
 
   try {
@@ -29,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!id_siswa || !id_asesmen) {
       return res.status(400).json({
-        error: 'Missing required parameters: id_siswa, id_asesmen',
+        error: 'Parameter wajib kurang: id_siswa, id_asesmen',
       });
     }
 
@@ -39,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (attemptError) {
       console.error('Error fetching attempt:', attemptError);
       return res.status(404).json({
-        error: 'Attempt not found',
+        error: 'Data pengerjaan tidak ditemukan',
       });
     }
 
@@ -106,7 +106,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             console.log(`[Soal ${soal.id_soal}] JawabanSiswa: "${jawab}" vs Kunci: "${kunci}" → ${isCorrect ? 'BENAR' : 'SALAH'} → Skor: ${skorAsli}/${soal.nilai_soal}`);
           } else {
             skorAsli = 0;
-            console.log(`[Soal ${soal.id_soal}] Missing kunci atau jawaban | Kunci: ${kunciJawaban} | Jawaban: ${jawabanSiswa} → Skor: 0`);
+            console.log(`[Soal ${soal.id_soal}] Kunci atau jawaban belum tersedia | Kunci: ${kunciJawaban} | Jawaban: ${jawabanSiswa} → Skor: 0`);
           }
         } else if (soal.tipe_soal === 'esai' || soal.tipe_soal === 'uraian' || soal.tipe_soal === 'baris_kode') {
           // For essay/uraian/code, compare with kunci_teks
@@ -120,7 +120,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             console.log(`[Soal ${soal.id_soal}] JawabanSiswa: "${jawab}" vs Kunci: "${kunci}" → ${isCorrect ? 'BENAR' : 'SALAH'} → Skor: ${skorAsli}/${soal.nilai_soal}`);
           } else {
             skorAsli = 0;
-            console.log(`[Soal ${soal.id_soal}] Missing kunci_teks atau jawaban | Kunci: ${kunciTeks} | Jawaban: ${jawabanSiswa} → Skor: 0`);
+            console.log(`[Soal ${soal.id_soal}] Kunci teks atau jawaban belum tersedia | Kunci: ${kunciTeks} | Jawaban: ${jawabanSiswa} → Skor: 0`);
           }
         } else {
           // Other types default to 0
@@ -172,7 +172,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error: any) {
     console.error('Error fetching jawaban siswa:', error);
     res.status(500).json({
-      error: 'Failed to fetch jawaban siswa',
+      error: 'Gagal mengambil jawaban siswa',
       details: error.message,
     });
   }

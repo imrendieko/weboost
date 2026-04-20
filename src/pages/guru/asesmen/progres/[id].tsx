@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import GuruNavbar from '@/components/GuruNavbar';
 import StarBackground from '@/components/StarBackground';
-import { FaArrowLeft, FaCheck, FaExclamationTriangle, FaSearch, FaTrash, FaChartBar, FaChartLine } from 'react-icons/fa';
+import DataTablePagination from '@/components/DataTablePagination';
+import { FaArrowLeft, FaCheck, FaExclamationTriangle, FaSearch, FaTrash, FaChartBar, FaChartLine, FaCheckCircle, FaTimesCircle, FaHourglassEnd } from 'react-icons/fa';
 
 interface GuruSession {
   id_guru: number;
@@ -14,6 +15,7 @@ interface AttemptRow {
   submitted_at: string;
   skor_total: number;
   skor_maksimum: number;
+  validation_status?: 'validated' | 'pending';
   siswa?: {
     id_siswa: number;
     nama_siswa: string;
@@ -28,6 +30,7 @@ interface AttemptRow {
 
 type ToastType = 'success' | 'error';
 type SortType = 'default' | 'nilai_desc' | 'nilai_asc' | 'nama_asc' | 'nama_desc';
+type StatusFilter = 'all' | 'lulus' | 'tidak_lulus';
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) {
@@ -57,8 +60,11 @@ export default function ProgresPengerjaanAsesmenPage() {
   const [deleting, setDeleting] = useState(false);
   const [guru, setGuru] = useState<GuruSession | null>(null);
   const [rows, setRows] = useState<AttemptRow[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortType>('default');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [toast, setToast] = useState<{ show: boolean; message: string; type: ToastType }>({
     show: false,
     message: '',
@@ -154,6 +160,14 @@ export default function ProgresPengerjaanAsesmenPage() {
     const keyword = search.trim().toLowerCase();
     let result = rows;
 
+    const getKelulusan = (item: AttemptRow): StatusFilter | 'pending' => {
+      if (item.skor_maksimum <= 0) {
+        return 'pending';
+      }
+
+      return item.skor_total >= item.skor_maksimum * 0.75 ? 'lulus' : 'tidak_lulus';
+    };
+
     if (keyword) {
       result = rows.filter((item) => {
         const nama = item.siswa?.nama_siswa?.toLowerCase() || '';
@@ -161,6 +175,10 @@ export default function ProgresPengerjaanAsesmenPage() {
         const lembaga = item.siswa?.lembaga?.nama_lembaga?.toLowerCase() || '';
         return nama.includes(keyword) || kelas.includes(keyword) || lembaga.includes(keyword);
       });
+    }
+
+    if (statusFilter !== 'all') {
+      result = result.filter((item) => getKelulusan(item) === statusFilter);
     }
 
     // Apply sorting
@@ -183,7 +201,16 @@ export default function ProgresPengerjaanAsesmenPage() {
     }
 
     return sorted;
-  }, [rows, search, sortBy]);
+  }, [rows, search, sortBy, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / rowsPerPage));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * rowsPerPage;
+  const paginatedRows = useMemo(() => filteredRows.slice(startIndex, startIndex + rowsPerPage), [filteredRows, startIndex, rowsPerPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, sortBy, statusFilter]);
 
   const confirmDelete = async () => {
     if (!idAsesmen || !deleteTarget) {
@@ -223,7 +250,7 @@ export default function ProgresPengerjaanAsesmenPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
+    <div className="progres-asesmen-scope min-h-screen bg-black text-white relative overflow-hidden">
       <StarBackground />
 
       {toast.show && (
@@ -272,6 +299,16 @@ export default function ProgresPengerjaanAsesmenPage() {
 
             {/* Row 2: Sort dropdowns */}
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-gray-800/50 border border-white/10 rounded-lg text-xs sm:text-sm text-white focus:outline-none focus:border-[#0080FF]/50"
+              >
+                <option value="all">Semua Status</option>
+                <option value="lulus">Lulus</option>
+                <option value="tidak_lulus">Tidak Lulus</option>
+              </select>
+
               {/* Filter Nilai */}
               <select
                 value={sortBy}
@@ -305,7 +342,8 @@ export default function ProgresPengerjaanAsesmenPage() {
                     <th className="px-4 py-3 text-left font-semibold">Kelas</th>
                     <th className="px-4 py-3 text-left font-semibold">Lembaga</th>
                     <th className="px-4 py-3 text-left font-semibold">Waktu Pengumpulan</th>
-                    <th className="px-4 py-3 text-left font-semibold">Nilai</th>
+                    <th className="px-4 py-3 text-left font-semibold">Nilai Asesmen</th>
+                    <th className="px-4 py-3 text-left font-semibold">Status Kelulusan</th>
                     <th className="px-4 py-3 text-left font-semibold">Aksi</th>
                   </tr>
                 </thead>
@@ -314,24 +352,43 @@ export default function ProgresPengerjaanAsesmenPage() {
                     <tr>
                       <td
                         className="px-4 py-10 text-center text-gray-400"
-                        colSpan={7}
+                        colSpan={8}
                       >
                         Belum ada data pengerjaan untuk asesmen ini.
                       </td>
                     </tr>
                   ) : (
-                    filteredRows.map((item, index) => (
+                    paginatedRows.map((item, index) => (
                       <tr
                         key={item.id_attempt}
                         className="border-t border-white/10"
                       >
-                        <td className="px-4 py-3">{index + 1}</td>
+                        <td className="px-4 py-3">{startIndex + index + 1}</td>
                         <td className="px-4 py-3">{item.siswa?.nama_siswa || '-'}</td>
                         <td className="px-4 py-3">{item.siswa?.kelas?.nama_kelas || '-'}</td>
                         <td className="px-4 py-3">{item.siswa?.lembaga?.nama_lembaga || '-'}</td>
                         <td className="px-4 py-3">{formatDateTime(item.submitted_at)}</td>
+                        <td className="px-4 py-3">{item.skor_total}</td>
                         <td className="px-4 py-3">
-                          {item.skor_total} / {item.skor_maksimum}
+                          <div className="flex flex-col gap-1">
+                            {item.skor_maksimum <= 0 ? (
+                              <span className="progres-kelulusan-badge progres-kelulusan-badge--pending inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold">
+                                <FaHourglassEnd className="text-xs" />
+                                Belum Dapat Ditentukan
+                              </span>
+                            ) : item.skor_total >= item.skor_maksimum * 0.75 ? (
+                              <span className="progres-kelulusan-badge progres-kelulusan-badge--pass inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold">
+                                <FaCheckCircle className="text-xs" />
+                                Lulus
+                              </span>
+                            ) : (
+                              <span className="progres-kelulusan-badge progres-kelulusan-badge--fail inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold">
+                                <FaTimesCircle className="text-xs" />
+                                Tidak Lulus
+                              </span>
+                            )}
+                            <span className="text-[11px] text-gray-400">{item.validation_status === 'validated' ? 'Sudah divalidasi' : 'Belum divalidasi'}</span>
+                          </div>
                         </td>
                         <td className="px-2 sm:px-4 py-3">
                           <div className="flex gap-1 sm:gap-2">
@@ -370,12 +427,24 @@ export default function ProgresPengerjaanAsesmenPage() {
                 </tbody>
               </table>
             </div>
+
+            {filteredRows.length > 0 && (
+              <div className="px-4 pb-4">
+                <DataTablePagination
+                  totalItems={filteredRows.length}
+                  currentPage={safePage}
+                  rowsPerPage={rowsPerPage}
+                  onPageChange={setCurrentPage}
+                  onRowsPerPageChange={setRowsPerPage}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {deleteTarget && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+        <div className="asesmen-delete-overlay fixed inset-0 bg-black/65 backdrop-blur-lg z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-xl border border-red-400/30 bg-gray-900 p-6 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
               <div className="h-10 w-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-300">
@@ -387,8 +456,8 @@ export default function ProgresPengerjaanAsesmenPage() {
               </div>
             </div>
 
-            <p className="text-sm text-gray-200 mb-5">
-              Yakin ingin menghapus pengerjaan milik <span className="font-semibold">{deleteTarget.nama}</span>?
+            <p className="text-sm text-black mb-5">
+              Yakin ingin menghapus pengerjaan milik <span className="font-semibold text-black">{deleteTarget.nama}</span>?
             </p>
 
             <div className="flex justify-end gap-3">
@@ -398,6 +467,7 @@ export default function ProgresPengerjaanAsesmenPage() {
                 onClick={() => setDeleteTarget(null)}
                 className={neutralButtonClass}
               >
+                <FaTimesCircle className="text-sm" />
                 Batal
               </button>
               <button

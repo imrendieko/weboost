@@ -34,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   res.setHeader('Allow', ['POST', 'PUT']);
-  return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+  return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
 }
 
 async function handleCreate(req: NextApiRequest, res: NextApiResponse) {
@@ -104,7 +104,7 @@ async function handleCreate(req: NextApiRequest, res: NextApiResponse) {
     return res.status(201).json({ message: 'Kelompok berhasil ditambahkan', data: createdGroup });
   } catch (error) {
     console.error('Error creating group:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Terjadi kesalahan server' });
   }
 }
 
@@ -181,6 +181,6 @@ async function handleUpdate(req: NextApiRequest, res: NextApiResponse) {
     return res.status(200).json({ message: 'Kelompok berhasil diperbarui' });
   } catch (error) {
     console.error('Error updating group:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Terjadi kesalahan server' });
   }
 }

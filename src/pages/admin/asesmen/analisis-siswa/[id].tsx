@@ -2,7 +2,8 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import AdminNavbar from '@/components/AdminNavbar';
 import StarBackground from '@/components/StarBackground';
-import { FaArrowLeft, FaChartLine, FaClock, FaLightbulb, FaPoll, FaTrophy, FaUser } from 'react-icons/fa';
+import JawabanSiswaTable from '@/components/JawabanSiswaTable';
+import { FaArrowLeft, FaChartLine, FaClock, FaLightbulb, FaPoll, FaTrophy, FaGraduationCap, FaCheckCircle, FaHourglassEnd, FaExclamationCircle } from 'react-icons/fa';
 
 interface AdminSession {
   id_admin: number;
@@ -35,6 +36,29 @@ interface AnalisisResponse {
   attempt: AttemptData;
   analysis: TPAnalysis[];
   siswa?: SiswaInfo;
+  pending_validation?: boolean;
+}
+
+interface AsesmenDetail {
+  judul_asesmen?: string;
+}
+
+interface Jawaban {
+  id_soal: string;
+  urutan_soal: number;
+  teks_soal: string;
+  tipe_soal: string;
+  nilai_soal: number;
+  jawaban_siswa: string | null;
+  kunci_jawaban: string | null;
+  skor_asli: number;
+  skor_tervalidasi: number | null;
+  status_validasi: string | null;
+}
+
+interface JawabanResponse {
+  id_attempt: string;
+  jawaban: Jawaban[];
 }
 
 function CircularProgress({ percentage, label }: { percentage: number; label: string }) {
@@ -45,11 +69,11 @@ function CircularProgress({ percentage, label }: { percentage: number; label: st
   const progressLength = (safePercentage / 100) * arcLength;
 
   return (
-    <div className="relative w-[220px] h-[220px] rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
-      <div className="absolute inset-0 flex items-center justify-center">
+    <div className="flex w-[240px] flex-col items-center">
+      <div className="relative flex h-[200px] w-[200px] items-center justify-center">
         <svg
-          width="190"
-          height="190"
+          width="200"
+          height="200"
           viewBox="0 0 190 190"
           className="-rotate-[135deg]"
         >
@@ -75,12 +99,9 @@ function CircularProgress({ percentage, label }: { percentage: number; label: st
             style={{ transition: 'stroke-dasharray 600ms ease' }}
           />
         </svg>
+        <p className="absolute text-[30px] font-bold leading-none text-white">{Math.round(safePercentage)}%</p>
       </div>
-
-      <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
-        <p className="text-2xl font-bold text-white leading-none mt-7">{Math.round(safePercentage)}%</p>
-        <p className="mt-3 text-[13px] leading-5 text-gray-200 line-clamp-2">{label}</p>
-      </div>
+      <p className="mt-1 w-full px-2 text-center text-[13px] leading-5 text-gray-200">{label}</p>
     </div>
   );
 }
@@ -97,8 +118,12 @@ export default function AnalisisSiswaAsesmenAdmin() {
   const [attemptData, setAttemptData] = useState<AttemptData | null>(null);
   const [analysisData, setAnalysisData] = useState<TPAnalysis[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [asesmenTitle, setAsesmenTitle] = useState('');
+  const [jawabanList, setJawabanList] = useState<Jawaban[]>([]);
+  const [pendingValidation, setPendingValidation] = useState(false);
 
   useEffect(() => {
+    // Detail analisis per siswa: load attempt, analisis TP, dan jawaban terstruktur.
     const loadData = async () => {
       const rawAdminSession = localStorage.getItem('admin_session');
       if (!rawAdminSession) {
@@ -115,6 +140,12 @@ export default function AnalisisSiswaAsesmenAdmin() {
       }
 
       try {
+        const asesmenResponse = await fetch(`/api/asesmen/${asesmenId}`);
+        if (asesmenResponse.ok) {
+          const asesmenData: AsesmenDetail = await asesmenResponse.json();
+          setAsesmenTitle(asesmenData.judul_asesmen || '');
+        }
+
         const fetchAnalisis = async () => {
           const response = await fetch(`/api/asesmen/analisis?id_asesmen=${asesmenId}&id_siswa=${siswaId}`);
           const data: AnalisisResponse = await response.json();
@@ -125,6 +156,7 @@ export default function AnalisisSiswaAsesmenAdmin() {
         };
 
         let data = await fetchAnalisis();
+        setPendingValidation(Boolean(data.pending_validation));
 
         if (data.siswa) {
           setSiswaInfo(data.siswa);
@@ -132,6 +164,7 @@ export default function AnalisisSiswaAsesmenAdmin() {
         setAttemptData(data.attempt);
 
         if (!data.analysis || data.analysis.length === 0) {
+          // Trigger generator fallback kalau hasil analisis belum ada di database.
           await fetch('/api/asesmen/generate-analisis-fallback', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -152,6 +185,16 @@ export default function AnalisisSiswaAsesmenAdmin() {
             }
           });
           setSuggestions(newSuggestions);
+        }
+
+        try {
+          const jawabanResponse = await fetch(`/api/asesmen/jawaban-siswa?id_siswa=${siswaId}&id_asesmen=${asesmenId}`);
+          if (jawabanResponse.ok) {
+            const jawabanData: JawabanResponse = await jawabanResponse.json();
+            setJawabanList(jawabanData.jawaban || []);
+          }
+        } catch (error) {
+          console.error('Error loading jawaban:', error);
         }
       } catch (error) {
         console.error('Error loading analysis:', error);
@@ -182,33 +225,53 @@ export default function AnalisisSiswaAsesmenAdmin() {
   const durationSeconds = attemptData.durasi_detik % 60;
   const durationFormatted = `${String(durationHours).padStart(2, '0')}:${String(durationMinutes).padStart(2, '0')}:${String(durationSeconds).padStart(2, '0')}`;
 
+  const hasUnvalidatedAnswers = jawabanList.some((jawaban) => jawaban.status_validasi !== 'validated');
+  const validationStatus = hasUnvalidatedAnswers ? 'Belum Divalidasi' : 'Sudah Divalidasi';
+  const isFullyValidated = !hasUnvalidatedAnswers;
+  const shouldHoldResult = pendingValidation || hasUnvalidatedAnswers;
+
+  const calculateTotalScore = () => {
+    return jawabanList.reduce((total, jawaban) => {
+      if (jawaban.status_validasi === 'validated') {
+        return total + (jawaban.skor_tervalidasi || 0);
+      }
+      return total + (jawaban.skor_asli || 0);
+    }, 0);
+  };
+
+  const totalScoreSiswa = calculateTotalScore();
+  const batasLulus = attemptData.skor_maksimum * 0.75;
+  const isLulus = totalScoreSiswa >= batasLulus;
+
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
+    <div className="analisis-theme-scope min-h-screen bg-black text-white relative overflow-hidden">
       <StarBackground />
       <AdminNavbar adminName={adminSession.nama_admin} />
 
       <div className="relative z-10 pt-32 pb-12 px-6">
         <div className="max-w-7xl mx-auto">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="mana-btn mana-btn--neutral mb-6 inline-flex items-center gap-2 rounded-lg px-4 py-2 transition-all"
-          >
-            <FaArrowLeft className="text-white" />
-            Kembali
-          </button>
+          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-gray-800/50 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-300 transition-all hover:bg-gray-700/50 hover:text-white"
+            >
+              <FaArrowLeft />
+              Kembali
+            </button>
+
+            <p className="text-2xl font-bold flex items-center gap-2">
+              <FaGraduationCap className="analysis-student-cap" />
+              <span className="text-white">{siswaInfo?.nama_siswa || 'Siswa'}</span>
+            </p>
+          </div>
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold flex items-center gap-2 mb-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
               <FaChartLine className="text-3xl text-white" />
               Analisis Hasil Asesmen
-            </h2>
-            {siswaInfo && (
-              <p className="text-gray-400 flex items-center gap-2">
-                <FaUser className="text-blue-400" />
-                <span className="font-semibold text-white">{siswaInfo.nama_siswa}</span>
-              </p>
-            )}
+            </h1>
+            {asesmenTitle && <p className="mt-2 text-base text-gray-300">{asesmenTitle}</p>}
           </div>
 
           <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -217,10 +280,45 @@ export default function AnalisisSiswaAsesmenAdmin() {
                 <FaPoll className="text-white" />
                 Nilai Siswa
               </p>
-              <div className="text-5xl font-bold text-white">
-                {attemptData.skor_total}/{attemptData.skor_maksimum}
-              </div>
+              {shouldHoldResult ? <div className="text-lg font-semibold text-amber-300">Menunggu validasi nilai oleh guru</div> : <div className="text-5xl font-bold text-white">{totalScoreSiswa}</div>}
               <div className="mt-2 h-1 bg-gradient-to-r from-[#0E5BFF] to-transparent rounded-full" />
+
+              <div
+                className={`mt-6 px-4 py-3 rounded-xl flex items-center gap-2 font-medium transition-all ${
+                  isFullyValidated ? 'bg-gradient-to-r from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30 text-emerald-300' : 'bg-gradient-to-r from-amber-500/20 to-amber-600/10 border border-amber-500/30 text-amber-300'
+                }`}
+              >
+                {isFullyValidated ? (
+                  <>
+                    <FaCheckCircle className="text-lg flex-shrink-0" />
+                    <span>{validationStatus}</span>
+                  </>
+                ) : (
+                  <>
+                    <FaHourglassEnd className="text-lg flex-shrink-0 animate-pulse" />
+                    <span>{validationStatus}</span>
+                  </>
+                )}
+              </div>
+
+              <div className={`kelulusan-badge mt-3 px-4 py-3 rounded-xl flex items-center gap-2 font-semibold transition-all ${shouldHoldResult ? 'kelulusan-badge--pending' : isLulus ? 'kelulusan-badge--pass' : 'kelulusan-badge--fail'}`}>
+                {shouldHoldResult ? (
+                  <>
+                    <FaHourglassEnd className="text-lg flex-shrink-0 animate-pulse" />
+                    <span>Status Kelulusan: Menunggu validasi nilai</span>
+                  </>
+                ) : isLulus ? (
+                  <>
+                    <FaCheckCircle className="text-lg flex-shrink-0" />
+                    <span>Status Kelulusan: Lulus</span>
+                  </>
+                ) : (
+                  <>
+                    <FaExclamationCircle className="text-lg flex-shrink-0" />
+                    <span>Status Kelulusan: Tidak Lulus</span>
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-gray-800/50 to-gray-900/50 p-8">
@@ -265,17 +363,32 @@ export default function AnalisisSiswaAsesmenAdmin() {
           <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-gray-800/50 to-gray-900/50 p-6 md:p-8">
             <div className="space-y-3">
               {suggestions.length > 0 ? (
-                suggestions.map((suggestion, index) => (
-                  <p
-                    key={index}
-                    className="text-base text-gray-300 leading-relaxed"
-                  >
-                    {suggestion}
-                  </p>
-                ))
+                <ol className="list-decimal pl-5 space-y-3">
+                  {suggestions.map((suggestion, index) => (
+                    <li
+                      key={index}
+                      className="text-base text-gray-300 leading-relaxed"
+                    >
+                      {suggestion}
+                    </li>
+                  ))}
+                </ol>
               ) : (
                 <p className="text-base text-gray-400">Belum ada saran pembelajaran.</p>
               )}
+            </div>
+          </div>
+
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+              <FaPoll className="text-white" />
+              Jawaban & Validasi
+            </h2>
+            <div className="border border-white/10 bg-gradient-to-br from-gray-800/50 to-gray-900/50 p-6 md:p-8 overflow-x-auto">
+              <JawabanSiswaTable
+                jawabanList={jawabanList}
+                isGuru={false}
+              />
             </div>
           </div>
         </div>

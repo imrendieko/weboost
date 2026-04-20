@@ -1,32 +1,50 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import supabaseAdmin from '@/lib/supabaseAdmin';
 import { hashPasswordIfNeeded } from '@/lib/password';
+import { isValidEmailFormat } from '@/lib/utils';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
-    return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
   }
 
   try {
-    const { nama_guru, email_guru, password_guru, nip_guru, lembaga_guru } = req.body;
+    const { nama_guru, email_guru, password_guru, nuptk_guru, lembaga_guru } = req.body;
 
-    console.log('Received data:', { nama_guru, email_guru, password_guru, nip_guru, lembaga_guru });
+    console.log('Received data:', { nama_guru, email_guru, password_guru, nuptk_guru, lembaga_guru });
 
     // Validate required fields
-    if (!nama_guru || !email_guru || !password_guru || !nip_guru || !lembaga_guru || lembaga_guru === 0) {
+    if (!nama_guru || !email_guru || !password_guru || !nuptk_guru || !lembaga_guru || lembaga_guru === 0) {
       return res.status(400).json({ error: 'Semua field harus diisi' });
     }
 
-    const emailLower = email_guru.toString().trim().toLowerCase();
-    const hashedPassword = await hashPasswordIfNeeded(String(password_guru));
+    const emailRaw = email_guru.toString().trim();
+    if (!isValidEmailFormat(emailRaw)) {
+      return res.status(400).json({ error: 'Format email tidak valid' });
+    }
 
-    // Convert NIP to string and validate it's numeric
-    const nipString = nip_guru.toString().trim();
-    if (!/^\d+$/.test(nipString)) {
+    const passwordRaw = String(password_guru);
+    if (passwordRaw.length < 6) {
+      return res.status(400).json({ error: 'Password minimal 6 karakter' });
+    }
+
+    const emailLower = emailRaw.toLowerCase();
+    const hashedPassword = await hashPasswordIfNeeded(passwordRaw);
+
+    // Convert NUPTK to string and validate it's numeric
+    const nuptkString = nuptk_guru.toString().trim();
+    if (!/^\d+$/.test(nuptkString)) {
       return res.status(400).json({
-        error: 'NIP tidak valid',
-        details: 'NIP harus berupa angka',
+        error: 'NUPTK tidak valid',
+        details: 'NUPTK harus berupa angka',
+      });
+    }
+
+    if (nuptkString.length !== 16) {
+      return res.status(400).json({
+        error: 'NUPTK tidak valid',
+        details: 'NUPTK harus terdiri dari tepat 16 digit',
       });
     }
 
@@ -51,7 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Email sudah digunakan oleh akun siswa' });
     }
 
-    // Guru added from admin panel should be immediately active.
+    // Guru added from admin panel should still require validation.
     const { data, error } = await supabaseAdmin
       .from('guru')
       .insert([
@@ -59,9 +77,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           nama_guru: nama_guru.trim(),
           email_guru: emailLower,
           password_guru: hashedPassword,
-          nip_guru: nipString,
+          nuptk_guru: nuptkString,
           lembaga_guru: parseInt(lembaga_guru.toString()),
-          status_guru: true,
+          status_guru: false,
         },
       ])
       .select()
@@ -72,7 +90,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error('Error details:', JSON.stringify(error, null, 2));
       return res.status(500).json({
         error: 'Gagal menambahkan data guru',
-        details: error.message || 'Unknown error',
+        details: error.message || 'Kesalahan tidak diketahui',
       });
     }
 
@@ -80,8 +98,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error) {
     console.error('Error:', error);
     return res.status(500).json({
-      error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error',
+      error: 'Terjadi kesalahan server',
+      details: error instanceof Error ? error.message : 'Kesalahan tidak diketahui',
     });
   }
 }

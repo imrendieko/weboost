@@ -5,7 +5,9 @@ import supabase from '@/lib/db';
 import AdminNavbar from '@/components/AdminNavbar';
 import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
-import { FaChalkboardTeacher, FaUserGraduate, FaCheckCircle, FaClock, FaEdit, FaTrash, FaCheck, FaTimes, FaSearch, FaFilter } from 'react-icons/fa';
+import DataTablePagination from '@/components/DataTablePagination';
+import { isValidEmailFormat } from '@/lib/utils';
+import { FaChalkboardTeacher, FaUserGraduate, FaCheckCircle, FaClock, FaEdit, FaTrash, FaCheck, FaTimes, FaSearch, FaFilter, FaSave } from 'react-icons/fa';
 
 interface AdminData {
   id_admin: number;
@@ -23,7 +25,7 @@ interface Guru {
   nama_guru: string;
   email_guru: string;
   password_guru: string;
-  nip_guru: string;
+  nuptk_guru: string;
   lembaga_guru: number;
   status_guru: boolean;
   created_at: string;
@@ -35,7 +37,7 @@ interface EditFormData {
   nama_guru: string;
   email_guru: string;
   password_guru: string;
-  nip_guru: string;
+  nuptk_guru: string;
   lembaga_guru: number;
 }
 
@@ -57,7 +59,7 @@ export default function KelolaGuru() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingGuru, setEditingGuru] = useState<EditFormData | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newGuru, setNewGuru] = useState<Omit<EditFormData, 'id_guru'>>({ nama_guru: '', email_guru: '', password_guru: '', nip_guru: '', lembaga_guru: 0 });
+  const [newGuru, setNewGuru] = useState<Omit<EditFormData, 'id_guru'>>({ nama_guru: '', email_guru: '', password_guru: '', nuptk_guru: '', lembaga_guru: 0 });
   const [notification, setNotification] = useState<Notification>({ show: false, message: '', type: 'success' });
 
   // Filter and search states
@@ -69,6 +71,10 @@ export default function KelolaGuru() {
   const [sortBySudah, setSortBySudah] = useState('created_at');
   const [sortOrderBelum, setSortOrderBelum] = useState('desc');
   const [sortOrderSudah, setSortOrderSudah] = useState('desc');
+  const [currentPageBelum, setCurrentPageBelum] = useState(1);
+  const [rowsPerPageBelum, setRowsPerPageBelum] = useState(10);
+  const [currentPageSudah, setCurrentPageSudah] = useState(1);
+  const [rowsPerPageSudah, setRowsPerPageSudah] = useState(10);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; nama: string } | null>(null);
 
@@ -89,12 +95,13 @@ export default function KelolaGuru() {
   useEffect(() => {
     if (!router.isReady) return;
 
+    // Cek sesi admin, lalu muat master data yang dibutuhkan tabel guru.
     const checkAdminAuth = async () => {
       try {
         const adminSession = localStorage.getItem('admin_session');
 
         if (!adminSession) {
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -105,7 +112,7 @@ export default function KelolaGuru() {
         if (adminError || !admin) {
           console.error('Error fetching admin data:', adminError);
           localStorage.removeItem('admin_session');
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -115,7 +122,7 @@ export default function KelolaGuru() {
         setLoading(false);
       } catch (error) {
         console.error('Error checking admin auth:', error);
-        router.push('/');
+        window.location.replace('/');
       }
     };
 
@@ -134,6 +141,7 @@ export default function KelolaGuru() {
 
   const fetchGuruData = async () => {
     try {
+      // Data dipisah jadi 2 tabel: belum validasi dan sudah validasi.
       // Fetch unvalidated guru
       const resBelum = await fetch(`/api/guru?status=unvalidated&search=${searchBelum}&lembaga=${filterLembagaBelum}&sortBy=${sortByBelum}&sortOrder=${sortOrderBelum}`);
       const dataBelum = await resBelum.json();
@@ -165,10 +173,19 @@ export default function KelolaGuru() {
   };
 
   useEffect(() => {
+    // Kalau filter/sort/search berubah, data tabel direfresh otomatis.
     if (!loading) {
       fetchGuruData();
     }
   }, [searchBelum, searchSudah, filterLembagaBelum, filterLembagaSudah, sortByBelum, sortBySudah, sortOrderBelum, sortOrderSudah]);
+
+  useEffect(() => {
+    setCurrentPageBelum(1);
+  }, [searchBelum, filterLembagaBelum, sortByBelum, sortOrderBelum]);
+
+  useEffect(() => {
+    setCurrentPageSudah(1);
+  }, [searchSudah, filterLembagaSudah, sortBySudah, sortOrderSudah]);
 
   const showNotification = (message: string, type: NotificationType) => {
     setNotification({ show: true, message, type });
@@ -176,6 +193,8 @@ export default function KelolaGuru() {
       setNotification({ show: false, message: '', type: 'success' });
     }, 3000);
   };
+
+  const normalizeDigits = (value: string) => value.replace(/\D/g, '');
 
   const handleValidate = async (id_guru: number) => {
     try {
@@ -205,7 +224,7 @@ export default function KelolaGuru() {
       nama_guru: guru.nama_guru,
       email_guru: guru.email_guru,
       password_guru: guru.password_guru,
-      nip_guru: guru.nip_guru,
+      nuptk_guru: guru.nuptk_guru,
       lembaga_guru: guru.lembaga_guru,
     });
     setShowEditModal(true);
@@ -216,26 +235,71 @@ export default function KelolaGuru() {
       nama_guru: '',
       email_guru: '',
       password_guru: '',
-      nip_guru: '',
+      nuptk_guru: '',
       lembaga_guru: lembagaList.length > 0 ? lembagaList[0].id_lembaga : 0,
     });
     setShowAddModal(true);
   };
 
   const handleSaveNew = async () => {
-    // Validate required fields
-    if (!newGuru.nama_guru || !newGuru.email_guru || !newGuru.password_guru || !newGuru.nip_guru || !newGuru.lembaga_guru || newGuru.lembaga_guru === 0) {
-      showNotification('Semua field harus diisi', 'error');
+    const namaGuru = newGuru.nama_guru.trim();
+    const emailGuru = newGuru.email_guru.trim();
+    const passwordGuru = newGuru.password_guru;
+
+    if (!namaGuru) {
+      showNotification('Nama guru wajib diisi', 'error');
+      return;
+    }
+
+    if (!emailGuru) {
+      showNotification('Email wajib diisi', 'error');
+      return;
+    }
+
+    if (!isValidEmailFormat(emailGuru)) {
+      showNotification('Format email tidak valid', 'error');
+      return;
+    }
+
+    if (!passwordGuru.trim()) {
+      showNotification('Password wajib diisi', 'error');
+      return;
+    }
+
+    if (passwordGuru.length < 6) {
+      showNotification('Password minimal 6 karakter', 'error');
+      return;
+    }
+
+    if (!newGuru.nuptk_guru) {
+      showNotification('NUPTK wajib diisi', 'error');
+      return;
+    }
+
+    if (!newGuru.lembaga_guru || newGuru.lembaga_guru === 0) {
+      showNotification('Sekolah/Lembaga wajib dipilih', 'error');
+      return;
+    }
+
+    const normalizedNUPTK = normalizeDigits(newGuru.nuptk_guru);
+    if (normalizedNUPTK.length !== 16) {
+      showNotification('NUPTK harus terdiri dari tepat 16 digit', 'error');
       return;
     }
 
     try {
-      console.log('Sending data:', newGuru);
+      console.log('Sending data:', { ...newGuru, nuptk_guru: normalizedNUPTK });
 
       const response = await fetch('/api/guru/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newGuru),
+        body: JSON.stringify({
+          ...newGuru,
+          nama_guru: namaGuru,
+          email_guru: emailGuru,
+          password_guru: passwordGuru,
+          nuptk_guru: normalizedNUPTK,
+        }),
       });
 
       const result = await response.json();
@@ -244,7 +308,7 @@ export default function KelolaGuru() {
       if (response.ok) {
         showNotification('Data guru berhasil ditambahkan', 'success');
         setShowAddModal(false);
-        setNewGuru({ nama_guru: '', email_guru: '', password_guru: '', nip_guru: '', lembaga_guru: 0 });
+        setNewGuru({ nama_guru: '', email_guru: '', password_guru: '', nuptk_guru: '', lembaga_guru: 0 });
         fetchGuruData();
       } else {
         const errorMsg = result.details ? `${result.error}: ${result.details}` : result.error;
@@ -260,11 +324,17 @@ export default function KelolaGuru() {
   const handleSaveEdit = async () => {
     if (!editingGuru) return;
 
+    const normalizedNUPTK = normalizeDigits(editingGuru.nuptk_guru);
+    if (normalizedNUPTK.length !== 16) {
+      showNotification('NUPTK harus terdiri dari tepat 16 digit', 'error');
+      return;
+    }
+
     try {
       const response = await fetch(`/api/guru/${editingGuru.id_guru}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingGuru),
+        body: JSON.stringify({ ...editingGuru, nuptk_guru: normalizedNUPTK }),
       });
 
       const result = await response.json();
@@ -314,7 +384,13 @@ export default function KelolaGuru() {
   };
 
   const maskPassword = (password: string) => {
-    return '*'.repeat(password.length);
+    const safeLength = Math.max(password.length, 8);
+    const masked = '*'.repeat(safeLength);
+    if (masked.length <= 8) {
+      return masked;
+    }
+
+    return `${masked.slice(0, 8)}...`;
   };
 
   const renderTable = (
@@ -328,9 +404,17 @@ export default function KelolaGuru() {
     setSortBy: (v: string) => void,
     sortOrder: string,
     setSortOrder: (v: string) => void,
+    currentPage: number,
+    setCurrentPage: (v: number) => void,
+    rowsPerPage: number,
+    setRowsPerPage: (v: number) => void,
   ) => {
     // Safety check: ensure guruList is an array
     const safeGuruList = Array.isArray(guruList) ? guruList : [];
+    const totalPages = Math.max(1, Math.ceil(safeGuruList.length / rowsPerPage));
+    const safePage = Math.min(currentPage, totalPages);
+    const startIndex = (safePage - 1) * rowsPerPage;
+    const paginatedGuruList = safeGuruList.slice(startIndex, startIndex + rowsPerPage);
 
     return (
       <div>
@@ -341,7 +425,7 @@ export default function KelolaGuru() {
             <FaSearch className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm sm:text-base" />
             <input
               type="text"
-              placeholder="Cari Nama atau NIP..."
+              placeholder="Cari Nama atau NUPTK..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 bg-gray-800/50 border border-white/10 rounded-lg text-white text-sm sm:text-base placeholder-gray-400 focus:outline-none focus:border-[#0080FF]/50"
@@ -392,7 +476,7 @@ export default function KelolaGuru() {
                 <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-white text-xs sm:text-sm font-semibold">Nama</th>
                 <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-white text-xs sm:text-sm font-semibold hidden md:table-cell">Email</th>
                 <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-white text-xs sm:text-sm font-semibold hidden lg:table-cell">Password</th>
-                <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-white text-xs sm:text-sm font-semibold hidden sm:table-cell">NIP</th>
+                <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-white text-xs sm:text-sm font-semibold hidden sm:table-cell">NUPTK</th>
                 <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-white text-xs sm:text-sm font-semibold hidden lg:table-cell">Sekolah/Lembaga</th>
                 {!isValidated && <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-white text-xs sm:text-sm font-semibold hidden md:table-cell">Validasi</th>}
                 <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-white text-xs sm:text-sm font-semibold">Aksi</th>
@@ -409,16 +493,16 @@ export default function KelolaGuru() {
                   </td>
                 </tr>
               ) : (
-                safeGuruList.map((guru, index) => (
+                paginatedGuruList.map((guru, index) => (
                   <tr
                     key={guru.id_guru}
                     className="border-b border-white/5 hover:bg-white/5 transition-colors"
                   >
-                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm">{index + 1}</td>
+                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm">{startIndex + index + 1}</td>
                     <td className="px-2 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm font-medium">{guru.nama_guru}</td>
                     <td className="px-2 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm hidden md:table-cell">{guru.email_guru}</td>
-                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm font-mono hidden lg:table-cell">{maskPassword(guru.password_guru)}</td>
-                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm hidden sm:table-cell">{guru.nip_guru}</td>
+                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm font-mono hidden lg:table-cell max-w-[130px] truncate">{maskPassword(guru.password_guru)}</td>
+                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm hidden sm:table-cell">{guru.nuptk_guru}</td>
                     <td className="px-2 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm hidden lg:table-cell">{guru.lembaga?.nama_lembaga || '-'}</td>
                     {!isValidated && (
                       <td className="px-2 sm:px-4 py-2 sm:py-3 text-center hidden md:table-cell">
@@ -431,20 +515,20 @@ export default function KelolaGuru() {
                       </td>
                     )}
                     <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
-                      <div className="flex gap-1 sm:gap-2 justify-center">
+                      <div className="flex gap-2 sm:gap-3 justify-center items-center">
                         <button
                           onClick={() => handleEdit(guru)}
-                          className="p-1 sm:p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm sm:text-base"
+                          className="w-10 h-10 sm:w-11 sm:h-11 inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                           title="Edit"
                         >
-                          <FaEdit />
+                          <FaEdit className="text-base sm:text-lg" />
                         </button>
                         <button
                           onClick={() => handleDelete(guru.id_guru, guru.nama_guru)}
-                          className="p-1 sm:p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm sm:text-base"
+                          className="w-10 h-10 sm:w-11 sm:h-11 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                           title="Hapus"
                         >
-                          <FaTrash />
+                          <FaTrash className="text-base sm:text-lg" />
                         </button>
                       </div>
                     </td>
@@ -454,6 +538,16 @@ export default function KelolaGuru() {
             </tbody>
           </table>
         </div>
+
+        {safeGuruList.length > 0 && (
+          <DataTablePagination
+            totalItems={safeGuruList.length}
+            currentPage={safePage}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setCurrentPage}
+            onRowsPerPageChange={setRowsPerPage}
+          />
+        )}
       </div>
     );
   };
@@ -477,9 +571,9 @@ export default function KelolaGuru() {
 
       {/* Notification */}
       {notification.show && (
-        <div className={`fixed top-24 right-6 z-50 px-6 py-4 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white flex items-center gap-3 animate-slide-in`}>
-          {notification.type === 'success' ? <FaCheck /> : <FaTimes />}
-          {notification.message}
+        <div className={`fixed top-24 right-6 z-50 px-6 py-4 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-700'} !text-white flex items-center gap-3 animate-slide-in`}>
+          {notification.type === 'success' ? <FaCheck className="!text-white flex-shrink-0" /> : <FaTimes className="!text-white flex-shrink-0" />}
+          <span className="!text-white">{notification.message}</span>
         </div>
       )}
 
@@ -491,9 +585,9 @@ export default function KelolaGuru() {
 
             {/* Notification inside modal */}
             {notification.show && (
-              <div className={`mb-4 px-4 py-3 rounded-lg ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white flex items-center gap-3`}>
-                {notification.type === 'success' ? <FaCheck /> : <FaTimes />}
-                {notification.message}
+              <div className={`mb-4 px-4 py-3 rounded-lg ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-700'} !text-white flex items-center gap-3`}>
+                {notification.type === 'success' ? <FaCheck className="!text-white flex-shrink-0" /> : <FaTimes className="!text-white flex-shrink-0" />}
+                <span className="!text-white">{notification.message}</span>
               </div>
             )}
 
@@ -532,13 +626,16 @@ export default function KelolaGuru() {
               </div>
 
               <div>
-                <label className="block text-white text-sm sm:text-base mb-1 sm:mb-2">NIP</label>
+                <label className="block text-white text-sm sm:text-base mb-1 sm:mb-2">NUPTK</label>
                 <input
                   type="text"
-                  value={newGuru.nip_guru}
-                  onChange={(e) => setNewGuru({ ...newGuru, nip_guru: e.target.value })}
+                  value={newGuru.nuptk_guru}
+                  onChange={(e) => setNewGuru({ ...newGuru, nuptk_guru: normalizeDigits(e.target.value) })}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={16}
                   className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border-none rounded-lg text-white text-sm sm:text-base"
-                  placeholder="Masukkan NIP"
+                  placeholder="Masukkan NUPTK"
                 />
               </div>
 
@@ -564,16 +661,18 @@ export default function KelolaGuru() {
                 <button
                   onClick={() => {
                     setShowAddModal(false);
-                    setNewGuru({ nama_guru: '', email_guru: '', password_guru: '', nip_guru: '', lembaga_guru: 0 });
+                    setNewGuru({ nama_guru: '', email_guru: '', password_guru: '', nuptk_guru: '', lembaga_guru: 0 });
                   }}
-                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-gray-700 hover:bg-gray-600 text-white text-sm sm:text-base rounded-lg transition-colors"
+                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-white hover:bg-gray-100 !text-slate-900 text-sm sm:text-base rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaTimes className="text-slate-900" />
                   Batal
                 </button>
                 <button
                   onClick={handleSaveNew}
-                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm sm:text-base rounded-lg transition-colors"
+                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-blue-700 hover:bg-blue-800 !text-white text-sm sm:text-base rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaSave className="text-white" />
                   Simpan
                 </button>
               </div>
@@ -590,9 +689,9 @@ export default function KelolaGuru() {
 
             {/* Notification inside modal */}
             {notification.show && (
-              <div className={`mb-3 sm:mb-4 px-3 sm:px-4 py-2 sm:py-3 rounded-lg ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white text-sm sm:text-base flex items-center gap-3`}>
-                {notification.type === 'success' ? <FaCheck /> : <FaTimes />}
-                {notification.message}
+              <div className={`mb-3 sm:mb-4 px-3 sm:px-4 py-2 sm:py-3 rounded-lg ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-700'} !text-white text-sm sm:text-base flex items-center gap-3`}>
+                {notification.type === 'success' ? <FaCheck className="!text-white flex-shrink-0" /> : <FaTimes className="!text-white flex-shrink-0" />}
+                <span className="!text-white">{notification.message}</span>
               </div>
             )}
 
@@ -629,11 +728,14 @@ export default function KelolaGuru() {
               </div>
 
               <div>
-                <label className="block text-white text-sm sm:text-base mb-1 sm:mb-2">NIP</label>
+                <label className="block text-white text-sm sm:text-base mb-1 sm:mb-2">NUPTK</label>
                 <input
                   type="text"
-                  value={editingGuru.nip_guru}
-                  onChange={(e) => setEditingGuru({ ...editingGuru, nip_guru: e.target.value })}
+                  value={editingGuru.nuptk_guru}
+                  onChange={(e) => setEditingGuru({ ...editingGuru, nuptk_guru: normalizeDigits(e.target.value) })}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={16}
                   className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border-none rounded-lg text-white text-sm sm:text-base"
                 />
               </div>
@@ -662,14 +764,16 @@ export default function KelolaGuru() {
                     setShowEditModal(false);
                     setEditingGuru(null);
                   }}
-                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-gray-700 hover:bg-gray-600 text-white text-sm sm:text-base rounded-lg transition-colors"
+                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-white hover:bg-gray-100 !text-slate-900 text-sm sm:text-base rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaTimes className="text-slate-900" />
                   Batal
                 </button>
                 <button
                   onClick={handleSaveEdit}
-                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm sm:text-base rounded-lg transition-colors"
+                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-blue-700 hover:bg-blue-800 !text-white text-sm sm:text-base rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaSave className="text-white" />
                   Simpan
                 </button>
               </div>
@@ -701,14 +805,16 @@ export default function KelolaGuru() {
                   setShowDeleteModal(false);
                   setDeleteTarget(null);
                 }}
-                className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-gray-700 hover:bg-gray-600 text-white text-sm sm:text-base rounded-lg transition-colors"
+                className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-white hover:bg-gray-100 !text-slate-900 text-sm sm:text-base rounded-lg transition-colors inline-flex items-center justify-center gap-2"
               >
+                <FaTimes className="text-slate-900" />
                 Batal
               </button>
               <button
                 onClick={confirmDelete}
-                className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-red-600 hover:bg-red-700 text-white text-sm sm:text-base rounded-lg transition-colors font-semibold"
+                className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-red-700 hover:bg-red-800 !text-white text-sm sm:text-base rounded-lg transition-colors font-semibold inline-flex items-center justify-center gap-2"
               >
+                <FaTrash className="text-white" />
                 Hapus
               </button>
             </div>
@@ -731,9 +837,9 @@ export default function KelolaGuru() {
 
         {/* Notification */}
         {notification.show && (
-          <div className={`mb-6 px-4 py-3 rounded-lg ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white flex items-center gap-3`}>
-            {notification.type === 'success' ? <FaCheck /> : <FaTimes />}
-            {notification.message}
+          <div className={`mb-6 px-4 py-3 rounded-lg ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-700'} !text-white flex items-center gap-3`}>
+            {notification.type === 'success' ? <FaCheck className="!text-white flex-shrink-0" /> : <FaTimes className="!text-white flex-shrink-0" />}
+            <span className="!text-white">{notification.message}</span>
           </div>
         )}
 
@@ -764,7 +870,22 @@ export default function KelolaGuru() {
               Tambah Data Guru
             </button>
           </div>
-          {renderTable(guruBelumValidasi, false, searchBelum, setSearchBelum, filterLembagaBelum, setFilterLembagaBelum, sortByBelum, setSortByBelum, sortOrderBelum, setSortOrderBelum)}
+          {renderTable(
+            guruBelumValidasi,
+            false,
+            searchBelum,
+            setSearchBelum,
+            filterLembagaBelum,
+            setFilterLembagaBelum,
+            sortByBelum,
+            setSortByBelum,
+            sortOrderBelum,
+            setSortOrderBelum,
+            currentPageBelum,
+            setCurrentPageBelum,
+            rowsPerPageBelum,
+            setRowsPerPageBelum,
+          )}
         </div>
 
         {/* Guru Sudah diValidasi */}
@@ -773,7 +894,22 @@ export default function KelolaGuru() {
             <FaCheckCircle className="text-white text-lg sm:text-2xl" />
             <h2 className="text-white text-base sm:text-lg md:text-xl font-semibold">Guru yang Sudah diValidasi</h2>
           </div>
-          {renderTable(guruSudahValidasi, true, searchSudah, setSearchSudah, filterLembagaSudah, setFilterLembagaSudah, sortBySudah, setSortBySudah, sortOrderSudah, setSortOrderSudah)}
+          {renderTable(
+            guruSudahValidasi,
+            true,
+            searchSudah,
+            setSearchSudah,
+            filterLembagaSudah,
+            setFilterLembagaSudah,
+            sortBySudah,
+            setSortBySudah,
+            sortOrderSudah,
+            setSortOrderSudah,
+            currentPageSudah,
+            setCurrentPageSudah,
+            rowsPerPageSudah,
+            setRowsPerPageSudah,
+          )}
         </div>
       </div>
 

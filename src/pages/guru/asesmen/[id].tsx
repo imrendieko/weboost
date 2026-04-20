@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/router';
 import GuruNavbar from '@/components/GuruNavbar';
 import StarBackground from '@/components/StarBackground';
@@ -81,6 +82,7 @@ export default function DaftarAsesmen() {
 
   // Check auth & fetch data
   useEffect(() => {
+    // Halaman ini butuh sesi guru + data elemen/asesmen sebelum bisa dipakai.
     const checkGuruAuth = async () => {
       try {
         const guruSession = localStorage.getItem('guru_session');
@@ -158,6 +160,7 @@ export default function DaftarAsesmen() {
 
   const fetchAsesmenByElemen = async (idElemen: number) => {
     try {
+      // Daftar asesmen ditarik via API lalu disalin ke state hasil filter awal.
       const res = await fetch(`/api/asesmen?id_elemen=${idElemen}`);
       if (!res.ok) {
         console.error('Error fetching asesmen:', res.status);
@@ -203,6 +206,7 @@ export default function DaftarAsesmen() {
   };
 
   const handleSearch = (term: string) => {
+    // Search lokal biar respons cepat tanpa request ulang ke server.
     setSearchTerm(term);
     const filtered = asesmenList.filter((item) => item.judul_asesmen.toLowerCase().includes(term.toLowerCase()));
     setFilteredAsesmen(filtered);
@@ -531,6 +535,17 @@ export default function DaftarAsesmen() {
     );
   }
 
+  const selectedElemenFromList = elemenList.find((item: any) => Number(item.id_elemen) === Number(idElemen));
+
+  const getKelasNameById = (kelasId: number | string | null | undefined) => {
+    if (!kelasId) return null;
+    const kelas = kelasList.find((item: any) => Number(item.id_kelas) === Number(kelasId));
+    return kelas?.nama_kelas || null;
+  };
+
+  const resolvedElemenName = elemenData?.nama_elemen || selectedElemenFromList?.nama_elemen || 'Elemen';
+  const resolvedDefaultKelasName = elemenData?.kelas?.nama_kelas || getKelasNameById(elemenData?.kelas_elemen || selectedElemenFromList?.kelas_elemen) || '-';
+
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
       <StarBackground />
@@ -545,41 +560,55 @@ export default function DaftarAsesmen() {
       )}
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && deleteTarget && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 border border-red-500/50 rounded-xl p-6 max-w-md w-full">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 bg-red-600/20 rounded-full">
-                <FaTimes className="text-red-500 text-2xl" />
+      {showDeleteModal &&
+        deleteTarget &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed inset-0 flex items-center justify-center z-[9999] p-3 sm:p-4"
+            style={{
+              backgroundColor: 'rgba(2, 6, 23, 0.55)',
+              backdropFilter: 'blur(18px) saturate(125%)',
+              WebkitBackdropFilter: 'blur(18px) saturate(125%)',
+            }}
+          >
+            <div className="bg-gray-900 border border-red-500/50 rounded-xl p-4 sm:p-6 max-w-sm sm:max-w-md w-full">
+              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="p-2 sm:p-3 bg-red-600/20 rounded-full">
+                  <FaTrash className="text-red-500 text-lg sm:text-2xl" />
+                </div>
+                <h2 className="text-white text-lg sm:text-2xl font-bold">Konfirmasi Penghapusan</h2>
               </div>
-              <div>
-                <h3 className="text-white text-xl font-bold">Konfirmasi Hapus</h3>
-                <p className="text-gray-400 text-sm">Apakah Anda yakin?</p>
+
+              <p className="text-gray-300 text-sm sm:text-base mb-4 sm:mb-6">
+                Apakah Anda yakin ingin menghapus asesmen <span className="font-semibold text-white">{deleteTarget.judul}</span>?
+                <br />
+                <span className="text-red-400 text-xs sm:text-sm">Tindakan ini tidak dapat dibatalkan.</span>
+              </p>
+
+              <div className="flex gap-2 sm:gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeleteTarget(null);
+                  }}
+                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-white hover:bg-gray-100 !text-slate-900 text-sm sm:text-base rounded-lg transition-colors inline-flex items-center justify-center gap-2"
+                >
+                  <FaTimes className="text-slate-900" />
+                  Batal
+                </button>
+                <button
+                  onClick={confirmDeleteAsesmen}
+                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-red-700 hover:bg-red-800 !text-white text-sm sm:text-base rounded-lg transition-colors font-semibold inline-flex items-center justify-center gap-2"
+                >
+                  <FaTrash className="text-white" />
+                  Hapus
+                </button>
               </div>
             </div>
-            <p className="text-white mb-6">
-              Anda akan menghapus asesmen <span className="font-bold">"{deleteTarget.judul}"</span>. Tindakan ini tidak dapat dibatalkan.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeleteTarget(null);
-                }}
-                className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-white/10 rounded-lg text-white transition-all"
-              >
-                Batal
-              </button>
-              <button
-                onClick={confirmDeleteAsesmen}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white transition-all"
-              >
-                Hapus
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {guruData && <GuruNavbar guruName={guruData.nama_guru} />}
 
@@ -611,7 +640,7 @@ export default function DaftarAsesmen() {
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
               <div>
-                <h2 className="text-xl sm:text-2xl font-bold">{elemenData?.nama_elemen || 'Elemen'}</h2>
+                <h2 className="text-xl sm:text-2xl font-bold">{resolvedElemenName}</h2>
                 <p className="text-xs sm:text-sm text-gray-400">Daftar Asesmen</p>
               </div>
 
@@ -651,133 +680,139 @@ export default function DaftarAsesmen() {
                   onClick={() => handleGoToSoal(asesmen.id_asesmen)}
                   className="group bg-gray-800/30 border border-white/10 hover:border-blue-500/50 rounded-lg transition-all hover:shadow-lg hover:shadow-blue-500/10 cursor-pointer"
                 >
-                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 p-3 sm:p-4">
-                    {/* Sampul */}
-                    <div className="w-full sm:w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-gray-700 to-gray-800">
-                      {asesmen.sampul_asesmen ? (
-                        <img
-                          src={asesmen.sampul_asesmen}
-                          alt={asesmen.judul_asesmen}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-600">
-                          <FaImage className="text-2xl text-white/50" />
-                        </div>
-                      )}
-                    </div>
+                  {(() => {
+                    const kelasNamaAsesmen = getKelasNameById((asesmen as any).kelas_asesmen) || resolvedDefaultKelasName;
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-base sm:text-lg mb-2 group-hover:text-blue-400 transition-colors truncate">{asesmen.judul_asesmen}</h3>
-
-                      <div className="space-y-1 text-xs sm:text-sm text-gray-400 mb-3">
-                        <div className="flex items-start gap-2">
-                          <FaCalendar
-                            size={12}
-                            className="flex-shrink-0 mt-0.5"
-                          />
-                          <span className="truncate">
-                            Mulai: {new Date(asesmen.waktu_mulai).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' })} {new Date(asesmen.waktu_mulai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
+                    return (
+                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 p-3 sm:p-4">
+                        {/* Sampul */}
+                        <div className="w-full sm:w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-gray-700 to-gray-800">
+                          {asesmen.sampul_asesmen ? (
+                            <img
+                              src={asesmen.sampul_asesmen}
+                              alt={asesmen.judul_asesmen}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-600">
+                              <FaImage className="text-2xl text-white/50" />
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-start gap-2">
-                          <FaClock
-                            size={12}
-                            className="flex-shrink-0 mt-0.5"
-                          />
-                          <span className="truncate">
-                            Akhir: {new Date(asesmen.waktu_terakhir).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' })} {new Date(asesmen.waktu_terakhir).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-base sm:text-lg mb-2 group-hover:text-blue-400 transition-colors truncate">{asesmen.judul_asesmen}</h3>
+
+                          <div className="space-y-1 text-xs sm:text-sm text-gray-400 mb-3">
+                            <div className="flex items-start gap-2">
+                              <FaCalendar
+                                size={12}
+                                className="flex-shrink-0 mt-0.5"
+                              />
+                              <span className="truncate">
+                                Mulai: {new Date(asesmen.waktu_mulai).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' })} {new Date(asesmen.waktu_mulai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <FaClock
+                                size={12}
+                                className="flex-shrink-0 mt-0.5"
+                              />
+                              <span className="truncate">
+                                Akhir: {new Date(asesmen.waktu_terakhir).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' })} {new Date(asesmen.waktu_terakhir).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="text-xs sm:text-sm text-gray-400 space-y-0.5">
+                            <p>
+                              Guru: <span className="text-gray-300">{asesmen.guru?.nama_guru || '-'}</span>
+                            </p>
+                            <p>
+                              Kelas: <span className="text-gray-300">{kelasNamaAsesmen}</span>
+                            </p>
+                            {(asesmen.durasi_asesmen || asesmen.durasi_kuis) && (
+                              <p>
+                                Durasi: <span className="text-gray-300">{asesmen.durasi_asesmen || asesmen.durasi_kuis} menit</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Menu */}
+                        <div
+                          className="relative flex-shrink-0"
+                          data-asesmen-menu="true"
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(openMenuId === asesmen.id_asesmen ? null : asesmen.id_asesmen);
+                            }}
+                            className="p-2 hover:bg-gray-700/50 rounded-lg transition-all"
+                          >
+                            <FaEllipsisV />
+                          </button>
+
+                          {openMenuId === asesmen.id_asesmen && (
+                            <div className="absolute right-0 bottom-10 bg-gray-800 border border-white/10 rounded-lg shadow-lg z-50 min-w-[220px] overflow-hidden">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditAsesmen(asesmen);
+                                }}
+                                className="w-full px-4 py-2 text-left hover:bg-gray-700/50 border-b border-white/10 transition-all flex items-center gap-2"
+                              >
+                                <FaInfoCircle className="text-blue-300" />
+                                Detail Asesmen
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleGoToSoal(asesmen.id_asesmen);
+                                }}
+                                className="w-full px-4 py-2 text-left hover:bg-gray-700/50 border-b border-white/10 transition-all flex items-center gap-2"
+                              >
+                                <FaListAlt className="text-cyan-300" />
+                                Kelola Soal
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleGoToProgres(asesmen.id_asesmen);
+                                }}
+                                className="w-full px-4 py-2 text-left hover:bg-gray-700/50 border-b border-white/10 transition-all flex items-center gap-2"
+                              >
+                                <FaChartBar className="text-emerald-300" />
+                                Progres Pengerjaan
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleGoToAnalisis(asesmen.id_asesmen);
+                                }}
+                                className="w-full px-4 py-2 text-left hover:bg-gray-700/50 border-b border-white/10 transition-all flex items-center gap-2"
+                              >
+                                <FaChartLine className="text-violet-300" />
+                                Hasil Analisis
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteAsesmen(asesmen.id_asesmen);
+                                }}
+                                className="w-full px-4 py-2 text-left text-red-400 hover:bg-red-500/20 transition-all flex items-center gap-2"
+                              >
+                                <FaTrash className="text-red-400" />
+                                Hapus Asesmen
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
-
-                      <div className="text-xs sm:text-sm text-gray-400 space-y-0.5">
-                        <p>
-                          Guru: <span className="text-gray-300">{asesmen.guru?.nama_guru || '-'}</span>
-                        </p>
-                        <p>
-                          Kelas: <span className="text-gray-300">{elemenData?.kelas?.nama_kelas || '-'}</span>
-                        </p>
-                        {(asesmen.durasi_asesmen || asesmen.durasi_kuis) && (
-                          <p>
-                            Durasi: <span className="text-gray-300">{asesmen.durasi_asesmen || asesmen.durasi_kuis} menit</span>
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Menu */}
-                    <div
-                      className="relative flex-shrink-0"
-                      data-asesmen-menu="true"
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenMenuId(openMenuId === asesmen.id_asesmen ? null : asesmen.id_asesmen);
-                        }}
-                        className="p-2 hover:bg-gray-700/50 rounded-lg transition-all"
-                      >
-                        <FaEllipsisV />
-                      </button>
-
-                      {openMenuId === asesmen.id_asesmen && (
-                        <div className="absolute right-0 bottom-10 bg-gray-800 border border-white/10 rounded-lg shadow-lg z-50 min-w-[220px] overflow-hidden">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditAsesmen(asesmen);
-                            }}
-                            className="w-full px-4 py-2 text-left hover:bg-gray-700/50 border-b border-white/10 transition-all flex items-center gap-2"
-                          >
-                            <FaInfoCircle className="text-blue-300" />
-                            Detail Asesmen
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleGoToSoal(asesmen.id_asesmen);
-                            }}
-                            className="w-full px-4 py-2 text-left hover:bg-gray-700/50 border-b border-white/10 transition-all flex items-center gap-2"
-                          >
-                            <FaListAlt className="text-cyan-300" />
-                            Kelola Soal
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleGoToProgres(asesmen.id_asesmen);
-                            }}
-                            className="w-full px-4 py-2 text-left hover:bg-gray-700/50 border-b border-white/10 transition-all flex items-center gap-2"
-                          >
-                            <FaChartBar className="text-emerald-300" />
-                            Progres Pengerjaan
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleGoToAnalisis(asesmen.id_asesmen);
-                            }}
-                            className="w-full px-4 py-2 text-left hover:bg-gray-700/50 border-b border-white/10 transition-all flex items-center gap-2"
-                          >
-                            <FaChartLine className="text-violet-300" />
-                            Hasil Analisis
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteAsesmen(asesmen.id_asesmen);
-                            }}
-                            className="w-full px-4 py-2 text-left text-red-400 hover:bg-red-500/20 transition-all flex items-center gap-2"
-                          >
-                            <FaTrash className="text-red-400" />
-                            Hapus Asesmen
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
@@ -787,7 +822,7 @@ export default function DaftarAsesmen() {
 
       {/* Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+        <div className="asesmen-form-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 border border-white/10 rounded-xl max-w-2xl w-full max-h-96 overflow-y-auto">
             {/* Header */}
             <div className="sticky top-0 bg-gray-900 border-b border-white/10 px-6 py-4 flex items-center justify-between">
@@ -972,6 +1007,12 @@ export default function DaftarAsesmen() {
         jsx
         global
       >{`
+        .asesmen-form-overlay {
+          background: var(--admin-overlay, rgba(2, 6, 23, 0.62));
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+        }
+
         .asesmen-datetime-input {
           color-scheme: dark;
         }

@@ -117,12 +117,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error('Exception in PUT /api/admin/profil:', error);
       return res.status(500).json({
         error: 'Terjadi kesalahan server',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        details: error instanceof Error ? error.message : 'Kesalahan tidak diketahui',
       });
     }
   }
 
-  // Method not allowed
+  // Metode tidak diizinkan
   res.setHeader('Allow', ['GET', 'PUT']);
-  return res.status(405).json({ error: `Method ${req.method} not allowed` });
+  return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
 }

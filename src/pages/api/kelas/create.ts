@@ -30,6 +30,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else {
     res.setHeader('Allow', ['POST']);
-    return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
   }
 }

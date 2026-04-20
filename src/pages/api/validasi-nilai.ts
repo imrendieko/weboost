@@ -4,7 +4,7 @@ import { generateAnalisisSiswa } from '@/lib/generateAnalisisSiswa';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'PUT') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Metode tidak diizinkan' });
   }
 
   try {
@@ -12,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!id_attempt || !id_soal || skor_tervalidasi === undefined) {
       return res.status(400).json({
-        error: 'Missing required fields: id_attempt, id_soal, skor_tervalidasi',
+        error: 'Field wajib belum lengkap: id_attempt, id_soal, skor_tervalidasi',
       });
     }
 
@@ -99,7 +99,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .eq('id_attempt', id_attempt);
 
         if (updateError) {
-          console.warn('Warning: Could not update skor_total:', updateError);
+          console.warn('Peringatan: Gagal memperbarui skor_total:', updateError);
         } else {
           console.log(`Updated skor_total for attempt ${id_attempt} to ${totalSkor}`);
         }
@@ -119,7 +119,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
     } catch (analysisError) {
-      console.warn('Warning: gagal regenerate analisis siswa setelah validasi:', analysisError);
+      console.warn('Peringatan: gagal membuat ulang analisis siswa setelah validasi:', analysisError);
     }
 
     res.status(200).json({
@@ -130,7 +130,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error: any) {
     console.error('Error saving validasi nilai:', error);
     res.status(500).json({
-      error: 'Failed to save validasi nilai',
+      error: 'Gagal menyimpan validasi nilai',
       details: error.message,
     });
   }

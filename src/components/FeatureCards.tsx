@@ -17,7 +17,7 @@ const features = [
   {
     icon: FaBolt,
     title: 'Analisis Otomatis',
-    description: 'Analisis hasil belajarmu secara otomatis dan cepat dengan integrasi AI.',
+    description: 'Analisis hasil belajarmu secara otomatis, cepat, dan detail dengan rumus yang akurat.',
   },
   {
     icon: FaComments,
@@ -28,38 +28,38 @@ const features = [
 
 export default function FeatureCards() {
   return (
-    <div className="relative overflow-hidden py-8">
-      <motion.div
-        className="flex gap-6"
-        animate={{
-          x: [0, -1920],
-        }}
-        transition={{
-          x: {
-            repeat: Infinity,
-            repeatType: 'loop',
-            duration: 30,
-            ease: 'linear',
-          },
-        }}
-      >
-        {/* Duplicate features for seamless loop */}
-        {[...features, ...features, ...features].map((feature, index) => (
-          <motion.div
-            key={index}
-            whileHover={{ scale: 1.05 }}
-            className="min-w-[320px] bg-black/30 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:shadow-[0_0_40px_rgba(0,128,255,0.4)] hover:border-[#0080FF]/50 transition-all duration-300"
+    <div className="relative py-8">
+      <div className="mx-auto grid w-full max-w-7xl gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        {features.map((feature, index) => (
+          <motion.article
+            key={feature.title}
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.35 }}
+            transition={{ duration: 0.5, delay: index * 0.08 }}
+            className="feature-hover-card"
           >
-            <div className="flex flex-col items-center text-center gap-4">
-              <div className="bg-[#0080FF]/20 p-4 rounded-full">
-                <feature.icon className="text-current text-4xl" />
+            <div className="feature-slide feature-slide-front">
+              <div className="feature-slide-content">
+                <div className="feature-icon-shell">
+                  <feature.icon
+                    className="feature-icon"
+                    aria-hidden="true"
+                  />
+                </div>
+                <h3 className="feature-front-title">{feature.title}</h3>
               </div>
-              <h3 className="text-white text-xl font-semibold">{feature.title}</h3>
-              <p className="text-gray-400 text-sm">{feature.description}</p>
             </div>
-          </motion.div>
+
+            <div className="feature-slide feature-slide-back">
+              <div className="feature-slide-content">
+                <h3 className="feature-back-title">{feature.title}</h3>
+                <p className="feature-back-description">{feature.description}</p>
+              </div>
+            </div>
+          </motion.article>
         ))}
-      </motion.div>
+      </div>
     </div>
   );
 }

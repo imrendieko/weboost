@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { FaCheck, FaExclamationCircle, FaPencilAlt, FaCheckDouble, FaCheckCircle, FaTimesCircle, FaExclamationTriangle, FaTimes } from 'react-icons/fa';
+import React, { useEffect, useState } from 'react';
+import { FaCheck, FaExclamationCircle, FaCheckDouble, FaCheckCircle, FaTimesCircle, FaExclamationTriangle, FaTimes } from 'react-icons/fa';
+import DataTablePagination from '@/components/DataTablePagination';
 
 type ToastType = 'success' | 'error';
 type ConfirmAction = 'single' | 'all';
@@ -25,10 +26,42 @@ interface JawabanTableProps {
   isLoading?: boolean;
 }
 
+function decodeHtmlEntities(value: string) {
+  if (!value) {
+    return '';
+  }
+
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = value;
+    return textarea.value;
+  }
+
+  return value
+    .replace(/&quot;/gi, '"')
+    .replace(/&#34;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&')
+    .replace(/&nbsp;/gi, ' ');
+}
+
+function toPlainQuestionText(rawText: string) {
+  const decoded = decodeHtmlEntities(String(rawText || ''));
+
+  return decoded
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 const JawabanSiswaTable: React.FC<JawabanTableProps> = ({ jawabanList, isGuru, onValidasi, onValidasiSemua, isLoading = false }) => {
-  const [editingValues, setEditingValues] = useState<{ [key: string]: number }>({});
+  const [editingValues, setEditingValues] = useState<{ [key: string]: string }>({});
   const [validatingIds, setValidatingIds] = useState<Set<string>>(new Set());
-  const [editingNilaiIds, setEditingNilaiIds] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Toast notification state
   const [toast, setToast] = useState<{ show: boolean; message: string; type: ToastType }>({
@@ -61,14 +94,14 @@ const JawabanSiswaTable: React.FC<JawabanTableProps> = ({ jawabanList, isGuru, o
   const getStatusBadge = (status: string | null) => {
     if (status === 'validated') {
       return (
-        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-900 text-green-200">
+        <span className="jawaban-status-validated inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-900 text-green-200">
           <FaCheck className="text-xs" />
           Divalidasi
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-yellow-900 text-yellow-200">
+      <span className="jawaban-status-pending inline-flex items-center gap-1 px-3 py-1 rounded-full bg-yellow-900 text-yellow-200">
         <FaExclamationCircle className="text-xs" />
         Pending
       </span>
@@ -83,34 +116,23 @@ const JawabanSiswaTable: React.FC<JawabanTableProps> = ({ jawabanList, isGuru, o
   };
 
   const handleNilaiChange = (soalId: string, value: string) => {
-    const num = parseFloat(value) || 0;
     setEditingValues((prev) => ({
       ...prev,
-      [soalId]: num,
+      [soalId]: value,
     }));
   };
 
-  const toggleEditNilai = (soalId: string, currentValue: number) => {
-    if (editingNilaiIds.has(soalId)) {
-      setEditingNilaiIds((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(soalId);
-        return newSet;
-      });
-    } else {
-      setEditingNilaiIds((prev) => new Set([...prev, soalId]));
-      setEditingValues((prev) => ({
-        ...prev,
-        [soalId]: currentValue,
-      }));
-    }
-  };
-
   const handleValidasi = async (jawaban: Jawaban) => {
-    const skor = editingValues[jawaban.id_soal] !== undefined ? editingValues[jawaban.id_soal] : jawaban.skor_asli || 0;
+    const nilaiInput = editingValues[jawaban.id_soal] !== undefined ? editingValues[jawaban.id_soal] : String(jawaban.skor_asli || 0);
+    if (nilaiInput.trim() === '') {
+      showToast('Nilai tidak boleh kosong', 'error');
+      return;
+    }
+
+    const skor = Number(nilaiInput);
 
     // Validate score range
-    if (skor < 0 || skor > jawaban.nilai_soal) {
+    if (Number.isNaN(skor) || skor < 0 || skor > jawaban.nilai_soal) {
       showToast(`Nilai harus antara 0 dan ${jawaban.nilai_soal}`, 'error');
       return;
     }
@@ -140,11 +162,6 @@ const JawabanSiswaTable: React.FC<JawabanTableProps> = ({ jawabanList, isGuru, o
         const newValues = { ...prev };
         delete newValues[jawaban.id_soal];
         return newValues;
-      });
-      setEditingNilaiIds((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(jawaban.id_soal);
-        return newSet;
       });
     } catch (error: any) {
       console.error('Error validating:', error);
@@ -178,6 +195,10 @@ const JawabanSiswaTable: React.FC<JawabanTableProps> = ({ jawabanList, isGuru, o
     }
   };
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [jawabanList.length]);
+
   if (!jawabanList || jawabanList.length === 0) {
     return <div className="text-center py-8 text-gray-400">Belum ada jawaban untuk asesmen ini</div>;
   }
@@ -185,6 +206,10 @@ const JawabanSiswaTable: React.FC<JawabanTableProps> = ({ jawabanList, isGuru, o
   // Check if all are validated
   const allValidated = jawabanList.every((j) => j.status_validasi === 'validated');
   const hasOnValidasiSemua = onValidasiSemua && isGuru && !allValidated && jawabanList.some((j) => j.status_validasi !== 'validated');
+  const totalPages = Math.max(1, Math.ceil(jawabanList.length / rowsPerPage));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * rowsPerPage;
+  const paginatedJawabanList = jawabanList.slice(startIndex, startIndex + rowsPerPage);
 
   return (
     <div>
@@ -193,7 +218,7 @@ const JawabanSiswaTable: React.FC<JawabanTableProps> = ({ jawabanList, isGuru, o
           <button
             onClick={handleValidasiSemuaClick}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="jawaban-btn-dark inline-flex items-center gap-2 px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FaCheckDouble className="text-sm" />
             {isLoading ? 'Memvalidasi...' : 'Validasi Semua'}
@@ -201,7 +226,7 @@ const JawabanSiswaTable: React.FC<JawabanTableProps> = ({ jawabanList, isGuru, o
         </div>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+        <table className="jawaban-validasi-table w-full border-collapse">
           <thead>
             <tr className="bg-gray-800">
               <th className="border border-gray-700 px-4 py-3 text-left text-sm font-semibold text-gray-200 w-12">No</th>
@@ -214,9 +239,8 @@ const JawabanSiswaTable: React.FC<JawabanTableProps> = ({ jawabanList, isGuru, o
             </tr>
           </thead>
           <tbody>
-            {jawabanList.map((jawaban) => {
-              const isEditing = editingNilaiIds.has(jawaban.id_soal);
-              const displayValue = editingValues[jawaban.id_soal] !== undefined ? editingValues[jawaban.id_soal] : jawaban.skor_asli || 0;
+            {paginatedJawabanList.map((jawaban) => {
+              const displayValue = editingValues[jawaban.id_soal] !== undefined ? editingValues[jawaban.id_soal] : String(jawaban.skor_asli || 0);
               const isValidating = validatingIds.has(jawaban.id_soal);
 
               return (
@@ -224,38 +248,28 @@ const JawabanSiswaTable: React.FC<JawabanTableProps> = ({ jawabanList, isGuru, o
                   <tr className="hover:bg-gray-800/50 transition-colors">
                     <td className="border border-gray-700 px-4 py-3 text-sm text-gray-300">{jawaban.urutan_soal}</td>
                     <td className="border border-gray-700 px-4 py-3 text-sm text-gray-300">
-                      <p className="font-medium">{jawaban.teks_soal}</p>
+                      <p className="font-medium">{toPlainQuestionText(jawaban.teks_soal) || '-'}</p>
                       <p className="text-xs text-gray-400 mt-1">({jawaban.tipe_soal})</p>
                     </td>
                     <td className="border border-gray-700 px-4 py-3 text-sm text-gray-300">{jawaban.jawaban_siswa || <span className="text-gray-500">-</span>}</td>
-                    {isGuru && <td className="border border-gray-700 px-4 py-3 text-sm text-blue-300 font-medium">{jawaban.kunci_jawaban || <span className="text-gray-500">-</span>}</td>}
+                    {isGuru && <td className="jawaban-kunci-cell border border-gray-700 px-4 py-3 text-sm text-blue-300 font-medium">{jawaban.kunci_jawaban || <span className="text-gray-500">-</span>}</td>}
                     <td className="border border-gray-700 px-4 py-3 text-sm">{getStatusBadge(jawaban.status_validasi)}</td>
                     <td className="border border-gray-700 px-4 py-3 text-sm text-gray-300 font-medium">
                       {jawaban.status_validasi === 'validated' ? (
                         <span>{getNilaiDisplay(jawaban)}</span>
                       ) : isGuru ? (
-                        isEditing ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              min="0"
-                              max={jawaban.nilai_soal}
-                              value={displayValue}
-                              onChange={(e) => handleNilaiChange(jawaban.id_soal, e.target.value)}
-                              disabled={isValidating || isLoading}
-                              className="w-16 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-blue-500 disabled:opacity-50"
-                              autoFocus
-                            />
-                            <span className="text-gray-400">/ {jawaban.nilai_soal}</span>
-                          </div>
-                        ) : (
-                          <span
-                            className="cursor-pointer hover:text-blue-400 transition-colors"
-                            onClick={() => toggleEditNilai(jawaban.id_soal, jawaban.skor_asli || 0)}
-                          >
-                            {getNilaiDisplay(jawaban)}
-                          </span>
-                        )
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            max={jawaban.nilai_soal}
+                            value={displayValue}
+                            onChange={(e) => handleNilaiChange(jawaban.id_soal, e.target.value)}
+                            disabled={isValidating || isLoading}
+                            className="jawaban-nilai-input w-16 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                          />
+                          <span className="text-gray-400">/ {jawaban.nilai_soal}</span>
+                        </div>
                       ) : (
                         <span>Nilai belum divalidasi</span>
                       )}
@@ -263,39 +277,13 @@ const JawabanSiswaTable: React.FC<JawabanTableProps> = ({ jawabanList, isGuru, o
                     {isGuru && (
                       <td className="border border-gray-700 px-4 py-3 text-center">
                         {jawaban.status_validasi === 'validated' ? (
-                          <span className="text-xs text-green-300 font-medium">Selesai</span>
-                        ) : isEditing ? (
-                          <div className="flex gap-1 justify-center">
-                            <button
-                              onClick={() => handleValidasi(jawaban)}
-                              disabled={isValidating || isLoading}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-600 hover:bg-green-700 text-white text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <FaCheck className="text-xs" />
-                              {isValidating ? '...' : 'Simpan'}
-                            </button>
-                            <button
-                              onClick={() => toggleEditNilai(jawaban.id_soal, jawaban.skor_asli || 0)}
-                              disabled={isValidating || isLoading}
-                              className="px-2 py-1 rounded bg-gray-600 hover:bg-gray-700 text-white text-xs transition-colors disabled:opacity-50"
-                            >
-                              Batal
-                            </button>
-                          </div>
+                          <span className="jawaban-aksi-selesai text-xs text-green-300 font-medium">Selesai</span>
                         ) : (
                           <div className="flex gap-1 justify-center">
                             <button
-                              onClick={() => toggleEditNilai(jawaban.id_soal, jawaban.skor_asli || 0)}
-                              disabled={isValidating || isLoading}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-600 hover:bg-gray-700 text-white text-xs transition-colors disabled:opacity-50"
-                            >
-                              <FaPencilAlt className="text-xs" />
-                              Edit
-                            </button>
-                            <button
                               onClick={() => handleValidasi(jawaban)}
                               disabled={isValidating || isLoading}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-600 hover:bg-green-700 text-white text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="jawaban-btn-dark inline-flex items-center gap-1 px-2 py-1 rounded bg-green-600 hover:bg-green-700 text-white text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <FaCheck className="text-xs" />
                               {isValidating ? '...' : 'Validasi'}
@@ -312,9 +300,17 @@ const JawabanSiswaTable: React.FC<JawabanTableProps> = ({ jawabanList, isGuru, o
         </table>
       </div>
 
+      <DataTablePagination
+        totalItems={jawabanList.length}
+        currentPage={safePage}
+        rowsPerPage={rowsPerPage}
+        onPageChange={setCurrentPage}
+        onRowsPerPageChange={setRowsPerPage}
+      />
+
       {/* Toast Notification */}
       {toast.show && (
-        <div className={`fixed top-24 right-6 z-[70] rounded-lg border px-5 py-3 shadow-lg flex items-center gap-3 ${toast.type === 'success' ? 'bg-green-500/90 border-green-300/40' : 'bg-red-500/90 border-red-300/40'}`}>
+        <div className={`jawaban-toast-dark fixed top-24 right-6 z-[70] rounded-lg border px-5 py-3 shadow-lg flex items-center gap-3 ${toast.type === 'success' ? 'bg-green-500/90 border-green-300/40' : 'bg-red-500/90 border-red-300/40'}`}>
           {toast.type === 'success' ? <FaCheckCircle className="text-xl flex-shrink-0" /> : <FaExclamationCircle className="text-xl flex-shrink-0" />}
           <p className="text-sm font-semibold flex-1">{toast.message}</p>
           <button
@@ -355,14 +351,14 @@ const JawabanSiswaTable: React.FC<JawabanTableProps> = ({ jawabanList, isGuru, o
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmModal({ isOpen: false, action: 'single', jawaban: null })}
-                className="flex-1 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-semibold transition-colors"
+                className="jawaban-modal-btn-dark flex-1 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-semibold transition-colors"
               >
                 Batal
               </button>
               <button
                 onClick={confirmModal.action === 'single' ? handleValidasiConfirm : handleValidasiSemuaConfirm}
                 disabled={isLoading}
-                className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="jawaban-modal-btn-dark flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Memproses...' : 'Validasi'}
               </button>

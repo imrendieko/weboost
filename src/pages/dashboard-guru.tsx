@@ -5,13 +5,13 @@ import supabase from '@/lib/db';
 import GuruNavbar from '@/components/GuruNavbar';
 import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
-import { FaBook, FaProjectDiagram, FaClipboardList, FaTimes } from 'react-icons/fa';
+import { FaBook, FaClipboardList, FaTimes } from 'react-icons/fa';
 
 interface GuruData {
   id_guru: number;
   nama_guru: string;
   email_guru: string;
-  nip_guru: string;
+  nuptk_guru: string;
 }
 
 interface TujuanPembelajaran {
@@ -61,13 +61,14 @@ export default function DashboardGuru() {
   useEffect(() => {
     if (!router.isReady) return;
 
+    // Validasi sesi guru, lalu ambil elemen yang memang dia ampu.
     const checkGuruAuth = async () => {
       try {
         // Check if guru is logged in
         const guruSession = localStorage.getItem('guru_session');
 
         if (!guruSession) {
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -79,7 +80,7 @@ export default function DashboardGuru() {
         if (guruError || !guru) {
           console.error('Error fetching guru data:', guruError);
           localStorage.removeItem('guru_session');
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -91,7 +92,7 @@ export default function DashboardGuru() {
         setLoading(false);
       } catch (error) {
         console.error('Error checking guru auth:', error);
-        router.push('/');
+        window.location.replace('/');
       }
     };
 
@@ -100,6 +101,7 @@ export default function DashboardGuru() {
 
   const fetchElemenData = async (guruId: number) => {
     try {
+      // Query ini ngambil elemen + relasi kelas biar kartu langsung siap ditampilkan.
       // Fetch elemen yang diampu oleh guru ini dengan data kelas
       const { data: elemenData, error: elemenError } = await supabase
         .from('elemen')
@@ -147,6 +149,7 @@ export default function DashboardGuru() {
   };
 
   const handleCardClick = (elemen: Elemen) => {
+    // Simpan elemen aktif supaya modal tahu konteks yang dibuka user.
     setSelectedElemen(elemen);
     setShowModal(true);
   };
@@ -156,36 +159,9 @@ export default function DashboardGuru() {
     setSelectedElemen(null);
   };
 
-  const navigateTo = (path: string) => {
-    if (selectedElemen) {
-      router.push(`${path}?elemen=${selectedElemen.id_elemen}`);
-    }
-  };
-
   const navigateToMateriByElemen = async () => {
-    if (!selectedElemen || !guruData) return;
-
-    try {
-      const response = await fetch(`/api/materi?id_guru=${guruData.id_guru}`);
-
-      if (!response.ok) {
-        router.push(`/guru/materi?elemen=${selectedElemen.id_elemen}`);
-        return;
-      }
-
-      const materiData = await response.json();
-      const materiTarget = (materiData || []).find((item: any) => item.id_elemen === selectedElemen.id_elemen || item.elemen?.id_elemen === selectedElemen.id_elemen || item.kelas_materi === selectedElemen.id_elemen);
-
-      if (materiTarget?.id_materi) {
-        router.push(`/guru/materi?id_materi=${materiTarget.id_materi}`);
-        return;
-      }
-
-      router.push(`/guru/materi?elemen=${selectedElemen.id_elemen}`);
-    } catch (error) {
-      console.error('Error navigating to materi by elemen:', error);
-      router.push(`/guru/materi?elemen=${selectedElemen.id_elemen}`);
-    }
+    if (!selectedElemen) return;
+    router.push(`/guru/pembelajaran?elemen=${selectedElemen.id_elemen}`);
   };
 
   if (loading) {
@@ -283,15 +259,18 @@ export default function DashboardGuru() {
 
       {/* Modal Popup */}
       {showModal && selectedElemen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div className="dashboard-menu-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 border border-white/20 rounded-2xl p-8 max-w-md w-full mx-4 relative shadow-2xl">
             {/* Close Button */}
-            <button
-              onClick={closeModal}
-              className="absolute top-4 right-4 text-white hover:text-red-500 transition-colors"
-            >
-              <FaTimes size={24} />
-            </button>
+            <div className="mb-2 flex justify-end">
+              <button
+                onClick={closeModal}
+                aria-label="Tutup popup"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-black/35 text-white transition-all hover:border-red-300 hover:bg-red-500/90 hover:text-white"
+              >
+                <FaTimes size={14} />
+              </button>
+            </div>
 
             {/* Modal Header */}
             <h2 className="text-2xl font-bold mb-2 text-white">{selectedElemen.nama_elemen}</h2>
@@ -305,15 +284,7 @@ export default function DashboardGuru() {
                 className="w-full flex items-center gap-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
                 <FaBook size={24} />
-                <span className="text-lg">Materi</span>
-              </button>
-
-              <button
-                onClick={() => navigateTo('/guru/pbl')}
-                className="w-full flex items-center gap-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
-              >
-                <FaProjectDiagram size={24} />
-                <span className="text-lg">PBL</span>
+                <span className="text-lg">Pembelajaran</span>
               </button>
 
               <button
@@ -351,6 +322,12 @@ export default function DashboardGuru() {
 
       {/* CSS for Card Flip Animation */}
       <style jsx>{`
+        .dashboard-menu-overlay {
+          background: var(--admin-overlay, rgba(2, 6, 23, 0.62));
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+        }
+
         .card-container {
           perspective: 1000px;
           height: 320px;

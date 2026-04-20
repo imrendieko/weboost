@@ -56,12 +56,13 @@ export default function ProfilAdmin() {
   useEffect(() => {
     if (!router.isReady) return;
 
+    // Pastikan admin login dulu, baru isi form profile dari API.
     const checkAdminAuth = async () => {
       try {
         const adminSession = localStorage.getItem('admin_session');
 
         if (!adminSession) {
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -74,7 +75,7 @@ export default function ProfilAdmin() {
         if (!response.ok) {
           console.error('Error fetching admin profile:', data.error);
           localStorage.removeItem('admin_session');
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -88,7 +89,7 @@ export default function ProfilAdmin() {
         setLoading(false);
       } catch (error) {
         console.error('Error during authentication check:', error);
-        router.push('/');
+        window.location.replace('/');
       }
     };
 
@@ -120,6 +121,7 @@ export default function ProfilAdmin() {
       return;
     }
 
+    // Submit perubahan profile dan sinkronkan juga data sesi di localStorage.
     setSubmitting(true);
 
     try {
@@ -294,7 +296,7 @@ export default function ProfilAdmin() {
                 >
                   Password
                 </label>
-                <div className="relative">
+                <div className="password-input-wrapper relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     id="password_admin"
@@ -308,8 +310,20 @@ export default function ProfilAdmin() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center justify-center text-gray-400 hover:text-gray-300 transition-colors rounded-r-lg"
-                    style={{ width: '38px' }}
+                    className="password-input-toggle text-gray-500"
+                    aria-label={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                    style={{
+                      position: 'absolute',
+                      right: '1rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      width: '20px',
+                      height: '20px',
+                      padding: 0,
+                      border: 'none',
+                      background: 'transparent',
+                      boxShadow: 'none',
+                    }}
                   >
                     {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
                   </button>

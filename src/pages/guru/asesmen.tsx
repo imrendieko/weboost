@@ -37,7 +37,7 @@ export default function KelolAsesmen() {
         const guruSession = localStorage.getItem('guru_session');
 
         if (!guruSession) {
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -49,7 +49,7 @@ export default function KelolAsesmen() {
         setLoading(false);
       } catch (error) {
         console.error('Error checking guru auth:', error);
-        router.push('/');
+        window.location.replace('/');
       }
     };
 
@@ -93,6 +93,7 @@ export default function KelolAsesmen() {
   };
 
   const fetchAsesmenByElemenIds = async (elemenIds: number[]) => {
+    // Daftar asesmen kita kelompokkan per elemen supaya preview kartu gampang dibaca.
     if (elemenIds.length === 0) {
       setAsesmenByElemen({});
       return;
@@ -122,6 +123,7 @@ export default function KelolAsesmen() {
 
   // Navigate to assessment list for selected element
   const handleCardClick = (idElemen: number) => {
+    // Klik kartu langsung buka halaman daftar asesmen elemen tersebut.
     router.push(`/guru/asesmen/${idElemen}`);
   };
 
@@ -209,11 +211,11 @@ export default function KelolAsesmen() {
 
                         <div className="space-y-2 overflow-y-auto max-h-44 pr-1">
                           {asesmenByElemen[elemen.id_elemen] && asesmenByElemen[elemen.id_elemen].length > 0 ? (
-                            <ol className="list-decimal list-inside text-white/95 text-sm space-y-2">
+                            <ol className="list-decimal list-inside text-sm space-y-2">
                               {asesmenByElemen[elemen.id_elemen].map((judul, index) => (
                                 <li
                                   key={`${elemen.id_elemen}-${index}`}
-                                  className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 transition-colors hover:bg-white/20"
+                                  className="rounded-lg border border-white/30 bg-white/55 px-3 py-2 font-semibold text-slate-900 transition-colors hover:bg-white/75"
                                 >
                                   {judul}
                                 </li>

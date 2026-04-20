@@ -1,18 +1,19 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import supabaseAdmin from '@/lib/supabaseAdmin';
 import { hashPasswordIfNeeded } from '@/lib/password';
+import { isValidEmailFormat } from '@/lib/utils';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
-    return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
   }
 
   try {
-    const { nama, email, password, nip, lembaga } = req.body;
+    const { nama, email, password, nuptk, lembaga } = req.body;
 
     // Validate required fields
-    if (!nama || !email || !password || !nip || !lembaga) {
+    if (!nama || !email || !password || !nuptk || !lembaga) {
       return res.status(400).json({ error: 'Semua field harus diisi' });
     }
 
@@ -22,8 +23,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const emailLower = email.trim().toLowerCase();
-    const nipString = nip.toString().trim();
+    const nuptkString = nuptk.toString().trim();
     const hashedPassword = await hashPasswordIfNeeded(String(password));
+
+    if (!isValidEmailFormat(emailLower)) {
+      return res.status(400).json({ error: 'Format email tidak valid' });
+    }
+
+    if (!/^\d+$/.test(nuptkString)) {
+      return res.status(400).json({ error: 'NUPTK hanya boleh berisi angka' });
+    }
+
+    if (nuptkString.length !== 16) {
+      return res.status(400).json({ error: 'NUPTK harus terdiri dari tepat 16 digit' });
+    }
 
     // Check if email already exists in guru
     const { data: existingEmail } = await supabaseAdmin.from('guru').select('email_guru').eq('email_guru', emailLower).maybeSingle();
@@ -39,11 +52,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Email sudah digunakan oleh akun siswa. Gunakan email lain.' });
     }
 
-    // Check if NIP already exists
-    const { data: existingNip } = await supabaseAdmin.from('guru').select('nip_guru').eq('nip_guru', nipString).maybeSingle();
+    // Check if NUPTK already exists
+    const { data: existingNuptk } = await supabaseAdmin.from('guru').select('nuptk_guru').eq('nuptk_guru', nuptkString).maybeSingle();
 
-    if (existingNip) {
-      return res.status(400).json({ error: 'Pakai NIP yang lain atau konfirmasi ke admin!' });
+    if (existingNuptk) {
+      return res.status(400).json({ error: 'Pakai NUPTK yang lain atau konfirmasi ke admin!' });
     }
 
     // Insert new guru with status_guru = false (belum divalidasi admin)
@@ -54,7 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           nama_guru: nama.trim(),
           email_guru: emailLower,
           password_guru: hashedPassword,
-          nip_guru: nipString,
+          nuptk_guru: nuptkString,
           lembaga_guru: parseInt(lembaga),
           status_guru: false,
         },
@@ -71,7 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(201).json({
       success: true,
-      message: 'Registrasi berhasil! Silakan login.',
+      message: 'Registrasi berhasil! Akun Anda menunggu validasi admin sebelum bisa login.',
       data: {
         id: data.id_guru,
         nama: data.nama_guru,

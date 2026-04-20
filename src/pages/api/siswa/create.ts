@@ -7,11 +7,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const { nama_siswa, email_siswa, password_siswa, nisn_siswa, kelas_siswa, lembaga_siswa } = req.body;
       const emailLower = String(email_siswa).trim().toLowerCase();
+      const nisnString = String(nisn_siswa).trim();
       const hashedPassword = await hashPasswordIfNeeded(String(password_siswa));
 
       // Validate required fields
       if (!nama_siswa || !email_siswa || !password_siswa || !nisn_siswa || !kelas_siswa || !lembaga_siswa) {
         return res.status(400).json({ error: 'Semua field harus diisi' });
+      }
+
+      if (!/^\d+$/.test(nisnString)) {
+        return res.status(400).json({ error: 'NISN harus berupa angka' });
+      }
+
+      if (nisnString.length < 10) {
+        return res.status(400).json({ error: 'NISN tidak boleh kurang dari 10 digit' });
       }
 
       // Check if email already exists in siswa
@@ -29,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Check if NISN already exists
-      const { data: existingNISN } = await supabaseAdmin.from('siswa').select('nisn_siswa').eq('nisn_siswa', nisn_siswa).maybeSingle();
+      const { data: existingNISN } = await supabaseAdmin.from('siswa').select('nisn_siswa').eq('nisn_siswa', nisnString).maybeSingle();
 
       if (existingNISN) {
         return res.status(400).json({ error: 'NISN sudah terdaftar' });
@@ -43,9 +52,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             nama_siswa,
             email_siswa: emailLower,
             password_siswa: hashedPassword,
-            nisn_siswa,
+            nisn_siswa: nisnString,
             kelas_siswa: parseInt(kelas_siswa),
             lembaga_siswa: parseInt(lembaga_siswa),
+            status_siswa: false,
           },
         ])
         .select();
@@ -62,5 +72,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  return res.status(405).json({ error: 'Method not allowed' });
+  return res.status(405).json({ error: 'Metode tidak diizinkan' });
 }

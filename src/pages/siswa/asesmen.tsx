@@ -41,10 +41,11 @@ export default function AsesmenSiswa() {
   const [elemenAsesmenPreviewMap, setElemenAsesmenPreviewMap] = useState<Record<number, string[]>>({});
 
   useEffect(() => {
+    // Ambil sesi siswa, lalu load elemen sesuai kelas siswa tersebut.
     const loadData = async () => {
       const rawSession = localStorage.getItem('siswa_session');
       if (!rawSession) {
-        router.push('/');
+        window.location.replace('/');
         return;
       }
 
@@ -83,6 +84,7 @@ export default function AsesmenSiswa() {
         );
 
         const previewEntries = await Promise.all(
+          // Ini dipakai untuk preview judul asesmen di sisi belakang kartu.
           ((data as Array<any>) || []).map(async (item) => {
             const { data: asesmenRows, error: asesmenError } = await supabase.from('asesmen').select('judul_asesmen').eq('id_elemen', item.id_elemen).order('created_at', { ascending: false });
 
@@ -195,11 +197,11 @@ export default function AsesmenSiswa() {
                         <h3 className="text-lg font-bold mb-3 text-white">Daftar Asesmen {option.nama_elemen}</h3>
                         <div className="space-y-2 overflow-y-auto max-h-44 pr-1">
                           {(elemenAsesmenPreviewMap[option.id_elemen] || []).length > 0 ? (
-                            <ol className="list-decimal list-inside text-white/95 text-sm space-y-2">
+                            <ol className="list-decimal list-inside text-sm space-y-2">
                               {(elemenAsesmenPreviewMap[option.id_elemen] || []).map((judulAsesmen, index) => (
                                 <li
                                   key={`${option.id_elemen}-${index}`}
-                                  className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 transition-colors hover:bg-white/20 pointer-events-none"
+                                  className="rounded-lg border border-white/30 bg-white/55 px-3 py-2 font-semibold text-slate-900 transition-colors hover:bg-white/75 pointer-events-none"
                                 >
                                   {judulAsesmen}
                                 </li>

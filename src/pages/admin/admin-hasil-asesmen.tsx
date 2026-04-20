@@ -41,12 +41,13 @@ export default function AdminHasilAsesmen() {
   };
 
   useEffect(() => {
+    // Halaman ini validasi sesi admin lalu load elemen dan daftar asesmennya.
     const checkAdminAuth = async () => {
       try {
         const adminSession = localStorage.getItem('admin_session');
 
         if (!adminSession) {
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -57,7 +58,7 @@ export default function AdminHasilAsesmen() {
         if (adminError || !admin) {
           console.error('Error fetching admin data:', adminError);
           localStorage.removeItem('admin_session');
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -71,7 +72,7 @@ export default function AdminHasilAsesmen() {
         setLoading(false);
       } catch (error) {
         console.error('Error checking admin auth:', error);
-        router.push('/');
+        window.location.replace('/');
       }
     };
 
@@ -123,6 +124,7 @@ export default function AdminHasilAsesmen() {
 
   const fetchAsesmenByElemen = async (currentIdElemen: number) => {
     try {
+      // Ambil asesmen per elemen sebagai sumber data kartu hasil asesmen.
       const res = await fetch(`/api/asesmen?id_elemen=${currentIdElemen}`);
       if (!res.ok) {
         console.error('Error fetching asesmen:', res.status);
@@ -138,6 +140,7 @@ export default function AdminHasilAsesmen() {
   };
 
   const handleSearch = (term: string) => {
+    // Search lokal untuk memfilter daftar asesmen tanpa request tambahan.
     setSearchTerm(term);
     const filtered = asesmenList.filter((item) => item.judul_asesmen.toLowerCase().includes(term.toLowerCase()));
     setFilteredAsesmen(filtered);
@@ -186,7 +189,7 @@ export default function AdminHasilAsesmen() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.back()}
-              className="mana-btn mana-btn--neutral flex items-center gap-2 px-4 py-2 rounded-lg transition-all"
+              className="mb-6 flex items-center gap-2 rounded-lg border border-white/10 bg-gray-800/50 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-300 transition-all hover:bg-gray-700/50 hover:text-white"
             >
               <FaArrowLeft size={16} />
               Kembali

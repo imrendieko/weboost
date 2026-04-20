@@ -4,7 +4,7 @@ import supabaseAdmin from '@/lib/supabaseAdmin';
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
-    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+    return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
   }
 
   try {
@@ -139,6 +139,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ message: 'Pengumpulan individu berhasil disimpan', mode: 'individu' });
   } catch (error) {
     console.error('Error in POST /api/siswa/pbl-submit:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Terjadi kesalahan server' });
   }
 }

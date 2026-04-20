@@ -5,15 +5,15 @@ import GuruNavbar from '@/components/GuruNavbar';
 import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
 import { FaUser, FaEnvelope, FaLock, FaArrowLeft, FaSave, FaEye, FaEyeSlash, FaIdCard } from 'react-icons/fa';
-import { useAdminTheme } from '@/contexts/AdminThemeContext';
+import { useRoleTheme } from '@/lib/useRoleTheme';
 import supabase from '@/lib/db';
 
 interface GuruData {
   id_guru: number;
   nama_guru: string;
   email_guru: string;
-  password_guru: string;
-  nip_guru: string;
+  password_guru?: string;
+  nuptk_guru: string;
   lembaga_guru: number;
 }
 
@@ -32,7 +32,7 @@ interface Notification {
 
 export default function ProfilGuru() {
   const router = useRouter();
-  const { theme } = useAdminTheme();
+  const { theme } = useRoleTheme();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -42,7 +42,7 @@ export default function ProfilGuru() {
     nama_guru: '',
     email_guru: '',
     password_guru: '',
-    nip_guru: '',
+    nuptk_guru: '',
   });
   const [notification, setNotification] = useState<Notification>({
     show: false,
@@ -66,12 +66,13 @@ export default function ProfilGuru() {
   useEffect(() => {
     if (!router.isReady) return;
 
+    // Cek login guru lalu isi form profile dengan data terbaru dari database.
     const checkGuruAuth = async () => {
       try {
         const guruSession = localStorage.getItem('guru_session');
 
         if (!guruSession) {
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -83,7 +84,7 @@ export default function ProfilGuru() {
         if (guruError || !guru) {
           console.error('Error fetching guru profile:', guruError);
           localStorage.removeItem('guru_session');
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -95,14 +96,15 @@ export default function ProfilGuru() {
         setFormData({
           nama_guru: guru.nama_guru,
           email_guru: guru.email_guru,
-          password_guru: guru.password_guru,
-          nip_guru: guru.nip_guru,
+          // Password tidak diisi otomatis demi keamanan; isi hanya saat ingin mengganti.
+          password_guru: '',
+          nuptk_guru: guru.nuptk_guru,
         });
 
         setLoading(false);
       } catch (error) {
         console.error('Error during authentication check:', error);
-        router.push('/');
+        window.location.replace('/');
       }
     };
 
@@ -110,6 +112,7 @@ export default function ProfilGuru() {
   }, [router]);
 
   const showNotification = (message: string, type: NotificationType) => {
+    // Notif dibuat auto-hide biar feedback tetap ada tapi gak ganggu lama.
     setNotification({ show: true, message, type });
     setTimeout(() => {
       setNotification({ show: false, message: '', type: 'success' });
@@ -118,6 +121,16 @@ export default function ProfilGuru() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+
+    if (name === 'nuptk_guru') {
+      const numericOnly = value.replace(/\D/g, '');
+      setFormData((prev) => ({
+        ...prev,
+        [name]: numericOnly,
+      }));
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -129,11 +142,18 @@ export default function ProfilGuru() {
 
     if (!guruData) return;
 
-    if (!formData.nama_guru.trim() || !formData.email_guru.trim() || !formData.password_guru.trim() || !formData.nip_guru.trim()) {
+    if (!formData.nama_guru.trim() || !formData.email_guru.trim() || !formData.nuptk_guru.trim()) {
       showNotification('Semua field harus diisi', 'error');
       return;
     }
 
+    const normalizedNUPTK = formData.nuptk_guru.replace(/\D/g, '');
+    if (normalizedNUPTK.length !== 16) {
+      showNotification('NUPTK harus terdiri dari tepat 16 digit', 'error');
+      return;
+    }
+
+    // Saat submit, data dikirim ke API lalu session lokal ikut disinkronkan.
     setSubmitting(true);
 
     try {
@@ -145,8 +165,8 @@ export default function ProfilGuru() {
         body: JSON.stringify({
           nama_guru: formData.nama_guru,
           email_guru: formData.email_guru,
-          password_guru: formData.password_guru,
-          nip_guru: formData.nip_guru,
+          password_guru: formData.password_guru.trim(),
+          nuptk_guru: normalizedNUPTK,
           lembaga_guru: guruData.lembaga_guru,
         }),
       });
@@ -170,8 +190,8 @@ export default function ProfilGuru() {
       setFormData({
         nama_guru: result.data.nama_guru,
         email_guru: result.data.email_guru,
-        password_guru: result.data.password_guru,
-        nip_guru: result.data.nip_guru,
+        password_guru: '',
+        nuptk_guru: result.data.nuptk_guru,
       });
       showNotification('Profil berhasil diperbarui!', 'success');
     } catch (error: unknown) {
@@ -299,13 +319,13 @@ export default function ProfilGuru() {
                 </div>
               </div>
 
-              {/* NIP */}
+              {/* NUPTK */}
               <div>
                 <label
-                  htmlFor="nip_guru"
+                  htmlFor="nuptk_guru"
                   className="block text-sm font-medium mb-2"
                 >
-                  NIP
+                  NUPTK
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -313,12 +333,15 @@ export default function ProfilGuru() {
                   </div>
                   <input
                     type="text"
-                    id="nip_guru"
-                    name="nip_guru"
-                    value={formData.nip_guru}
+                    id="nuptk_guru"
+                    name="nuptk_guru"
+                    value={formData.nuptk_guru}
                     onChange={handleInputChange}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={16}
                     className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0080FF] focus:border-transparent transition-all"
-                    placeholder="Masukkan NIP"
+                    placeholder="Masukkan NUPTK (16 digit)"
                     required
                   />
                 </div>
@@ -338,7 +361,7 @@ export default function ProfilGuru() {
                 >
                   Password
                 </label>
-                <div className="relative">
+                <div className="password-input-wrapper relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     id="password_guru"
@@ -346,14 +369,25 @@ export default function ProfilGuru() {
                     value={formData.password_guru}
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 pr-12 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0080FF] focus:border-transparent transition-all"
-                    placeholder="Masukkan password"
-                    required
+                    placeholder="Isi jika ingin mengganti password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center justify-center text-gray-400 hover:text-gray-300 transition-colors rounded-r-lg"
-                    style={{ width: '38px' }}
+                    className="password-input-toggle text-gray-500"
+                    aria-label={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                    style={{
+                      position: 'absolute',
+                      right: '1rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      width: '20px',
+                      height: '20px',
+                      padding: 0,
+                      border: 'none',
+                      background: 'transparent',
+                      boxShadow: 'none',
+                    }}
                   >
                     {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
                   </button>
@@ -403,3 +437,4 @@ export default function ProfilGuru() {
     </div>
   );
 }
+

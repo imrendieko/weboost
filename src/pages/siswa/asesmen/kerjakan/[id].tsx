@@ -97,6 +97,72 @@ function formatDuration(seconds: number) {
   return `${hh}:${mm}:${ss}`;
 }
 
+function decodeHtmlEntities(value: string) {
+  if (!value) {
+    return '';
+  }
+
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = value;
+    return textarea.value;
+  }
+
+  return value
+    .replace(/&quot;/gi, '"')
+    .replace(/&#34;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&')
+    .replace(/&nbsp;/gi, ' ');
+}
+
+function normalizeSoalText(rawValue: string | null | undefined) {
+  const decoded = decodeHtmlEntities(String(rawValue || ''));
+  if (!decoded) {
+    return '';
+  }
+
+  let textOnly = decoded;
+
+  if (/<[^>]+>/.test(decoded)) {
+    if (typeof window !== 'undefined' && typeof DOMParser !== 'undefined') {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(decoded, 'text/html');
+      doc.querySelectorAll('script, style').forEach((node) => node.remove());
+      textOnly = doc.body.textContent || '';
+    } else {
+      textOnly = decoded.replace(/<[^>]*>/g, ' ');
+    }
+  }
+
+  return textOnly
+    .replace(/\u00a0/g, ' ')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+function normalizeOptionText(rawValue: string | null | undefined) {
+  const decoded = decodeHtmlEntities(String(rawValue || ''));
+  if (!decoded) {
+    return '';
+  }
+
+  return decoded
+    .replace(/\u00a0/g, ' ')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export default function SiswaKerjakanAsesmen() {
   const router = useRouter();
   const { id } = router.query;
@@ -124,6 +190,7 @@ export default function SiswaKerjakanAsesmen() {
   const [pendingValidation, setPendingValidation] = useState(false);
 
   useEffect(() => {
+    // Inisialisasi kuis: validasi sesi, ambil paket soal, dan status attempt siswa.
     const loadData = async () => {
       const rawSession = localStorage.getItem('siswa_session');
       if (!rawSession) {
@@ -160,6 +227,7 @@ export default function SiswaKerjakanAsesmen() {
 
   // Handle exit warning for the assessment page
   useEffect(() => {
+    // Selama kuis aktif, navigasi keluar ditahan dan dialihkan ke warning modal.
     // Only add exit warning if quiz is ongoing (not intro, not completed)
     if (!quizData || showIntro || quizData.attempt) {
       return;
@@ -309,6 +377,7 @@ export default function SiswaKerjakanAsesmen() {
 
   const soal = useMemo(() => quizData?.soal || [], [quizData]);
   const currentSoal = soal[currentIndex] || null;
+  const currentSoalText = useMemo(() => normalizeSoalText(currentSoal?.teks_soal), [currentSoal?.teks_soal]);
 
   const answeredCount = useMemo(() => {
     return soal.filter((item) => (answers[item.id_soal] || '').trim().length > 0).length;
@@ -459,7 +528,7 @@ export default function SiswaKerjakanAsesmen() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-black text-white relative overflow-hidden">
+      <div className="siswa-asesmen-kerjakan-page min-h-screen bg-black text-white relative overflow-hidden">
         <StarBackground />
         <SiswaNavbar siswaName={siswaSession.nama_siswa} />
         <div className="relative z-10 pt-24 pb-12 px-6">
@@ -486,7 +555,7 @@ export default function SiswaKerjakanAsesmen() {
 
   if (quizData.attempt) {
     return (
-      <div className="min-h-screen bg-black text-white relative overflow-hidden">
+      <div className="siswa-asesmen-kerjakan-page min-h-screen bg-black text-white relative overflow-hidden">
         <StarBackground />
         <SiswaNavbar siswaName={siswaSession.nama_siswa} />
 
@@ -502,24 +571,24 @@ export default function SiswaKerjakanAsesmen() {
             </button>
 
             {showTimeoutNotification && (
-              <div className="mb-6 rounded-2xl border border-green-400/40 bg-green-500/15 p-6">
+              <div className="kerjakan-timeout-box mb-6 rounded-2xl border border-green-400/40 bg-green-500/15 p-6">
                 <div className="flex items-start gap-4">
                   <div className="text-3xl text-green-300">✓</div>
                   <div>
-                    <p className="text-base font-semibold text-green-100 mb-2">Waktu Pengerjaan Habis</p>
-                    <p className="text-sm text-green-50">Jawaban Anda telah dikumpulkan otomatis. Terima kasih telah fokus dalam mengerjakan asesmen ini.</p>
+                    <p className="kerjakan-timeout-title text-base font-semibold text-green-100 mb-2">Waktu Pengerjaan Habis</p>
+                    <p className="kerjakan-timeout-text text-sm text-green-50">Jawaban Anda telah dikumpulkan otomatis. Terima kasih telah fokus dalam mengerjakan asesmen ini.</p>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="rounded-2xl border border-green-400/40 bg-green-500/15 p-8 text-center">
+            <div className="kerjakan-submitted-card rounded-2xl border border-green-400/40 bg-green-500/15 p-8 text-center">
               <FaCheckCircle className="mx-auto text-5xl text-green-300 mb-4" />
               <h1 className="text-3xl font-bold mb-2">Asesmen Sudah Dikerjakan</h1>
-              <p className="text-gray-200 mb-6">{quizData.asesmen.judul_asesmen}</p>
+              <p className="kerjakan-submitted-title text-gray-200 mb-6">{quizData.asesmen.judul_asesmen}</p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+                <div className="kerjakan-submitted-info rounded-xl border border-white/10 bg-black/30 p-4">
                   <p className="text-sm text-gray-400">Skor Anda</p>
                   {pendingValidation ? (
                     <p className="text-sm font-semibold text-amber-300">Menunggu validasi nilai oleh guru</p>
@@ -529,13 +598,13 @@ export default function SiswaKerjakanAsesmen() {
                     </p>
                   )}
                 </div>
-                <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+                <div className="kerjakan-submitted-info rounded-xl border border-white/10 bg-black/30 p-4">
                   <p className="text-sm text-gray-400">Durasi Pengerjaan</p>
                   <p className="text-2xl font-bold text-white">{formatDuration(quizData.attempt.durasi_detik)}</p>
                 </div>
               </div>
 
-              <p className="mt-6 text-sm text-gray-300">
+              <p className="kerjakan-submitted-date mt-6 text-sm text-gray-300">
                 Dikumpulkan pada{' '}
                 {new Date(quizData.attempt.submitted_at).toLocaleDateString('id-ID', {
                   day: 'numeric',
@@ -553,18 +622,18 @@ export default function SiswaKerjakanAsesmen() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
+    <div className="siswa-asesmen-kerjakan-page min-h-screen bg-black text-white relative overflow-hidden">
       <StarBackground />
       {showIntro && <SiswaNavbar siswaName={siswaSession.nama_siswa} />}
 
       {startCountdown !== null && (
         <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center px-6">
-          <div className="w-full max-w-md rounded-2xl border border-white/20 bg-gradient-to-b from-blue-500/20 to-indigo-500/15 p-8 text-center shadow-[0_20px_80px_rgba(14,91,255,0.25)]">
-            <p className="text-sm uppercase tracking-[0.2em] text-blue-200 mb-4">Bersiap...</p>
+          <div className="kerjakan-start-countdown w-full max-w-md rounded-2xl border border-white/20 bg-gradient-to-b from-blue-500/20 to-indigo-500/15 p-8 text-center shadow-[0_20px_80px_rgba(14,91,255,0.25)]">
+            <p className="kerjakan-countdown-title text-sm uppercase tracking-[0.2em] text-blue-200 mb-4">Bersiap...</p>
             <div className="mx-auto mb-4 flex h-40 w-40 items-center justify-center rounded-full border-4 border-white/30 bg-white/10 animate-pulse">
-              {startCountdown > 0 ? <span className="text-7xl font-black">{startCountdown}</span> : <span className="text-2xl font-black leading-tight">Selamat mengerjakan</span>}
+              {startCountdown > 0 ? <span className="kerjakan-countdown-number text-7xl font-black">{startCountdown}</span> : <span className="kerjakan-countdown-number text-2xl font-black leading-tight">Selamat mengerjakan</span>}
             </div>
-            <p className="text-gray-200 text-sm">Fokus, tenang, dan kerjakan yang terbaik.</p>
+            <p className="kerjakan-countdown-subtitle text-gray-200 text-sm">Fokus, tenang, dan kerjakan yang terbaik.</p>
           </div>
         </div>
       )}
@@ -579,7 +648,7 @@ export default function SiswaKerjakanAsesmen() {
           </div>
 
           {!showIntro && (
-            <div className="mb-5 rounded-xl border border-white/10 bg-black/40 p-4">
+            <div className="kerjakan-progress-panel mb-5 rounded-xl border border-white/10 bg-black/40 p-4">
               <div className="flex items-center justify-between text-sm mb-2">
                 <span>
                   Progress soal: {currentIndex + 1}/{soal.length}
@@ -604,7 +673,7 @@ export default function SiswaKerjakanAsesmen() {
                       key={item.id_soal}
                       type="button"
                       onClick={() => setCurrentIndex(index)}
-                      className={`h-9 rounded-lg text-xs font-bold transition ${isActive ? 'bg-white text-black' : isAnswered ? 'bg-emerald-500/80 text-white' : 'bg-white/10 text-gray-200 hover:bg-white/20'}`}
+                      className={`quiz-nav-tab h-9 rounded-lg text-xs font-bold transition ${isActive ? 'quiz-nav-tab--active bg-white text-black' : isAnswered ? 'quiz-nav-tab--answered bg-emerald-500/80 text-white' : 'quiz-nav-tab--unanswered bg-white/10 text-gray-200 hover:bg-white/20'}`}
                       title={`Soal ${index + 1}`}
                     >
                       {index + 1}
@@ -616,20 +685,20 @@ export default function SiswaKerjakanAsesmen() {
           )}
 
           {showIntro ? (
-            <div className="rounded-2xl border border-blue-400/40 bg-blue-500/15 p-8">
+            <div className="kerjakan-intro-card rounded-2xl border border-blue-400/40 bg-blue-500/15 p-8">
               <h2 className="text-2xl font-bold mb-3">Siap Mulai Asesmen?</h2>
-              <p className="text-gray-200 mb-4">Jawab semua soal seperti game quiz interaktif. Fokus dan santai!</p>
+              <p className="kerjakan-intro-desc text-gray-200 mb-4">Jawab semua soal dengan baik dan benar. Fokus tapi tetap santai!</p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div className="rounded-xl border border-white/10 bg-black/30 p-4 inline-flex items-center gap-3">
-                  <FaListOl className="text-blue-300" />
+                <div className="kerjakan-info-card rounded-xl border border-white/10 bg-black/30 p-4 inline-flex items-center gap-3">
+                  <FaListOl className="kerjakan-icon text-blue-300" />
                   <div>
                     <p className="text-xs text-gray-400">Total Soal</p>
                     <p className="font-bold">{soal.length}</p>
                   </div>
                 </div>
-                <div className="rounded-xl border border-white/10 bg-black/30 p-4 inline-flex items-center gap-3">
-                  <FaStopwatch className="text-blue-300" />
+                <div className="kerjakan-info-card rounded-xl border border-white/10 bg-black/30 p-4 inline-flex items-center gap-3">
+                  <FaStopwatch className="kerjakan-icon text-blue-300" />
                   <div>
                     <p className="text-xs text-gray-400">Durasi</p>
                     <p className="font-bold">{quizData.asesmen.durasi_asesmen || quizData.asesmen.durasi_kuis || 0} menit</p>
@@ -649,19 +718,19 @@ export default function SiswaKerjakanAsesmen() {
             </div>
           ) : currentSoal ? (
             <>
-              <div className="rounded-2xl border border-white/10 bg-black/30 p-6 mb-4">
+              <div className="kerjakan-main-panel rounded-2xl border border-white/10 bg-black/30 p-6 mb-4">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
                   {secondsLeft !== null && (
-                    <div className="inline-flex items-center gap-2 rounded-lg border border-yellow-400/40 bg-yellow-500/20 px-3 py-2 text-yellow-100 animate-pulse">
-                      <FaClock />
+                    <div className="kerjakan-timer-badge inline-flex items-center gap-2 rounded-lg border border-yellow-400/40 bg-yellow-500/20 px-3 py-2 text-yellow-100 animate-pulse">
+                      <FaClock className="kerjakan-icon" />
                       Sisa Waktu: {formatDuration(secondsLeft)}
                     </div>
                   )}
                 </div>
 
-                <div className="mb-4 rounded-xl border border-blue-400/30 bg-gradient-to-b from-[#071427] to-[#030b1a] p-5">
-                  <p className="text-xs uppercase tracking-[0.18em] text-blue-200 mb-2">Soal</p>
-                  <p className="text-2xl font-semibold text-white leading-relaxed whitespace-pre-wrap">{currentSoal.teks_soal}</p>
+                <div className="kerjakan-question-head mb-4 rounded-xl border border-blue-400/30 bg-gradient-to-b from-[#071427] to-[#030b1a] p-5">
+                  <p className="kerjakan-label text-xs uppercase tracking-[0.18em] text-blue-200 mb-2">Soal</p>
+                  <p className="kerjakan-question-text text-2xl font-semibold text-white leading-relaxed whitespace-pre-wrap">{currentSoalText}</p>
                 </div>
 
                 {currentSoal.gambar_soal && (
@@ -691,7 +760,7 @@ export default function SiswaKerjakanAsesmen() {
                             <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg text-lg font-black ${selected ? 'bg-white/25 text-white' : 'bg-black/20 text-white'}`}>{theme.badge}</span>
                             <span className="font-bold text-sm">{option.opsi_pilgan}</span>
                           </div>
-                          <p className="font-semibold mb-1">{option.teks_pilgan || 'Pilihan gambar'}</p>
+                          <p className="font-semibold mb-1 whitespace-pre-wrap">{normalizeOptionText(option.teks_pilgan) || 'Pilihan gambar'}</p>
                           {option.gambar_pilgan && (
                             <img
                               src={option.gambar_pilgan}
@@ -706,13 +775,13 @@ export default function SiswaKerjakanAsesmen() {
                 ) : (
                   <div>
                     {currentSoal.tipe_soal === 'baris_kode' && (
-                      <p className="text-sm text-blue-200 mb-2 inline-flex items-center gap-2">
-                        <FaCode />
+                      <p className="kerjakan-code-hint text-sm text-blue-200 mb-2 inline-flex items-center gap-2">
+                        <FaCode className="kerjakan-icon" />
                         Edit kode program berikut untuk menjawab (case-sensitive)
                       </p>
                     )}
                     {currentSoal.tipe_soal === 'baris_kode' ? (
-                      <div className="rounded-xl border border-blue-500/40 overflow-hidden bg-[#0b1020]">
+                      <div className="kerjakan-code-wrap rounded-xl border border-blue-500/40 overflow-hidden bg-[#0b1020]">
                         <div className="flex items-center gap-2 border-b border-white/10 bg-black/30 px-3 py-2 text-xs text-gray-300">
                           <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
                           <span className="h-2.5 w-2.5 rounded-full bg-yellow-300" />
@@ -723,6 +792,7 @@ export default function SiswaKerjakanAsesmen() {
                           value={answers[currentSoal.id_soal] || ''}
                           extensions={[javascript()]}
                           onChange={(value) => handleAnswer(currentSoal.id_soal, value)}
+                          className="soal-code-editor"
                           theme="dark"
                           height="360px"
                         />
@@ -732,7 +802,7 @@ export default function SiswaKerjakanAsesmen() {
                         value={answers[currentSoal.id_soal] || ''}
                         onChange={(event) => handleAnswer(currentSoal.id_soal, event.target.value)}
                         rows={5}
-                        className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-[#0080FF]"
+                        className="kerjakan-textarea w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-[#0080FF]"
                         placeholder="Tulis jawaban Anda..."
                       />
                     )}
@@ -785,22 +855,18 @@ export default function SiswaKerjakanAsesmen() {
           <div
             className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-300 ${
               notification.type === 'success'
-                ? 'border-green-400/40 bg-gradient-to-b from-green-500/20 to-green-500/10'
+                ? 'border-green-500/60 bg-green-700/95'
                 : notification.type === 'error'
-                  ? 'border-red-400/40 bg-gradient-to-b from-red-500/20 to-red-500/10'
+                  ? 'border-red-500/60 bg-red-700/95'
                   : notification.type === 'warning'
-                    ? 'border-yellow-400/40 bg-gradient-to-b from-yellow-500/20 to-yellow-500/10'
-                    : 'border-blue-400/40 bg-gradient-to-b from-blue-500/20 to-blue-500/10'
+                    ? 'border-yellow-500/60 bg-yellow-700/95'
+                    : 'border-blue-500/60 bg-blue-700/95'
             }`}
           >
             <div className="flex items-start gap-4">
-              <div className={`flex-shrink-0 text-3xl ${notification.type === 'success' ? 'text-green-300' : notification.type === 'error' ? 'text-red-300' : notification.type === 'warning' ? 'text-yellow-300' : 'text-blue-300'}`}>
-                {notification.type === 'success' ? '✓' : notification.type === 'error' ? '✕' : notification.type === 'warning' ? '⚠' : 'ℹ'}
-              </div>
+              <div className="flex-shrink-0 text-3xl text-white">{notification.type === 'success' ? '✓' : notification.type === 'error' ? '✕' : notification.type === 'warning' ? '⚠' : 'ℹ'}</div>
               <div className="flex-1">
-                <p className={`text-base font-semibold mb-4 ${notification.type === 'success' ? 'text-green-100' : notification.type === 'error' ? 'text-red-100' : notification.type === 'warning' ? 'text-yellow-100' : 'text-blue-100'}`}>
-                  {notification.message}
-                </p>
+                <p className="text-base font-semibold mb-4 text-white">{notification.message}</p>
                 <button
                   type="button"
                   onClick={() => {
@@ -809,12 +875,12 @@ export default function SiswaKerjakanAsesmen() {
                   }}
                   className={`w-full rounded-lg px-4 py-2.5 font-semibold transition ${
                     notification.type === 'success'
-                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      ? 'bg-green-600 hover:bg-green-500 text-white'
                       : notification.type === 'error'
-                        ? 'bg-red-600 hover:bg-red-700 text-white'
+                        ? 'bg-red-600 hover:bg-red-500 text-white'
                         : notification.type === 'warning'
-                          ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                          ? 'bg-yellow-600 hover:bg-yellow-500 text-white'
+                          : 'bg-blue-600 hover:bg-blue-500 text-white'
                   }`}
                 >
                   OK

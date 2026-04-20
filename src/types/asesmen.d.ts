@@ -6,7 +6,7 @@ export interface Asesmen {
   sampul_asesmen: string; // URL dari Supabase Storage
   guru_asesmen: number; // fk id_guru
   id_elemen: number; // fk id_elemen
-  nilai_asesmen: number; // Sum dari nilai_soal siswa yang benar
+  nilai_asesmen?: number | null; // Legacy: kolom ini bisa tidak ada di skema DB terbaru
   waktu_mulai: string; // ISO datetime
   waktu_terakhir: string; // ISO datetime
   durasi_asesmen?: number | null; // Opsional, dalam menit

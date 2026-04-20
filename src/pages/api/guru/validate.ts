@@ -8,7 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const guruId = Number(id_guru);
 
       if (!guruId || Number.isNaN(guruId)) {
-        return res.status(400).json({ error: 'Missing guru ID' });
+        return res.status(400).json({ error: 'ID guru wajib diisi' });
       }
 
       // Update status_guru to true (validated)
@@ -19,16 +19,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (error.code === 'PGRST116') {
           return res.status(404).json({ error: 'Guru tidak ditemukan' });
         }
-        return res.status(500).json({ error: 'Failed to validate guru' });
+        return res.status(500).json({ error: 'Gagal memvalidasi data guru' });
       }
 
       return res.status(200).json({ message: 'Guru berhasil divalidasi', data });
     } catch (error) {
       console.error('Error:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Terjadi kesalahan server' });
     }
   } else {
     res.setHeader('Allow', ['PUT']);
-    return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
   }
 }

@@ -5,8 +5,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { FaUserCircle, FaChevronDown, FaHome, FaBook, FaProjectDiagram, FaClipboardList, FaBars, FaTimes } from 'react-icons/fa';
-import { useAdminTheme } from '@/contexts/AdminThemeContext';
+import { FaUserCircle, FaChevronDown, FaHome, FaBook, FaClipboardList, FaBars, FaTimes } from 'react-icons/fa';
+import PublicThemeToggle from '@/components/PublicThemeToggle';
+import { useRoleTheme } from '@/lib/useRoleTheme';
 
 interface GuruNavbarProps {
   guruName: string;
@@ -17,7 +18,7 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const { theme, mounted } = useAdminTheme();
+  const { theme, mounted } = useRoleTheme();
   const isLightTheme = mounted && theme === 'light';
 
   // Close dropdowns when clicking outside
@@ -34,7 +35,7 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
 
   const handleLogout = () => {
     localStorage.removeItem('guru_session');
-    router.push('/');
+    window.location.replace('/');
   };
 
   const toggleMobileMenu = () => {
@@ -58,7 +59,7 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
             className="flex items-center group"
           >
             {/* Mobile - Square Logo */}
-            <div className="relative w-12 h-12 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden md:hidden">
+            <div className="relative w-12 h-12 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden xl:hidden">
               <Image
                 src="/logo_weboost_persegi.png"
                 alt="WeBoost Logo"
@@ -67,7 +68,7 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
               />
             </div>
             {/* Desktop - Original Logo */}
-            <div className="relative w-45 h-16 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden hidden md:block">
+            <div className="relative w-45 h-16 group-hover:shadow-[0_0_20px_rgba(0,229,255,0.6)] transition-all duration-300 rounded-lg overflow-hidden hidden xl:block">
               <Image
                 src="/logo_weboost.png"
                 alt="WeBoost Logo"
@@ -78,7 +79,7 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
           </Link>
 
           {/* Desktop Navigation Menu */}
-          <div className="hidden md:flex items-center gap-15">
+          <div className="hidden xl:flex items-center gap-15">
             <Link
               href="/dashboard-guru"
               className="text-white hover:text-[#0080FF] transition-colors duration-300 font-medium relative group flex items-center gap-2"
@@ -89,20 +90,11 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
             </Link>
 
             <Link
-              href="/guru/materi"
+              href="/guru/pembelajaran"
               className="text-white hover:text-[#0080FF] transition-colors duration-300 font-medium relative group flex items-center gap-2"
             >
               <FaBook size={16} />
-              Materi
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#0080FF] transition-all duration-300 group-hover:w-full"></span>
-            </Link>
-
-            <Link
-              href="/guru/pbl"
-              className="text-white hover:text-[#0080FF] transition-colors duration-300 font-medium relative group flex items-center gap-2"
-            >
-              <FaProjectDiagram size={16} />
-              PBL
+              Pembelajaran
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#0080FF] transition-all duration-300 group-hover:w-full"></span>
             </Link>
 
@@ -114,22 +106,21 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
               Asesmen
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#0080FF] transition-all duration-300 group-hover:w-full"></span>
             </Link>
+
+            <PublicThemeToggle />
           </div>
 
           {/* Desktop Guru Profile Dropdown */}
           <div
-            className="hidden md:block relative"
+            className="hidden xl:block relative"
             ref={profileRef}
           >
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
               className="flex items-center gap-2 text-white transition-all duration-300 font-medium relative group px-4 py-2.5 rounded-xl bg-white/5 border border-white/20 hover:bg-white/15 shadow-[0_4px_15px_rgba(0,128,255,0.3)]"
             >
-              <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
-                <FaUserCircle
-                  className="text-2xl"
-                  style={{ color: isLightTheme ? '#000000' : '#ffffff' }}
-                />
+              <div className="profile-avatar-shell w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
+                <FaUserCircle className="profile-avatar-icon text-2xl" />
               </div>
               <span className="font-medium">{firstName}</span>
               <FaChevronDown className={`text-sm transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} />
@@ -141,10 +132,7 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
                   href="/guru/profil"
                   className="flex items-center gap-3 px-4 py-3 text-white hover:bg-white/10 transition-all duration-200 border-b border-white/10"
                 >
-                  <FaUserCircle
-                    className="text-xl"
-                    style={{ color: isLightTheme ? '#000000' : '#ffffff' }}
-                  />
+                  <FaUserCircle className="profile-avatar-icon text-xl" />
                   <span>Profil</span>
                 </Link>
                 <button
@@ -173,7 +161,7 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
           {/* Mobile Hamburger Button */}
           <button
             onClick={toggleMobileMenu}
-            className="mana-btn mana-btn--neutral h-11 w-11 p-0 inline-flex items-center justify-center text-lg z-50 md:hidden"
+            className="mana-btn mana-btn--neutral h-11 w-11 p-0 inline-flex items-center justify-center text-lg z-50 xl:hidden"
             aria-label="Toggle menu"
           >
             {isMobileMenuOpen ? <FaTimes /> : <FaBars />}
@@ -188,7 +176,7 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
             opacity: isMobileMenuOpen ? 1 : 0,
           }}
           transition={{ duration: 0.3, ease: 'easeInOut' }}
-          className="md:hidden overflow-hidden bg-black/90 backdrop-blur-xl"
+          className="xl:hidden overflow-hidden bg-black/90 backdrop-blur-xl"
         >
           <div className="flex flex-col space-y-4 px-6 py-6">
             <Link
@@ -201,21 +189,12 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
             </Link>
 
             <Link
-              href="/guru/materi"
+              href="/guru/pembelajaran"
               onClick={closeMobileMenu}
               className="text-white hover:text-[#0080FF] transition-colors duration-300 flex items-center gap-3 text-lg"
             >
               <FaBook size={18} />
-              Materi
-            </Link>
-
-            <Link
-              href="/guru/pbl"
-              onClick={closeMobileMenu}
-              className="text-white hover:text-[#0080FF] transition-colors duration-300 flex items-center gap-3 text-lg"
-            >
-              <FaProjectDiagram size={18} />
-              PBL
+              Pembelajaran
             </Link>
 
             <Link
@@ -227,11 +206,13 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
               Asesmen
             </Link>
 
+            <PublicThemeToggle mobile />
+
             {/* Mobile Profile Section */}
             <div className="mt-4 pt-4 border-t border-white/20">
               <div className="flex items-center gap-3 mb-4 text-white">
-                <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
-                  <FaUserCircle className="text-2xl" />
+                <div className="profile-avatar-shell w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
+                  <FaUserCircle className="profile-avatar-icon text-2xl" />
                 </div>
                 <span className="font-medium">{firstName}</span>
               </div>
@@ -247,7 +228,7 @@ export default function GuruNavbar({ guruName }: GuruNavbarProps) {
                   closeMobileMenu();
                   handleLogout();
                 }}
-                className="w-full px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-all duration-300 shadow-lg flex items-center justify-center gap-2"
+                className="mobile-logout-btn w-full px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-all duration-300 shadow-lg flex items-center justify-center gap-2"
               >
                 Keluar
               </button>

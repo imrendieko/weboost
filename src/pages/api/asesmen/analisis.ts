@@ -27,7 +27,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (attemptError) {
         console.error('❌ Error fetching attempt:', attemptError);
-        return res.status(500).json({ error: 'Asesmen attempt tidak ditemukan' });
+        return res.status(500).json({ error: 'Data pengerjaan asesmen tidak ditemukan' });
+      }
+
+      const { data: siswaData, error: siswaError } = await supabaseAdmin.from('siswa').select('id_siswa, nama_siswa').eq('id_siswa', idSiswa).single();
+
+      if (siswaError) {
+        console.warn('⚠️ Error fetching siswa info (non-blocking):', siswaError);
       }
 
       console.log('✅ Found attempt:', { skor: attemptData.skor_total, durasi: attemptData.durasi_detik });
@@ -53,6 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({
           attempt: attemptData,
           analysis: [],
+          siswa: siswaData || null,
           pending_validation: true,
           message: 'Menunggu validasi nilai oleh guru',
         });
@@ -89,13 +96,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({
         attempt: attemptData,
         analysis: analysisWithTP || [],
+        siswa: siswaData || null,
         pending_validation: false,
       });
     } catch (error) {
       console.error('❌ Error in GET /api/asesmen/analisis:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Terjadi kesalahan server' });
     }
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Metode tidak diizinkan' });
   }
 }

@@ -5,6 +5,7 @@ import supabase from '@/lib/db';
 import AdminNavbar from '@/components/AdminNavbar';
 import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
+import DataTablePagination from '@/components/DataTablePagination';
 import { FaSchool, FaEdit, FaTrash, FaCheck, FaTimes, FaSearch } from 'react-icons/fa';
 
 interface AdminData {
@@ -45,6 +46,8 @@ export default function KelolaSekolah() {
   // Filter and search states
   const [search, setSearch] = useState('');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; nama: string } | null>(null);
 
@@ -63,12 +66,13 @@ export default function KelolaSekolah() {
   };
 
   useEffect(() => {
+    // Cek auth admin dulu sebelum membuka modul manajemen sekolah.
     const checkAdminAuth = async () => {
       try {
         const adminSession = localStorage.getItem('admin_session');
 
         if (!adminSession) {
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -79,7 +83,7 @@ export default function KelolaSekolah() {
         if (adminError || !admin) {
           console.error('Error fetching admin data:', adminError);
           localStorage.removeItem('admin_session');
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -88,7 +92,7 @@ export default function KelolaSekolah() {
         setLoading(false);
       } catch (error) {
         console.error('Error checking admin auth:', error);
-        router.push('/');
+        window.location.replace('/');
       }
     };
 
@@ -97,6 +101,7 @@ export default function KelolaSekolah() {
 
   const fetchLembagaData = async () => {
     try {
+      // Endpoint lembaga jadi sumber utama tabel sekolah.
       const response = await fetch('/api/lembaga');
       const data = await response.json();
 
@@ -133,6 +138,7 @@ export default function KelolaSekolah() {
   };
 
   const handleSaveNew = async () => {
+    // Validasi sederhana supaya nama sekolah tidak kosong saat create.
     if (!newLembaga.nama_lembaga || newLembaga.nama_lembaga.trim() === '') {
       showNotification('Nama sekolah harus diisi', 'error');
       return;
@@ -238,6 +244,11 @@ export default function KelolaSekolah() {
       }
     });
 
+    const totalPages = Math.max(1, Math.ceil(filteredList.length / rowsPerPage));
+    const safePage = Math.min(currentPage, totalPages);
+    const startIndex = (safePage - 1) * rowsPerPage;
+    const paginatedList = filteredList.slice(startIndex, startIndex + rowsPerPage);
+
     return (
       <div>
         {/* Filter and Search */}
@@ -284,12 +295,12 @@ export default function KelolaSekolah() {
                   </td>
                 </tr>
               ) : (
-                filteredList.map((lembaga, index) => (
+                paginatedList.map((lembaga, index) => (
                   <tr
                     key={lembaga.id_lembaga}
                     className="border-b border-white/5 hover:bg-white/5 transition-colors"
                   >
-                    <td className="px-4 py-3 text-white">{index + 1}</td>
+                    <td className="px-4 py-3 text-white">{startIndex + index + 1}</td>
                     <td className="px-4 py-3 text-white">{lembaga.nama_lembaga}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex gap-2 justify-center">
@@ -315,9 +326,23 @@ export default function KelolaSekolah() {
             </tbody>
           </table>
         </div>
+
+        {filteredList.length > 0 && (
+          <DataTablePagination
+            totalItems={filteredList.length}
+            currentPage={safePage}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setCurrentPage}
+            onRowsPerPageChange={setRowsPerPage}
+          />
+        )}
       </div>
     );
   };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, sortOrder]);
 
   if (loading) {
     return (
@@ -368,14 +393,16 @@ export default function KelolaSekolah() {
                     setShowAddModal(false);
                     setNewLembaga({ nama_lembaga: '' });
                   }}
-                  className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  className="flex-1 px-6 py-3 bg-white hover:bg-gray-100 !text-black rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaTimes size={14} />
                   Batal
                 </button>
                 <button
                   onClick={handleSaveNew}
-                  className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  className="flex-1 px-6 py-3 bg-blue-700 hover:bg-blue-800 !text-white rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaCheck size={14} />
                   Simpan
                 </button>
               </div>
@@ -415,14 +442,16 @@ export default function KelolaSekolah() {
                     setShowEditModal(false);
                     setEditingLembaga(null);
                   }}
-                  className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  className="flex-1 px-6 py-3 bg-white hover:bg-gray-100 !text-black rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaTimes size={14} />
                   Batal
                 </button>
                 <button
                   onClick={handleSaveEdit}
-                  className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  className="flex-1 px-6 py-3 bg-blue-700 hover:bg-blue-800 !text-white rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaCheck size={14} />
                   Simpan
                 </button>
               </div>

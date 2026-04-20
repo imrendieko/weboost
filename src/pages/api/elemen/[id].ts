@@ -172,9 +172,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ message: 'Data elemen beserta semua data terkait berhasil dihapus' });
     } catch (error) {
       console.error('Error in delete elemen API:', error);
-      return res.status(500).json({ error: 'Terjadi kesalahan server', details: error instanceof Error ? error.message : 'Unknown error' });
+      return res.status(500).json({ error: 'Terjadi kesalahan server', details: error instanceof Error ? error.message : 'Kesalahan tidak diketahui' });
     }
   }
 
-  return res.status(405).json({ error: 'Method not allowed' });
+  return res.status(405).json({ error: 'Metode tidak diizinkan' });
 }

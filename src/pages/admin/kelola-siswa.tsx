@@ -5,7 +5,8 @@ import supabase from '@/lib/db';
 import AdminNavbar from '@/components/AdminNavbar';
 import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
-import { FaUserGraduate, FaEdit, FaTrash, FaCheck, FaTimes, FaSearch } from 'react-icons/fa';
+import DataTablePagination from '@/components/DataTablePagination';
+import { FaUserGraduate, FaEdit, FaTrash, FaCheck, FaTimes, FaSearch, FaCheckCircle, FaClock, FaSave } from 'react-icons/fa';
 
 interface AdminData {
   id_admin: number;
@@ -31,6 +32,7 @@ interface Siswa {
   nisn_siswa: string;
   kelas_siswa: number;
   lembaga_siswa: number;
+  status_guru: boolean;
   created_at: string;
   lembaga?: Lembaga;
   kelas?: Kelas;
@@ -58,7 +60,8 @@ export default function KelolaSiswa() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [adminData, setAdminData] = useState<AdminData | null>(null);
-  const [siswaList, setSiswaList] = useState<Siswa[]>([]);
+  const [siswaBelumValidasi, setSiswaBelumValidasi] = useState<Siswa[]>([]);
+  const [siswaSudahValidasi, setSiswaSudahValidasi] = useState<Siswa[]>([]);
   const [lembagaList, setLembagaList] = useState<Lembaga[]>([]);
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -75,11 +78,20 @@ export default function KelolaSiswa() {
   const [notification, setNotification] = useState<Notification>({ show: false, message: '', type: 'success' });
 
   // Filter and search states
-  const [search, setSearch] = useState('');
-  const [filterLembaga, setFilterLembaga] = useState('all');
-  const [filterKelas, setFilterKelas] = useState('all');
-  const [sortBy, setSortBy] = useState('created_at');
-  const [sortOrder, setSortOrder] = useState('desc');
+  const [searchBelum, setSearchBelum] = useState('');
+  const [searchSudah, setSearchSudah] = useState('');
+  const [filterLembagaBelum, setFilterLembagaBelum] = useState('all');
+  const [filterLembagaSudah, setFilterLembagaSudah] = useState('all');
+  const [filterKelasBelum, setFilterKelasBelum] = useState('all');
+  const [filterKelasSudah, setFilterKelasSudah] = useState('all');
+  const [sortByBelum, setSortByBelum] = useState('created_at');
+  const [sortBySudah, setSortBySudah] = useState('created_at');
+  const [sortOrderBelum, setSortOrderBelum] = useState('desc');
+  const [sortOrderSudah, setSortOrderSudah] = useState('desc');
+  const [currentPageBelum, setCurrentPageBelum] = useState(1);
+  const [rowsPerPageBelum, setRowsPerPageBelum] = useState(10);
+  const [currentPageSudah, setCurrentPageSudah] = useState(1);
+  const [rowsPerPageSudah, setRowsPerPageSudah] = useState(10);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; nama: string } | null>(null);
 
@@ -98,12 +110,15 @@ export default function KelolaSiswa() {
   };
 
   useEffect(() => {
+    if (!router.isReady) return;
+
+    // Validasi admin dulu, lalu ambil data referensi (lembaga/kelas) dan data siswa.
     const checkAdminAuth = async () => {
       try {
         const adminSession = localStorage.getItem('admin_session');
 
         if (!adminSession) {
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -114,7 +129,7 @@ export default function KelolaSiswa() {
         if (adminError || !admin) {
           console.error('Error fetching admin data:', adminError);
           localStorage.removeItem('admin_session');
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -125,7 +140,7 @@ export default function KelolaSiswa() {
         setLoading(false);
       } catch (error) {
         console.error('Error checking admin auth:', error);
-        router.push('/');
+        window.location.replace('/');
       }
     };
 
@@ -154,28 +169,49 @@ export default function KelolaSiswa() {
 
   const fetchSiswaData = async () => {
     try {
-      // Fetch all siswa data
-      const response = await fetch(`/api/siswa?search=${search}&lembaga=${filterLembaga}&kelas=${filterKelas}&sortBy=${sortBy}&sortOrder=${sortOrder}`);
-      const data = await response.json();
+      // Sama seperti guru: kita pisah tabel belum/sudah validasi untuk monitoring cepat.
+      // Fetch unvalidated siswa
+      const resBelum = await fetch(`/api/siswa?status=unvalidated&search=${searchBelum}&lembaga=${filterLembagaBelum}&kelas=${filterKelasBelum}&sortBy=${sortByBelum}&sortOrder=${sortOrderBelum}`);
+      const dataBelum = await resBelum.json();
 
-      // Ensure data is an array
-      if (Array.isArray(data)) {
-        setSiswaList(data);
+      if (Array.isArray(dataBelum)) {
+        setSiswaBelumValidasi(dataBelum);
       } else {
-        console.error('Data siswa bukan array:', data);
-        setSiswaList([]);
+        console.error('Data siswa belum validasi bukan array:', dataBelum);
+        setSiswaBelumValidasi([]);
+      }
+
+      // Fetch validated siswa
+      const resSudah = await fetch(`/api/siswa?status=validated&search=${searchSudah}&lembaga=${filterLembagaSudah}&kelas=${filterKelasSudah}&sortBy=${sortBySudah}&sortOrder=${sortOrderSudah}`);
+      const dataSudah = await resSudah.json();
+
+      if (Array.isArray(dataSudah)) {
+        setSiswaSudahValidasi(dataSudah);
+      } else {
+        console.error('Data siswa sudah validasi bukan array:', dataSudah);
+        setSiswaSudahValidasi([]);
       }
     } catch (error) {
       console.error('Error fetching siswa data:', error);
-      setSiswaList([]);
+      setSiswaBelumValidasi([]);
+      setSiswaSudahValidasi([]);
     }
   };
 
   useEffect(() => {
+    // Semua kontrol filter/sort/search bakal memicu refresh data list siswa.
     if (!loading) {
       fetchSiswaData();
     }
-  }, [search, filterLembaga, filterKelas, sortBy, sortOrder]);
+  }, [searchBelum, searchSudah, filterLembagaBelum, filterLembagaSudah, filterKelasBelum, filterKelasSudah, sortByBelum, sortBySudah, sortOrderBelum, sortOrderSudah]);
+
+  useEffect(() => {
+    setCurrentPageBelum(1);
+  }, [searchBelum, filterLembagaBelum, filterKelasBelum, sortByBelum, sortOrderBelum]);
+
+  useEffect(() => {
+    setCurrentPageSudah(1);
+  }, [searchSudah, filterLembagaSudah, filterKelasSudah, sortBySudah, sortOrderSudah]);
 
   const showNotification = (message: string, type: NotificationType) => {
     setNotification({ show: true, message, type });
@@ -183,6 +219,8 @@ export default function KelolaSiswa() {
       setNotification({ show: false, message: '', type: 'success' });
     }, 3000);
   };
+
+  const normalizeDigits = (value: string) => value.replace(/\D/g, '');
 
   const handleEdit = (siswa: Siswa) => {
     setEditingSiswa({
@@ -216,13 +254,19 @@ export default function KelolaSiswa() {
       return;
     }
 
+    const normalizedNisn = normalizeDigits(newSiswa.nisn_siswa);
+    if (normalizedNisn.length < 10) {
+      showNotification('NISN tidak boleh kurang dari 10 digit', 'error');
+      return;
+    }
+
     try {
-      console.log('Sending data:', newSiswa);
+      console.log('Sending data:', { ...newSiswa, nisn_siswa: normalizedNisn });
 
       const response = await fetch('/api/siswa/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newSiswa),
+        body: JSON.stringify({ ...newSiswa, nisn_siswa: normalizedNisn }),
       });
 
       const result = await response.json();
@@ -247,11 +291,17 @@ export default function KelolaSiswa() {
   const handleSaveEdit = async () => {
     if (!editingSiswa) return;
 
+    const normalizedNisn = normalizeDigits(editingSiswa.nisn_siswa);
+    if (normalizedNisn.length < 10) {
+      showNotification('NISN tidak boleh kurang dari 10 digit', 'error');
+      return;
+    }
+
     try {
       const response = await fetch(`/api/siswa/${editingSiswa.id_siswa}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingSiswa),
+        body: JSON.stringify({ ...editingSiswa, nisn_siswa: normalizedNisn }),
       });
 
       const result = await response.json();
@@ -273,6 +323,28 @@ export default function KelolaSiswa() {
   const handleDelete = async (id_siswa: number, nama_siswa: string) => {
     setDeleteTarget({ id: id_siswa, nama: nama_siswa });
     setShowDeleteModal(true);
+  };
+
+  const handleValidate = async (id_siswa: number) => {
+    try {
+      const response = await fetch('/api/siswa/validate', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_siswa }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        showNotification('Siswa berhasil divalidasi', 'success');
+        fetchSiswaData();
+      } else {
+        showNotification(result.error || 'Gagal memvalidasi siswa', 'error');
+      }
+    } catch (error) {
+      console.error('Error validating siswa:', error);
+      showNotification('Terjadi kesalahan saat memvalidasi siswa', 'error');
+    }
   };
 
   const confirmDelete = async () => {
@@ -301,10 +373,33 @@ export default function KelolaSiswa() {
   };
 
   const maskPassword = (password: string) => {
-    return '*'.repeat(password.length);
+    const safeLength = Math.max(password.length, 8);
+    const masked = '*'.repeat(safeLength);
+    if (masked.length <= 8) {
+      return masked;
+    }
+
+    return `${masked.slice(0, 8)}...`;
   };
 
-  const renderTable = () => {
+  const renderTable = (
+    siswaList: Siswa[],
+    isValidated: boolean,
+    search: string,
+    setSearch: (v: string) => void,
+    filterLembaga: string,
+    setFilterLembaga: (v: string) => void,
+    filterKelas: string,
+    setFilterKelas: (v: string) => void,
+    sortBy: string,
+    setSortBy: (v: string) => void,
+    sortOrder: string,
+    setSortOrder: (v: string) => void,
+    currentPage: number,
+    setCurrentPage: (v: number) => void,
+    rowsPerPage: number,
+    setRowsPerPage: (v: number) => void,
+  ) => {
     // Safety check: ensure siswaList is an array
     const safeSiswaList = Array.isArray(siswaList) ? siswaList : [];
     const normalizedSearch = search.trim().toLowerCase();
@@ -316,6 +411,11 @@ export default function KelolaSiswa() {
 
       return nama.includes(normalizedSearch) || nisn.includes(normalizedSearch);
     });
+
+    const totalPages = Math.max(1, Math.ceil(filteredList.length / rowsPerPage));
+    const safePage = Math.min(currentPage, totalPages);
+    const startIndex = (safePage - 1) * rowsPerPage;
+    const paginatedList = filteredList.slice(startIndex, startIndex + rowsPerPage);
 
     return (
       <div>
@@ -397,6 +497,7 @@ export default function KelolaSiswa() {
                 <th className="px-4 py-3 text-left text-white font-semibold">NISN</th>
                 <th className="px-4 py-3 text-left text-white font-semibold">Kelas</th>
                 <th className="px-4 py-3 text-left text-white font-semibold">Sekolah/Lembaga</th>
+                {!isValidated && <th className="px-4 py-3 text-center text-white font-semibold">Validasi</th>}
                 <th className="px-4 py-3 text-center text-white font-semibold">Aksi</th>
               </tr>
             </thead>
@@ -404,40 +505,50 @@ export default function KelolaSiswa() {
               {filteredList.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={!isValidated ? 9 : 8}
                     className="px-4 py-8 text-center text-gray-400"
                   >
                     Tidak ada data siswa
                   </td>
                 </tr>
               ) : (
-                filteredList.map((siswa, index) => (
+                paginatedList.map((siswa, index) => (
                   <tr
                     key={siswa.id_siswa}
                     className="border-b border-white/5 hover:bg-white/5 transition-colors"
                   >
-                    <td className="px-4 py-3 text-white">{index + 1}</td>
+                    <td className="px-4 py-3 text-white">{startIndex + index + 1}</td>
                     <td className="px-4 py-3 text-white">{siswa.nama_siswa}</td>
                     <td className="px-4 py-3 text-white">{siswa.email_siswa}</td>
-                    <td className="px-4 py-3 text-white font-mono">{maskPassword(siswa.password_siswa)}</td>
+                    <td className="px-4 py-3 text-white font-mono whitespace-nowrap max-w-[140px] truncate">{maskPassword(siswa.password_siswa)}</td>
                     <td className="px-4 py-3 text-white">{siswa.nisn_siswa}</td>
                     <td className="px-4 py-3 text-white">{siswa.kelas?.nama_kelas || '-'}</td>
                     <td className="px-4 py-3 text-white">{siswa.lembaga?.nama_lembaga || '-'}</td>
+                    {!isValidated && (
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => handleValidate(siswa.id_siswa)}
+                          className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
+                        >
+                          Validasi
+                        </button>
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-center">
-                      <div className="flex gap-2 justify-center">
+                      <div className="flex gap-3 justify-center items-center">
                         <button
                           onClick={() => handleEdit(siswa)}
-                          className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                          className="w-11 h-11 sm:w-12 sm:h-12 inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                           title="Edit"
                         >
-                          <FaEdit />
+                          <FaEdit className="text-lg sm:text-xl" />
                         </button>
                         <button
                           onClick={() => handleDelete(siswa.id_siswa, siswa.nama_siswa)}
-                          className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                          className="w-11 h-11 sm:w-12 sm:h-12 inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                           title="Hapus"
                         >
-                          <FaTrash />
+                          <FaTrash className="text-lg sm:text-xl" />
                         </button>
                       </div>
                     </td>
@@ -447,6 +558,16 @@ export default function KelolaSiswa() {
             </tbody>
           </table>
         </div>
+
+        {filteredList.length > 0 && (
+          <DataTablePagination
+            totalItems={filteredList.length}
+            currentPage={safePage}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setCurrentPage}
+            onRowsPerPageChange={setRowsPerPage}
+          />
+        )}
       </div>
     );
   };
@@ -476,8 +597,8 @@ export default function KelolaSiswa() {
 
             {/* Notification inside modal */}
             {notification.show && (
-              <div className={`mb-4 px-4 py-3 rounded-lg ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white flex items-center gap-3`}>
-                {notification.type === 'success' ? <FaCheck /> : <FaTimes />}
+              <div className={`mb-4 px-4 py-3 rounded-lg ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-700'} !text-white flex items-center gap-3`}>
+                {notification.type === 'success' ? <FaCheck className="text-white" /> : <FaTimes className="text-white" />}
                 {notification.message}
               </div>
             )}
@@ -521,7 +642,10 @@ export default function KelolaSiswa() {
                 <input
                   type="text"
                   value={newSiswa.nisn_siswa}
-                  onChange={(e) => setNewSiswa({ ...newSiswa, nisn_siswa: e.target.value })}
+                  onChange={(e) => setNewSiswa({ ...newSiswa, nisn_siswa: normalizeDigits(e.target.value) })}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={10}
                   className="w-full px-4 py-3 bg-gray-800 border-none rounded-lg text-white"
                   placeholder="Masukkan NISN"
                 />
@@ -569,14 +693,16 @@ export default function KelolaSiswa() {
                     setShowAddModal(false);
                     setNewSiswa({ nama_siswa: '', email_siswa: '', password_siswa: '', nisn_siswa: '', kelas_siswa: 0, lembaga_siswa: 0 });
                   }}
-                  className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  className="flex-1 px-6 py-3 bg-white hover:bg-gray-100 !text-slate-900 rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaTimes className="text-slate-900" />
                   Batal
                 </button>
                 <button
                   onClick={handleSaveNew}
-                  className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  className="flex-1 px-6 py-3 bg-blue-700 hover:bg-blue-800 !text-white rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaSave className="text-white" />
                   Simpan
                 </button>
               </div>
@@ -593,8 +719,8 @@ export default function KelolaSiswa() {
 
             {/* Notification inside modal */}
             {notification.show && (
-              <div className={`mb-4 px-4 py-3 rounded-lg ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white flex items-center gap-3`}>
-                {notification.type === 'success' ? <FaCheck /> : <FaTimes />}
+              <div className={`mb-4 px-4 py-3 rounded-lg ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-700'} !text-white flex items-center gap-3`}>
+                {notification.type === 'success' ? <FaCheck className="text-white" /> : <FaTimes className="text-white" />}
                 {notification.message}
               </div>
             )}
@@ -636,7 +762,10 @@ export default function KelolaSiswa() {
                 <input
                   type="text"
                   value={editingSiswa.nisn_siswa}
-                  onChange={(e) => setEditingSiswa({ ...editingSiswa, nisn_siswa: e.target.value })}
+                  onChange={(e) => setEditingSiswa({ ...editingSiswa, nisn_siswa: normalizeDigits(e.target.value) })}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={10}
                   className="w-full px-4 py-3 bg-gray-800 border-none rounded-lg text-white"
                 />
               </div>
@@ -683,14 +812,16 @@ export default function KelolaSiswa() {
                     setShowEditModal(false);
                     setEditingSiswa(null);
                   }}
-                  className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  className="flex-1 px-6 py-3 bg-white hover:bg-gray-100 !text-slate-900 rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaTimes className="text-slate-900" />
                   Batal
                 </button>
                 <button
                   onClick={handleSaveEdit}
-                  className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  className="flex-1 px-6 py-3 bg-blue-700 hover:bg-blue-800 !text-white rounded-lg transition-colors inline-flex items-center justify-center gap-2"
                 >
+                  <FaSave className="text-white" />
                   Simpan
                 </button>
               </div>
@@ -722,14 +853,16 @@ export default function KelolaSiswa() {
                   setShowDeleteModal(false);
                   setDeleteTarget(null);
                 }}
-                className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                className="flex-1 px-6 py-3 bg-white hover:bg-gray-100 !text-slate-900 rounded-lg transition-colors inline-flex items-center justify-center gap-2"
               >
+                <FaTimes className="text-slate-900" />
                 Batal
               </button>
               <button
                 onClick={confirmDelete}
-                className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-semibold"
+                className="flex-1 px-6 py-3 bg-red-700 hover:bg-red-800 !text-white rounded-lg transition-colors font-semibold inline-flex items-center justify-center gap-2"
               >
+                <FaTrash className="text-white" />
                 Hapus
               </button>
             </div>
@@ -752,8 +885,8 @@ export default function KelolaSiswa() {
 
         {/* Notification */}
         {notification.show && (
-          <div className={`mb-6 px-4 py-3 rounded-lg ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white flex items-center gap-3`}>
-            {notification.type === 'success' ? <FaCheck /> : <FaTimes />}
+          <div className={`mb-6 px-4 py-3 rounded-lg ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-700'} !text-white flex items-center gap-3`}>
+            {notification.type === 'success' ? <FaCheck className="text-white" /> : <FaTimes className="text-white" />}
             {notification.message}
           </div>
         )}
@@ -770,22 +903,65 @@ export default function KelolaSiswa() {
           <span className="text-white">kelola-siswa</span>
         </div>
 
-        {/* Siswa Terdaftar */}
-        <div className="bg-gray-900/50 backdrop-blur-md border border-white/10 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <FaUserGraduate className="text-white text-2xl" />
-              <h2 className="text-white text-xl font-semibold">Data Siswa</h2>
+        {/* Siswa Belum diValidasi */}
+        <div className="mb-6 sm:mb-8 bg-gray-900/50 backdrop-blur-md border border-white/10 rounded-xl p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <FaClock className="text-white text-lg sm:text-2xl" />
+              <h2 className="text-white text-base sm:text-lg md:text-xl font-semibold">Siswa yang Belum diValidasi</h2>
             </div>
             <button
               onClick={handleOpenAddModal}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              className="px-3 sm:px-4 py-2 sm:py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm sm:text-base rounded-lg transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
             >
               <FaUserGraduate />
               Tambah Data Siswa
             </button>
           </div>
-          {renderTable()}
+          {renderTable(
+            siswaBelumValidasi,
+            false,
+            searchBelum,
+            setSearchBelum,
+            filterLembagaBelum,
+            setFilterLembagaBelum,
+            filterKelasBelum,
+            setFilterKelasBelum,
+            sortByBelum,
+            setSortByBelum,
+            sortOrderBelum,
+            setSortOrderBelum,
+            currentPageBelum,
+            setCurrentPageBelum,
+            rowsPerPageBelum,
+            setRowsPerPageBelum,
+          )}
+        </div>
+
+        {/* Siswa Sudah diValidasi */}
+        <div className="bg-gray-900/50 backdrop-blur-md border border-white/10 rounded-xl p-4 sm:p-6">
+          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+            <FaCheckCircle className="text-white text-lg sm:text-2xl" />
+            <h2 className="text-white text-base sm:text-lg md:text-xl font-semibold">Siswa yang Sudah diValidasi</h2>
+          </div>
+          {renderTable(
+            siswaSudahValidasi,
+            true,
+            searchSudah,
+            setSearchSudah,
+            filterLembagaSudah,
+            setFilterLembagaSudah,
+            filterKelasSudah,
+            setFilterKelasSudah,
+            sortBySudah,
+            setSortBySudah,
+            sortOrderSudah,
+            setSortOrderSudah,
+            currentPageSudah,
+            setCurrentPageSudah,
+            rowsPerPageSudah,
+            setRowsPerPageSudah,
+          )}
         </div>
       </div>
 

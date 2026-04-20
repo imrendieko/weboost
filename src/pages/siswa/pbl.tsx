@@ -1,12 +1,34 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
 import SiswaNavbar from '@/components/SiswaNavbar';
+import DataTablePagination from '@/components/DataTablePagination';
 import supabase from '@/lib/db';
 import { LampiranType, parseLampiran, serializeLampiran } from '@/lib/pbl';
-import { FaArrowLeft, FaCheck, FaClock, FaCommentAlt, FaEllipsisV, FaExclamationCircle, FaFileAlt, FaLink, FaPaperPlane, FaProjectDiagram, FaSave, FaTrash, FaUser, FaVideo } from 'react-icons/fa';
+import {
+  FaArrowLeft,
+  FaBook,
+  FaCheck,
+  FaChevronDown,
+  FaChevronUp,
+  FaClock,
+  FaCommentAlt,
+  FaDownload,
+  FaEllipsisV,
+  FaExclamationCircle,
+  FaExternalLinkAlt,
+  FaFileAlt,
+  FaLink,
+  FaLock,
+  FaPaperPlane,
+  FaProjectDiagram,
+  FaSave,
+  FaTrash,
+  FaUser,
+  FaVideo,
+} from 'react-icons/fa';
 
 interface SiswaSession {
   id_siswa: number;
@@ -19,6 +41,7 @@ interface ElemenOption {
   id_elemen: number;
   nama_elemen: string;
   sampul_elemen?: string;
+  guru_pengampu?: number | null;
   guru?: {
     nama_guru: string;
   } | null;
@@ -86,6 +109,25 @@ interface ApiSintak {
   replyingTo: ApiKomentar | null;
 }
 
+interface MateriSubBab {
+  id_sub_bab: number;
+  judul_sub_bab: string;
+  tautan_konten: string;
+}
+
+interface MateriBab {
+  id_bab: number;
+  judul_bab: string;
+  deskripsi_bab?: string;
+  sub_bab?: MateriSubBab[];
+}
+
+interface MateriOverview {
+  id_materi: number;
+  judul_materi?: string;
+  bab?: MateriBab[];
+}
+
 type NotificationType = 'success' | 'error';
 
 interface NotificationState {
@@ -101,6 +143,29 @@ const PBL_SINTAK_TITLES = [
   'Sintak 4: Mengembangkan dan Menyajikan Hasil Karya',
   'Sintak 5: Menganalisis dan Mengevaluasi Proses Pemecahan Masalah',
 ] as const;
+
+function buildSintakMateriTag(order: number) {
+  return `[SINTAK-${order}]`;
+}
+
+function hasSintakMateriTag(judulMateri: unknown, order: number) {
+  if (typeof judulMateri !== 'string') {
+    return false;
+  }
+
+  return judulMateri.toUpperCase().includes(buildSintakMateriTag(order));
+}
+
+function stripSintakMateriTag(judulMateri: unknown) {
+  if (typeof judulMateri !== 'string') {
+    return '';
+  }
+
+  return judulMateri
+    .replace(/\s*\[SINTAK-\d+\]\s*/gi, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
 
 function getCurrentDate() {
   const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -210,6 +275,12 @@ function parseSubmissionFile(rawValue: string) {
   };
 }
 
+function stripUnsafeHtml(html: string) {
+  const withWhitelistedDecodedTags = html.replace(/&lt;(\/?)(b|strong|i|em|u|ul|ol|li|p|br)&gt;/gi, '<$1$2>').replace(/&lt;(\/?)(span|div)&gt;/gi, '<$1$2>');
+
+  return withWhitelistedDecodedTags.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '').replace(/on\w+=['"][^'"]*['"]/gi, '');
+}
+
 export default function PBLSiswa() {
   const router = useRouter();
   const elemenQuery = router.query.elemen;
@@ -217,6 +288,21 @@ export default function PBLSiswa() {
   const elemenId = typeof elemenQuery === 'string' ? Number(elemenQuery) : null;
   const sintakOrder = typeof sintakQuery === 'string' ? Number(sintakQuery) : null;
   const preferredSintakOrder = sintakOrder && sintakOrder >= 1 && sintakOrder <= 5 ? sintakOrder : null;
+
+  useEffect(() => {
+    if (!router.isReady) {
+      return;
+    }
+
+    if (router.pathname !== '/siswa/pbl') {
+      return;
+    }
+
+    router.replace({
+      pathname: '/siswa/pembelajaran',
+      query: router.query,
+    });
+  }, [router]);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -228,6 +314,13 @@ export default function PBLSiswa() {
   const [sintakState, setSintakState] = useState<ApiSintak[]>([]);
   const [notification, setNotification] = useState<NotificationState>({ show: false, type: 'success', message: '' });
   const [openCommentMenu, setOpenCommentMenu] = useState<number | null>(null);
+  const [materiBySintak, setMateriBySintak] = useState<Record<number, MateriOverview | null>>({});
+  const [expandedMateriBabs, setExpandedMateriBabs] = useState<number[]>([]);
+  const [expandedMateriPreviews, setExpandedMateriPreviews] = useState<number[]>([]);
+  const [completedBySintak, setCompletedBySintak] = useState<Record<number, Record<number, boolean>>>({});
+  const [confirmCompleteSubBabId, setConfirmCompleteSubBabId] = useState<number | null>(null);
+  const [currentPageSubmissionInfo, setCurrentPageSubmissionInfo] = useState(1);
+  const [rowsPerPageSubmissionInfo, setRowsPerPageSubmissionInfo] = useState(10);
   const notificationTimerRef = useRef<number | null>(null);
 
   const showNotification = (message: string, type: NotificationType) => {
@@ -273,8 +366,9 @@ export default function PBLSiswa() {
       setSintakState(mappedSintaks);
 
       const availableOrders = new Set(mappedSintaks.map((item: ApiSintak) => item.order));
-      if (initialOrder && availableOrders.has(initialOrder)) {
-        setActiveSintak(initialOrder);
+      const requestedOrder = initialOrder ?? activeSintak ?? preferredSintakOrder;
+      if (requestedOrder && availableOrders.has(requestedOrder)) {
+        setActiveSintak(requestedOrder);
       } else {
         setActiveSintak(1);
       }
@@ -286,12 +380,112 @@ export default function PBLSiswa() {
     }
   };
 
+  const fetchMateriOverviewBySintak = async (kelasId: number, currentElemenId: number, sintakOrder: number, guruPengampuId?: number | null): Promise<MateriOverview | null> => {
+    try {
+      let resolvedMateriRows: Array<any> = [];
+
+      if (guruPengampuId) {
+        const materiListResponse = await fetch(`/api/materi?id_guru=${guruPengampuId}`);
+        if (materiListResponse.ok) {
+          const materiList = await materiListResponse.json();
+          const materiByElemen = ((materiList as Array<any>) || []).filter((item) => item.kelas_materi === currentElemenId || item.id_elemen === currentElemenId || item.elemen?.id_elemen === currentElemenId);
+          resolvedMateriRows = materiByElemen.filter((item) => hasSintakMateriTag(item.judul_materi, sintakOrder));
+
+          // Backward compatibility: old untagged materi belongs to Sintak 1.
+          if (resolvedMateriRows.length === 0 && sintakOrder === 1) {
+            resolvedMateriRows = materiByElemen.filter((item) => !/\[SINTAK-\d+\]/i.test(String(item.judul_materi || '')));
+          }
+        }
+      }
+
+      if (resolvedMateriRows.length === 0) {
+        const baseQuery = supabase.from('materi').select('id_materi, judul_materi, nama_materi, guru_materi, id_elemen').eq('kelas_materi', kelasId).order('id_materi', { ascending: true });
+
+        const materiQuery = guruPengampuId ? baseQuery.or(`id_elemen.eq.${currentElemenId},and(id_elemen.is.null,guru_materi.eq.${guruPengampuId})`) : baseQuery.eq('id_elemen', currentElemenId);
+
+        const { data: materiRows, error: materiError } = await materiQuery;
+        if (materiError) {
+          return null;
+        }
+
+        const materiByElemen = (materiRows as Array<any>) || [];
+        resolvedMateriRows = materiByElemen.filter((item) => hasSintakMateriTag(item.judul_materi, sintakOrder));
+
+        if (resolvedMateriRows.length === 0 && sintakOrder === 1) {
+          resolvedMateriRows = materiByElemen.filter((item) => !/\[SINTAK-\d+\]/i.test(String(item.judul_materi || '')));
+        }
+      }
+
+      if (resolvedMateriRows.length === 0 && guruPengampuId) {
+        const { data: fallbackRows, error: fallbackError } = await supabase.from('materi').select('id_materi, judul_materi, nama_materi').eq('guru_materi', guruPengampuId).order('id_materi', { ascending: true });
+
+        if (fallbackError) {
+          return null;
+        }
+
+        const fallbackMateriRows = (fallbackRows as Array<any>) || [];
+        resolvedMateriRows = fallbackMateriRows.filter((item) => hasSintakMateriTag(item.judul_materi, sintakOrder));
+
+        if (resolvedMateriRows.length === 0 && sintakOrder === 1) {
+          resolvedMateriRows = fallbackMateriRows.filter((item) => !/\[SINTAK-\d+\]/i.test(String(item.judul_materi || '')));
+        }
+      }
+
+      if (resolvedMateriRows.length === 0) {
+        return null;
+      }
+
+      const materiDetails = await Promise.all(
+        resolvedMateriRows.map(async (item) => {
+          const response = await fetch(`/api/materi/${item.id_materi}`);
+          if (!response.ok) {
+            return {
+              id_materi: item.id_materi,
+              judul_materi: item.judul_materi || item.nama_materi || 'Materi Pembelajaran',
+              bab: [] as MateriBab[],
+            };
+          }
+
+          const detail = await response.json();
+          return {
+            id_materi: detail.id_materi,
+            judul_materi: detail.judul_materi || item.judul_materi || item.nama_materi || 'Materi Pembelajaran',
+            bab: Array.isArray(detail.bab) ? detail.bab : [],
+          };
+        }),
+      );
+
+      const selectedMateri = materiDetails.find((item) => item.bab.length > 0) || materiDetails[0];
+
+      return {
+        id_materi: selectedMateri.id_materi,
+        judul_materi: stripSintakMateriTag(selectedMateri.judul_materi),
+        bab: selectedMateri.bab,
+      };
+    } catch (error) {
+      console.error('Error fetching materi overview siswa:', error);
+      return null;
+    }
+  };
+
+  const fetchAllMateriBySintak = async (kelasId: number, currentElemenId: number, guruPengampuId?: number | null) => {
+    const entries = await Promise.all(
+      [1, 2, 3, 4, 5].map(async (order) => {
+        const materi = await fetchMateriOverviewBySintak(kelasId, currentElemenId, order, guruPengampuId);
+        return [order, materi] as const;
+      }),
+    );
+
+    setMateriBySintak(Object.fromEntries(entries));
+  };
+
   useEffect(() => {
+    // Bootstrapping siswa: cek sesi, load elemen sesuai kelas, lalu ambil data PBL elemen terpilih.
     const loadInitialData = async () => {
       try {
         const rawSession = localStorage.getItem('siswa_session');
         if (!rawSession) {
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -305,6 +499,7 @@ export default function PBLSiswa() {
             id_elemen,
             nama_elemen,
             sampul_elemen,
+            guru_pengampu,
             guru:guru_pengampu (
               nama_guru
             ),
@@ -321,19 +516,24 @@ export default function PBLSiswa() {
             id_elemen: item.id_elemen,
             nama_elemen: item.nama_elemen,
             sampul_elemen: item.sampul_elemen,
+            guru_pengampu: item.guru_pengampu,
             guru: Array.isArray(item.guru) ? item.guru[0] || null : item.guru || null,
             kelas: Array.isArray(item.kelas) ? item.kelas[0] || null : item.kelas || null,
           })),
         );
 
         if (elemenId) {
+          // Materi diambil per sintak supaya panel belajar bisa dibuka cepat per tahap.
+          const selectedElemen = ((elemenData as Array<any>) || []).find((item) => item.id_elemen === elemenId);
           await fetchPblData(session.id_siswa, elemenId, preferredSintakOrder);
+          await fetchAllMateriBySintak(session.kelas_siswa, elemenId, selectedElemen?.guru_pengampu ?? null);
         } else {
           setLoading(false);
+          setMateriBySintak({});
         }
       } catch (error) {
         console.error('Error loading pbl siswa:', error);
-        router.push('/');
+        window.location.replace('/');
       }
     };
 
@@ -342,12 +542,156 @@ export default function PBLSiswa() {
     }
   }, [router.isReady, elemenId, preferredSintakOrder]);
 
+  const getProgressStorageKey = (order: number) => {
+    if (!siswaSession || !elemenId) {
+      return '';
+    }
+
+    return `materi_selesai_${siswaSession.id_siswa}_${elemenId}_sintak_${order}`;
+  };
+
+  const materiOverview = useMemo(() => materiBySintak[activeSintak] || null, [materiBySintak, activeSintak]);
+  const completedMap = useMemo(() => completedBySintak[activeSintak] || {}, [completedBySintak, activeSintak]);
+
+  const setCompletedMap = (updater: Record<number, boolean> | ((current: Record<number, boolean>) => Record<number, boolean>)) => {
+    setCompletedBySintak((current) => {
+      const currentSintakMap = current[activeSintak] || {};
+      const nextSintakMap = typeof updater === 'function' ? updater(currentSintakMap) : updater;
+      return {
+        ...current,
+        [activeSintak]: nextSintakMap,
+      };
+    });
+  };
+
+  const syncSintakQuery = useCallback(
+    (order: number) => {
+      if (!router.isReady || !elemenId) {
+        return;
+      }
+
+      const currentQueryOrder = typeof router.query.sintak === 'string' ? Number(router.query.sintak) : Number(Array.isArray(router.query.sintak) ? router.query.sintak[0] : null);
+      if (currentQueryOrder === order) {
+        return;
+      }
+
+      router.replace(
+        {
+          pathname: '/siswa/pembelajaran',
+          query: {
+            ...router.query,
+            elemen: elemenId,
+            sintak: order,
+          },
+        },
+        undefined,
+        { shallow: true },
+      );
+    },
+    [router, elemenId],
+  );
+
+  const handleSintakChange = useCallback(
+    (order: number) => {
+      setActiveSintak(order);
+      syncSintakQuery(order);
+    },
+    [syncSintakQuery],
+  );
+
+  const allSubBab = useMemo(() => {
+    return (materiOverview?.bab || []).flatMap((bab) => bab.sub_bab || []);
+  }, [materiOverview]);
+
+  const completedCount = useMemo(() => {
+    return allSubBab.filter((item) => completedMap[item.id_sub_bab]).length;
+  }, [allSubBab, completedMap]);
+
+  const subBabUnlockMap = useMemo(() => {
+    const unlockedMap: Record<number, boolean> = {};
+    allSubBab.forEach((subBab, index) => {
+      const previousSubBabId = index > 0 ? allSubBab[index - 1].id_sub_bab : null;
+      const isAlreadyCompleted = !!completedMap[subBab.id_sub_bab];
+      unlockedMap[subBab.id_sub_bab] = isAlreadyCompleted || previousSubBabId === null || !!completedMap[previousSubBabId];
+    });
+    return unlockedMap;
+  }, [allSubBab, completedMap]);
+
+  const subBabTitleMap = useMemo(() => {
+    return allSubBab.reduce(
+      (acc, subBab) => {
+        acc[subBab.id_sub_bab] = subBab.judul_sub_bab;
+        return acc;
+      },
+      {} as Record<number, string>,
+    );
+  }, [allSubBab]);
+
+  const progressPercent = useMemo(() => {
+    if (allSubBab.length === 0) {
+      return 0;
+    }
+    return Math.round((completedCount / allSubBab.length) * 100);
+  }, [allSubBab.length, completedCount]);
+
+  useEffect(() => {
+    if (!siswaSession || !elemenId) {
+      return;
+    }
+
+    const initialMap: Record<number, Record<number, boolean>> = {};
+    [1, 2, 3, 4, 5].forEach((order) => {
+      const storageKey = getProgressStorageKey(order);
+      if (!storageKey) {
+        initialMap[order] = {};
+        return;
+      }
+
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) {
+        initialMap[order] = {};
+        return;
+      }
+
+      try {
+        initialMap[order] = JSON.parse(raw) as Record<number, boolean>;
+      } catch {
+        initialMap[order] = {};
+      }
+    });
+
+    setCompletedBySintak(initialMap);
+  }, [siswaSession?.id_siswa, elemenId]);
+
+  useEffect(() => {
+    if (!siswaSession || !elemenId) {
+      return;
+    }
+
+    const progressStorageKey = getProgressStorageKey(activeSintak);
+    if (progressStorageKey) {
+      localStorage.setItem(progressStorageKey, JSON.stringify(completedMap));
+    }
+
+    fetch('/api/siswa/progres-materi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id_siswa: siswaSession.id_siswa,
+        email_siswa: siswaSession.email_siswa,
+        kelas_siswa: siswaSession.kelas_siswa,
+        sub_bab_selesai: completedCount,
+        total_sub_bab: allSubBab.length,
+      }),
+    }).catch((error) => console.error('Error syncing progres_materi:', error));
+  }, [activeSintak, completedMap, siswaSession, elemenId, completedCount, allSubBab.length]);
+
   const openElemenPbl = (idElemen: number, order?: number) => {
     const query = new URLSearchParams({ elemen: String(idElemen) });
     if (order) {
       query.set('sintak', String(order));
     }
-    router.push(`/siswa/pbl?${query.toString()}`);
+    router.push(`/siswa/pembelajaran?${query.toString()}`);
   };
 
   const updateSintak = (order: number, updater: (current: ApiSintak) => ApiSintak) => {
@@ -355,6 +699,56 @@ export default function PBLSiswa() {
   };
 
   const activeSintakState = sintakState.find((item) => item.order === activeSintak) || null;
+  const sintakLockedMap = useMemo(() => {
+    const lockedMap: Record<number, boolean> = {};
+
+    [1, 2, 3, 4, 5].forEach((order) => {
+      if (order === 1) {
+        lockedMap[order] = false;
+        return;
+      }
+
+      let canAccess = true;
+
+      for (let previousOrder = 1; previousOrder < order; previousOrder += 1) {
+        const previousSintak = sintakState.find((sintak) => sintak.order === previousOrder);
+        const previousMateri = materiBySintak[previousOrder] || null;
+        const previousSubBab = (previousMateri?.bab || []).flatMap((bab) => bab.sub_bab || []);
+        const previousCompletedMap = completedBySintak[previousOrder] || {};
+
+        const previousHasMateri = previousSubBab.length > 0;
+        const previousMateriDone = previousHasMateri && previousSubBab.every((subBab) => !!previousCompletedMap[subBab.id_sub_bab]);
+        const previousSubmissionDone = !!previousSintak?.mySubmission;
+
+        if (!(previousMateriDone && previousSubmissionDone)) {
+          canAccess = false;
+          break;
+        }
+      }
+
+      lockedMap[order] = !canAccess;
+    });
+
+    return lockedMap;
+  }, [sintakState, materiBySintak, completedBySintak]);
+
+  const isActiveSintakLocked = (sintakLockedMap[activeSintak] ?? activeSintak !== 1) === true;
+
+  useEffect(() => {
+    if (!sintakState.length) {
+      return;
+    }
+
+    if (!isActiveSintakLocked) {
+      return;
+    }
+
+    const firstUnlocked = sintakState.find((item) => !sintakLockedMap[item.order]);
+    if (firstUnlocked) {
+      setActiveSintak(firstUnlocked.order);
+    }
+  }, [sintakState, sintakLockedMap, activeSintak, isActiveSintakLocked]);
+
   const isSubmissionTimeConfigured = Boolean(activeSintakState?.waktu_mulai && activeSintakState?.waktu_selesai);
   const submissionTimingStatus = useMemo(() => {
     if (!activeSintakState?.mySubmission) {
@@ -414,7 +808,7 @@ export default function PBLSiswa() {
                   <button
                     type="button"
                     onClick={() => setOpenCommentMenu(openCommentMenu === reply.id_komentar ? null : reply.id_komentar)}
-                    className="inline-flex items-center justify-center rounded-lg border border-white/10 p-2 text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
+                    className="comment-menu-btn inline-flex items-center justify-center rounded-lg border border-white/10 p-2 text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
                   >
                     <FaEllipsisV />
                   </button>
@@ -446,14 +840,14 @@ export default function PBLSiswa() {
                               return;
                             }
                             if (elemenId) {
-                              await fetchPblData(currentSiswaId, elemenId);
+                              await fetchPblData(currentSiswaId, elemenId, activeSintak);
                             }
                             showNotification('Komentar berhasil dihapus.', 'success');
                             setOpenCommentMenu(null);
                           }}
                           className="flex w-full items-center gap-2 px-3 py-2.5 text-xs sm:text-sm text-red-300 transition hover:bg-red-500/20"
                         >
-                          <FaTrash />
+                          <FaTrash className="h-4 w-4 shrink-0" />
                           Hapus
                         </button>
                       )}
@@ -497,6 +891,11 @@ export default function PBLSiswa() {
 
   const handleSubmitPBL = async () => {
     if (!siswaSession || !elemenId || !activeSintakState?.id_sintak) {
+      return;
+    }
+
+    if (isActiveSintakLocked) {
+      showNotification('Sintak ini masih terkunci. Selesaikan semua materi dan tugas sintak sebelumnya.', 'error');
       return;
     }
 
@@ -545,7 +944,7 @@ export default function PBLSiswa() {
         throw new Error(result.error || 'Gagal mengirim pengumpulan PBL');
       }
 
-      await fetchPblData(siswaSession.id_siswa, elemenId);
+      await fetchPblData(siswaSession.id_siswa, elemenId, activeSintak);
       showNotification('Pengumpulan berhasil dikirim.', 'success');
     } catch (error) {
       console.error('Error submitting pbl siswa:', error);
@@ -583,7 +982,7 @@ export default function PBLSiswa() {
         throw new Error(result.error || 'Gagal menambahkan komentar');
       }
 
-      await fetchPblData(siswaSession.id_siswa, elemenId);
+      await fetchPblData(siswaSession.id_siswa, elemenId, activeSintak);
       showNotification('Komentar berhasil ditambahkan.', 'success');
     } catch (error) {
       console.error('Error adding pbl comment siswa:', error);
@@ -605,6 +1004,263 @@ export default function PBLSiswa() {
     router.push(`/guru/pbl/preview?${query.toString()}`);
   };
 
+  const requestCompleteSubBab = (subBabId: number) => {
+    if (isActiveSintakLocked) {
+      return;
+    }
+
+    if (completedMap[subBabId] || !subBabUnlockMap[subBabId]) {
+      return;
+    }
+    setConfirmCompleteSubBabId(subBabId);
+  };
+
+  const confirmCompleteSubBab = () => {
+    if (!confirmCompleteSubBabId) {
+      return;
+    }
+
+    const targetSubBabId = confirmCompleteSubBabId;
+    setCompletedMap((current) => {
+      if (current[targetSubBabId]) {
+        return current;
+      }
+      return {
+        ...current,
+        [targetSubBabId]: true,
+      };
+    });
+
+    setConfirmCompleteSubBabId(null);
+  };
+
+  const getFileTypeFromUrl = (tautanKonten: string): 'dokumen' | 'video' | 'tautan' => {
+    const parts = tautanKonten.split('|');
+    if (parts.length >= 3) {
+      const explicitType = parts[0] as 'dokumen' | 'video' | 'tautan';
+      if (explicitType === 'dokumen' || explicitType === 'video' || explicitType === 'tautan') {
+        return explicitType;
+      }
+    }
+
+    const lowered = tautanKonten.toLowerCase();
+    if (lowered.includes('youtube.com') || lowered.includes('youtu.be') || lowered.match(/\.(mp4|mov|avi|webm)$/)) {
+      return 'video';
+    }
+
+    if (lowered.match(/\.(pdf|doc|docx|ppt|pptx|xls|xlsx)$/)) {
+      return 'dokumen';
+    }
+
+    return 'tautan';
+  };
+
+  const getFileUrlFromContent = (tautanKonten: string): string => {
+    const parts = tautanKonten.split('|');
+    if (parts.length >= 3) {
+      return parts.slice(2).join('|') || '';
+    }
+    return tautanKonten;
+  };
+
+  const getDescriptionFromContent = (tautanKonten: string): string => {
+    const parts = tautanKonten.split('|');
+    if (parts.length >= 3) {
+      return parts[1] || '';
+    }
+    return '';
+  };
+
+  const convertYouTubeUrl = (url: string): string => {
+    if (url.includes('youtube.com/watch')) {
+      const videoId = url.split('v=')[1]?.split('&')[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    if (url.includes('youtu.be/')) {
+      const videoId = url.split('youtu.be/')[1]?.split('?')[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    return url;
+  };
+
+  const handleDownloadFile = async (fileUrl: string, fileName: string) => {
+    try {
+      const response = await fetch(fileUrl);
+      if (!response.ok) {
+        throw new Error('Gagal mengunduh file');
+      }
+
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      window.open(fileUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const InlineFilePreview = ({ subBab }: { subBab: MateriSubBab }) => {
+    const [previewHeight, setPreviewHeight] = useState('400px');
+
+    useEffect(() => {
+      const handleResize = () => {
+        if (window.innerWidth < 640) {
+          setPreviewHeight('350px');
+        } else if (window.innerWidth < 1024) {
+          setPreviewHeight('450px');
+        } else {
+          setPreviewHeight('600px');
+        }
+      };
+
+      handleResize();
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const fileType = getFileTypeFromUrl(subBab.tautan_konten);
+    const fileUrl = getFileUrlFromContent(subBab.tautan_konten);
+    const description = getDescriptionFromContent(subBab.tautan_konten);
+
+    const getFileExtension = (url: string): string => {
+      const match = url.match(/\.([^.]+)$/);
+      return match ? match[1].toLowerCase() : '';
+    };
+
+    const getFileName = (url: string): string => {
+      try {
+        const urlObj = new URL(url);
+        const pathname = urlObj.pathname;
+        const fileName = pathname.split('/').pop() || 'file';
+        return decodeURIComponent(fileName);
+      } catch {
+        return `${subBab.judul_sub_bab}.${getFileExtension(url)}`;
+      }
+    };
+
+    const extension = getFileExtension(fileUrl);
+    const isOfficeDocument = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension);
+
+    let previewUrl: string;
+    if (fileUrl.includes('drive.google.com') || fileUrl.includes('docs.google.com')) {
+      const fileIdMatch = fileUrl.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+      if (fileIdMatch) {
+        previewUrl = `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
+      } else {
+        previewUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+      }
+    } else if (extension === 'pdf') {
+      previewUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+    } else if (isOfficeDocument) {
+      previewUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
+    } else {
+      previewUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+    }
+
+    return (
+      <div className="mt-3 border-t border-white/10 pt-3">
+        {description && (
+          <div
+            className="materi-richtext mb-3 text-sm leading-6 text-gray-300"
+            dangerouslySetInnerHTML={{ __html: stripUnsafeHtml(description) }}
+          />
+        )}
+        <div className="overflow-hidden rounded-lg bg-gray-800">
+          {fileType === 'dokumen' && (
+            <div
+              className="w-full bg-black/70"
+              style={{ height: previewHeight }}
+            >
+              <iframe
+                src={previewUrl}
+                className="h-full w-full"
+                title={subBab.judul_sub_bab}
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-presentation allow-top-navigation-by-user-activation"
+              />
+            </div>
+          )}
+          {fileType === 'video' && (
+            <div
+              className="w-full bg-black/70"
+              style={{ height: previewHeight }}
+            >
+              {fileUrl.includes('youtube.com') || fileUrl.includes('youtu.be') ? (
+                <iframe
+                  src={convertYouTubeUrl(fileUrl)}
+                  className="h-full w-full"
+                  title={subBab.judul_sub_bab}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
+                />
+              ) : (
+                <video
+                  src={fileUrl}
+                  controls
+                  className="h-full w-full"
+                />
+              )}
+            </div>
+          )}
+          {fileType === 'tautan' && (
+            <div className="p-6 text-center">
+              <FaLink className="mx-auto mb-4 text-5xl text-blue-400" />
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mb-5 block break-all text-sm text-blue-400 hover:underline"
+              >
+                {fileUrl}
+              </a>
+              <div className="flex flex-col justify-center gap-2 sm:flex-row">
+                <button
+                  onClick={() => handleDownloadFile(fileUrl, getFileName(fileUrl))}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-green-700"
+                >
+                  <FaDownload /> Download
+                </button>
+                <a
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-blue-700"
+                >
+                  <FaExternalLinkAlt /> Buka di Tab Baru
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {fileType !== 'tautan' && (
+          <div className="mt-3 flex flex-col flex-wrap gap-2 sm:flex-row">
+            <button
+              onClick={() => handleDownloadFile(fileUrl, getFileName(fileUrl))}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+            >
+              <FaDownload /> Download
+            </button>
+            <a
+              href={fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+            >
+              <FaExternalLinkAlt /> Buka di Tab Baru
+            </a>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -614,7 +1270,7 @@ export default function PBLSiswa() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
+    <div className="pbl-theme-scope siswa-materi-page min-h-screen bg-black text-white relative overflow-hidden">
       <StarBackground />
       {siswaSession && <SiswaNavbar siswaName={siswaSession.nama_siswa} />}
 
@@ -641,7 +1297,7 @@ export default function PBLSiswa() {
             <div className="mb-8">
               <h2 className="text-3xl font-bold mb-6 flex items-center gap-3">
                 <FaProjectDiagram className="text-white" />
-                Pilih Elemen PBL
+                Pilih Elemen Pembelajaran
               </h2>
               {elemenOptions.length === 0 ? (
                 <p className="text-gray-400">Belum ada elemen untuk kelas Anda.</p>
@@ -724,21 +1380,189 @@ export default function PBLSiswa() {
               </div>
 
               <div className="mb-8 grid grid-cols-1 gap-3 rounded-2xl border border-white/10 p-3 xl:grid-cols-5">
-                {sintakState.map((item) => (
-                  <button
-                    key={item.order}
-                    type="button"
-                    onClick={() => setActiveSintak(item.order)}
-                    className={`rounded-xl px-4 py-4 text-center text-sm font-semibold transition-all ${item.order === activeSintak ? 'bg-[#0E5BFF] text-white shadow-[0_12px_30px_rgba(14,91,255,0.35)]' : 'bg-white text-black hover:bg-white/90'}`}
-                  >
-                    Sintak {item.order}
-                  </button>
-                ))}
+                {sintakState.map((item) => {
+                  const isLocked = (sintakLockedMap[item.order] ?? item.order !== 1) === true;
+
+                  return (
+                    <button
+                      key={item.order}
+                      type="button"
+                      onClick={() => {
+                        if (isLocked) {
+                          showNotification(`Sintak ${item.order} terkunci. Selesaikan semua materi dan tugas pada sintak sebelumnya terlebih dahulu.`, 'error');
+                          return;
+                        }
+                        handleSintakChange(item.order);
+                      }}
+                      disabled={isLocked}
+                      className={`rounded-xl px-4 py-4 text-center text-sm font-semibold transition-all ${
+                        isLocked
+                          ? 'cursor-not-allowed border border-amber-300/60 bg-amber-100/90 text-amber-900'
+                          : item.order === activeSintak
+                            ? 'bg-[#0E5BFF] text-white shadow-[0_12px_30px_rgba(14,91,255,0.35)]'
+                            : 'bg-white text-black hover:bg-white/90'
+                      }`}
+                    >
+                      {isLocked ? `Sintak ${item.order} (Terkunci)` : `Sintak ${item.order}`}
+                    </button>
+                  );
+                })}
               </div>
+
+              {isActiveSintakLocked && (
+                <div className="mb-6 rounded-xl border border-amber-400 bg-amber-100 px-4 py-3 text-sm font-semibold text-amber-900 shadow-sm">
+                  Sintak ini terkunci. Pastikan seluruh materi dan seluruh tugas pada sintak sebelumnya sudah benar-benar selesai.
+                </div>
+              )}
 
               <h3 className="mb-6 text-2xl font-bold">{activeSintakState.title}</h3>
 
               <div className="space-y-6">
+                <section className="materi-sintak-panel materi-lms-panel materi-modern-panel rounded-3xl border border-white/10 bg-white/5 p-4 sm:p-6 backdrop-blur-xl">
+                  <div className="materi-panel-head mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <h3 className="flex items-center gap-2 text-xl font-bold">
+                      <FaBook className="text-white" />
+                      {materiOverview?.judul_materi || `Materi ${elemenName}`}
+                    </h3>
+                  </div>
+
+                  <div className="materi-progress-card materi-progress-card--clean mb-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="materi-progress-label text-sm text-gray-300">Progres Baca Materi</span>
+                      <span
+                        className={`materi-progress-value inline-flex items-center rounded-full border px-2.5 py-0.5 text-sm font-semibold ${
+                          progressPercent === 0 ? 'is-zero border-amber-400/70 bg-amber-100 text-amber-800' : 'border-emerald-500/50 bg-emerald-500/15 text-emerald-200'
+                        }`}
+                      >
+                        {progressPercent}%
+                      </span>
+                    </div>
+                    <div className="materi-progress-track mt-3 h-3 w-full rounded-full bg-black/30">
+                      <div
+                        className="materi-progress-fill h-full rounded-full bg-green-600 transition-all"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                    <p className="materi-progress-meta mt-2 text-sm text-gray-400">
+                      {completedCount} dari {allSubBab.length} sub-bab selesai
+                    </p>
+                  </div>
+
+                  {!materiOverview?.bab || materiOverview.bab.length === 0 ? (
+                    <div className="materi-empty-state rounded-2xl border border-white/10 bg-black/25 px-4 py-6 text-center text-gray-300">Belum ada BAB untuk materi ini.</div>
+                  ) : (
+                    <div className="materi-list-stack space-y-4">
+                      {materiOverview.bab.map((bab, index) => {
+                        const isExpanded = expandedMateriBabs.includes(bab.id_bab);
+                        const firstSubBabId = bab.sub_bab?.[0]?.id_sub_bab;
+                        const isBabUnlocked = !firstSubBabId || !!subBabUnlockMap[firstSubBabId] || (bab.sub_bab || []).some((subBab) => !!completedMap[subBab.id_sub_bab]);
+                        return (
+                          <div
+                            key={bab.id_bab}
+                            className={`materi-bab-card overflow-hidden rounded-lg border border-white/10 bg-gray-900/50 backdrop-blur-sm ${!isBabUnlocked ? 'opacity-70' : ''}`}
+                          >
+                            <div className="overflow-visible p-3 sm:p-6">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!isBabUnlocked) {
+                                    return;
+                                  }
+                                  setExpandedMateriBabs((current) => (current.includes(bab.id_bab) ? current.filter((id) => id !== bab.id_bab) : [...current, bab.id_bab]));
+                                }}
+                                disabled={!isBabUnlocked}
+                                className="materi-bab-toggle flex w-full items-start gap-2 sm:gap-3 pl-2 sm:pl-3 pr-1 text-left"
+                              >
+                                <span className="mt-0.5 shrink-0 text-white">{!isBabUnlocked ? <FaLock className="text-amber-300" /> : isExpanded ? <FaChevronUp className="text-white" /> : <FaChevronDown className="text-white" />}</span>
+                                <div className="min-w-0">
+                                  <h4 className="text-base font-bold text-white break-words sm:text-xl sm:truncate">
+                                    Bab {index + 1}: {bab.judul_bab}
+                                  </h4>
+                                  {bab.deskripsi_bab ? (
+                                    <div
+                                      className="materi-richtext mt-1 text-sm sm:ml-0 leading-7 text-gray-300"
+                                      dangerouslySetInnerHTML={{ __html: stripUnsafeHtml(bab.deskripsi_bab) }}
+                                    />
+                                  ) : (
+                                    <p className="mt-1 text-sm text-gray-400">Belum ada deskripsi bab.</p>
+                                  )}
+                                  {!isBabUnlocked && <p className="materi-lock-note mt-2 text-xs text-amber-300">Bab ini terkunci. Selesaikan sub-bab sebelumnya untuk membuka.</p>}
+                                </div>
+                              </button>
+
+                              {isExpanded && (
+                                <div className="mt-4 space-y-2 sm:ml-9">
+                                  {bab.sub_bab && bab.sub_bab.length > 0 ? (
+                                    bab.sub_bab.map((subBab) => {
+                                      const selesai = !!completedMap[subBab.id_sub_bab];
+                                      const isUnlocked = !!subBabUnlockMap[subBab.id_sub_bab];
+                                      const canOpen = selesai || isUnlocked;
+
+                                      return (
+                                        <div
+                                          key={subBab.id_sub_bab}
+                                          className={`materi-subbab-card materi-subbab-row overflow-hidden rounded-lg border border-white/10 bg-gray-800/50 ${!isUnlocked && !selesai ? 'opacity-70' : ''}`}
+                                        >
+                                          <div className="materi-subbab-head flex items-center justify-between gap-2 p-3 sm:p-4">
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                if (!canOpen) {
+                                                  return;
+                                                }
+                                                setExpandedMateriPreviews((current) => (current.includes(subBab.id_sub_bab) ? current.filter((id) => id !== subBab.id_sub_bab) : [...current, subBab.id_sub_bab]));
+                                              }}
+                                              className="materi-subbab-toggle flex min-w-0 flex-1 items-center gap-2 sm:gap-3 pl-2 sm:pl-3 pr-1 text-left"
+                                            >
+                                              <span className="shrink-0 text-white">
+                                                {!canOpen ? <FaLock className="text-amber-300" /> : expandedMateriPreviews.includes(subBab.id_sub_bab) ? <FaChevronUp className="text-white" /> : <FaChevronDown className="text-white" />}
+                                              </span>
+                                              {getFileTypeFromUrl(subBab.tautan_konten) === 'dokumen' && <FaFileAlt className="text-blue-400" />}
+                                              {getFileTypeFromUrl(subBab.tautan_konten) === 'video' && <FaVideo className="text-red-400" />}
+                                              {getFileTypeFromUrl(subBab.tautan_konten) === 'tautan' && <FaLink className="text-green-400" />}
+                                              <p className="text-base font-bold text-white break-words sm:text-xl sm:truncate">{subBab.judul_sub_bab}</p>
+                                            </button>
+
+                                            <button
+                                              type="button"
+                                              onClick={() => requestCompleteSubBab(subBab.id_sub_bab)}
+                                              disabled={selesai || !isUnlocked}
+                                              className={`inline-flex items-center gap-2 rounded-lg px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition ${
+                                                selesai
+                                                  ? 'border border-emerald-600 bg-emerald-600 text-white shadow-[0_0_0_1px_rgba(16,185,129,0.35)]'
+                                                  : !isUnlocked
+                                                    ? 'cursor-not-allowed border border-gray-400/40 bg-gray-300/40 text-gray-500'
+                                                    : 'mana-btn mana-btn--primary'
+                                              }`}
+                                            >
+                                              <FaCheck />
+                                              {selesai ? 'Sudah Selesai' : !isUnlocked ? 'Terkunci' : 'Tandai Selesai'}
+                                            </button>
+                                          </div>
+
+                                          {!isUnlocked && !selesai && <p className="materi-lock-note px-3 pb-2 text-xs text-amber-300">Sub-bab ini terkunci. Selesaikan sub-bab sebelumnya untuk membuka.</p>}
+
+                                          {expandedMateriPreviews.includes(subBab.id_sub_bab) && canOpen && (
+                                            <div className="px-2 sm:px-3 md:px-4 pb-2 sm:pb-3 md:pb-4">
+                                              <InlineFilePreview subBab={subBab} />
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })
+                                  ) : (
+                                    <p className="text-sm text-gray-500">Belum ada sub-bab.</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+
                 <section className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
                   <h3 className="mb-4 flex items-center gap-2 text-xl font-bold">
                     <FaFileAlt className="text-white" />
@@ -824,47 +1648,55 @@ export default function PBLSiswa() {
                     <div className="rounded-2xl border border-white/15 bg-black/25 p-4 md:p-5">
                       <p className="mb-4 text-sm text-emerald-200">Pengumpulan sudah ada. Anda tidak perlu mengumpulkan lagi.</p>
 
-                      <div className="overflow-hidden rounded-xl border border-white/10">
-                        <table className="w-full border-collapse text-sm">
+                      <div className="overflow-x-auto rounded-xl border border-white/10">
+                        <table className="w-full min-w-[560px] border-collapse table-fixed text-xs sm:text-sm">
                           <tbody>
                             <tr className="border-b border-white/10">
-                              <th className="w-1/3 bg-white/10 px-4 py-3 text-left font-semibold text-white">Status Pengumpulan</th>
-                              <td className="bg-emerald-500/15 px-4 py-3 text-emerald-200 font-medium">Sudah dikumpulkan</td>
+                              <th className="w-[42%] sm:w-1/3 bg-white/10 px-2 sm:px-4 py-3 text-left align-top font-semibold text-white">Status Pengumpulan</th>
+                              <td className="bg-emerald-500/15 px-2 sm:px-4 py-3 break-words text-emerald-200 font-medium">Sudah dikumpulkan</td>
                             </tr>
                             <tr className="border-b border-white/10">
-                              <th className="bg-white/10 px-4 py-3 text-left font-semibold text-white">Status Penilaian</th>
-                              <td className="px-4 py-3 text-gray-100">
+                              <th className="bg-white/10 px-2 sm:px-4 py-3 text-left align-top font-semibold text-white">Status Penilaian</th>
+                              <td className="px-2 sm:px-4 py-3 break-words text-gray-100">
                                 {activeSintakState.mySubmission.nilai_pbl !== null && activeSintakState.mySubmission.nilai_pbl !== undefined ? `Sudah dinilai (${activeSintakState.mySubmission.nilai_pbl})` : 'Belum dinilai'}
                               </td>
                             </tr>
                             <tr className="border-b border-white/10">
-                              <th className="bg-white/10 px-4 py-3 text-left font-semibold text-white">Keterangan Waktu</th>
-                              <td className={`px-4 py-3 ${submissionTimingStatus?.className || 'text-gray-100'}`}>{submissionTimingStatus?.text || '-'}</td>
+                              <th className="bg-white/10 px-2 sm:px-4 py-3 text-left align-top font-semibold text-white">Keterangan Waktu</th>
+                              <td className={`px-2 sm:px-4 py-3 break-words ${submissionTimingStatus?.className || 'text-gray-100'}`}>{submissionTimingStatus?.text || '-'}</td>
                             </tr>
                             <tr className="border-b border-white/10">
-                              <th className="bg-white/10 px-4 py-3 text-left font-semibold text-white">Terakhir Diubah</th>
-                              <td className="px-4 py-3 text-gray-100">{formatDateTimeForDisplay(activeSintakState.mySubmission.waktu_pengumpulan)}</td>
+                              <th className="bg-white/10 px-2 sm:px-4 py-3 text-left align-top font-semibold text-white">Terakhir Diubah</th>
+                              <td className="px-2 sm:px-4 py-3 break-words text-gray-100">{formatDateTimeForDisplay(activeSintakState.mySubmission.waktu_pengumpulan)}</td>
                             </tr>
                             <tr className="border-b border-white/10">
-                              <th className="bg-white/10 px-4 py-3 text-left font-semibold text-white">File Pengumpulan</th>
-                              <td className="px-4 py-3 text-gray-100">
+                              <th className="bg-white/10 px-2 sm:px-4 py-3 text-left align-top font-semibold text-white">File Pengumpulan</th>
+                              <td className="px-2 sm:px-4 py-3 text-gray-100">
                                 <button
                                   type="button"
                                   onClick={() => openSubmissionPreview(activeSintakState.mySubmission!.file_pengumpulan)}
-                                  className="inline-flex items-center gap-2 rounded-lg border border-[#0E5BFF]/40 bg-[#0E5BFF]/20 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-[#AED0FF] transition hover:bg-[#0E5BFF]/30"
+                                  className="inline-flex max-w-[180px] sm:max-w-full items-center gap-2 rounded-lg border border-[#1D4ED8] bg-[#2563EB] px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-white shadow-[0_4px_14px_rgba(37,99,235,0.35)] transition hover:bg-[#1D4ED8]"
                                 >
                                   <FaFileAlt />
-                                  {parsedSubmissionFile?.label || 'Lihat File Pengumpulan'}
+                                  <span className="truncate">{parsedSubmissionFile?.label || 'Lihat File Pengumpulan'}</span>
                                 </button>
                               </td>
                             </tr>
                             <tr>
-                              <th className="bg-white/10 px-4 py-3 text-left font-semibold text-white">Komentar Guru</th>
-                              <td className="px-4 py-3 text-gray-100">{activeSintakState.mySubmission.komentar_pbl?.trim() ? activeSintakState.mySubmission.komentar_pbl : 'Tidak ada komentar'}</td>
+                              <th className="bg-white/10 px-2 sm:px-4 py-3 text-left align-top font-semibold text-white">Komentar Guru</th>
+                              <td className="px-2 sm:px-4 py-3 break-words text-gray-100">{activeSintakState.mySubmission.komentar_pbl?.trim() ? activeSintakState.mySubmission.komentar_pbl : 'Tidak ada komentar'}</td>
                             </tr>
                           </tbody>
                         </table>
                       </div>
+
+                      <DataTablePagination
+                        totalItems={1}
+                        currentPage={currentPageSubmissionInfo}
+                        rowsPerPage={rowsPerPageSubmissionInfo}
+                        onPageChange={setCurrentPageSubmissionInfo}
+                        onRowsPerPageChange={setRowsPerPageSubmissionInfo}
+                      />
                     </div>
                   ) : (
                     <>
@@ -972,7 +1804,7 @@ export default function PBLSiswa() {
                                 <button
                                   type="button"
                                   onClick={() => setOpenCommentMenu(openCommentMenu === comment.id_komentar ? null : comment.id_komentar)}
-                                  className="inline-flex items-center justify-center rounded-lg border border-white/10 p-2 text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
+                                  className="comment-menu-btn inline-flex items-center justify-center rounded-lg border border-white/10 p-2 text-gray-200 transition hover:border-[#0080FF]/50 hover:text-white"
                                 >
                                   <FaEllipsisV />
                                 </button>
@@ -1004,14 +1836,14 @@ export default function PBLSiswa() {
                                             return;
                                           }
                                           if (elemenId) {
-                                            await fetchPblData(currentSiswaId, elemenId);
+                                            await fetchPblData(currentSiswaId, elemenId, activeSintak);
                                           }
                                           showNotification('Komentar berhasil dihapus.', 'success');
                                           setOpenCommentMenu(null);
                                         }}
                                         className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-red-300 transition hover:bg-red-500/20"
                                       >
-                                        <FaTrash />
+                                        <FaTrash className="h-4 w-4 shrink-0" />
                                         Hapus
                                       </button>
                                     )}
@@ -1042,15 +1874,15 @@ export default function PBLSiswa() {
                     )}
 
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                      <div className="hidden sm:flex h-10 sm:h-12 items-center justify-center rounded-full border border-white/10 bg-white/10 flex-shrink-0">
-                        <FaCommentAlt className="text-sm text-white" />
+                      <div className="hidden sm:flex h-10 sm:h-12 items-center justify-center flex-shrink-0 text-gray-400">
+                        <FaCommentAlt className="text-base" />
                       </div>
                       <input
                         type="text"
                         value={activeSintakState.commentInput}
                         onChange={(event) => updateSintak(activeSintakState.order, (current) => ({ ...current, commentInput: event.target.value }))}
                         placeholder="Tambahkan komentar..."
-                        className="flex-1 rounded-xl border border-transparent bg-transparent px-3 py-2 sm:py-3 text-sm text-white outline-none placeholder:text-gray-300"
+                        className="flex-1 rounded-xl border border-transparent bg-transparent px-3 py-2 sm:py-3 text-sm text-white outline-none placeholder:text-gray-500"
                       />
                       <button
                         type="button"
@@ -1059,7 +1891,7 @@ export default function PBLSiswa() {
                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#0E5BFF] px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-white transition hover:bg-[#0B49CB] disabled:cursor-not-allowed disabled:opacity-60 flex-shrink-0"
                       >
                         <FaPaperPlane className="text-xs sm:text-sm" />
-                        <span className="hidden sm:inline">Kirim</span>
+                        <span>Kirim</span>
                       </button>
                     </div>
                   </div>
@@ -1120,6 +1952,43 @@ export default function PBLSiswa() {
           </p>
         </div>
       </footer>
+
+      {confirmCompleteSubBabId && (
+        <div
+          className="materi-complete-modal-overlay fixed inset-0 z-[120] flex items-center justify-center bg-black/60 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="materi-confirm-title"
+        >
+          <div className="materi-complete-modal w-full max-w-md rounded-2xl border border-slate-300 bg-white p-6 shadow-2xl">
+            <h3
+              id="materi-confirm-title"
+              className="materi-complete-modal-title text-xl font-bold text-slate-900"
+            >
+              Konfirmasi Tandai Selesai
+            </h3>
+            <p className="materi-complete-modal-text mt-3 text-sm text-slate-900">Setelah ditandai selesai, status sub-bab tidak bisa dibatalkan.</p>
+            <p className="materi-complete-modal-subject mt-2 rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900">{subBabTitleMap[confirmCompleteSubBabId] || 'Sub-bab ini'}</p>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmCompleteSubBabId(null)}
+                className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={confirmCompleteSubBab}
+                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700"
+              >
+                <FaCheck /> Ya, Tandai Selesai
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

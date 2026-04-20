@@ -1,7 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { useAdminTheme } from '@/contexts/AdminThemeContext';
+import { useRoleTheme } from '@/lib/useRoleTheme';
 
 interface PublicThemeToggleProps {
   mobile?: boolean;
@@ -27,11 +28,14 @@ const StyledWrapper = styled.div`
     border-radius: 26px;
     overflow: hidden;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.2s ease;
     display: flex;
     align-items: center;
     padding: 2px;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.12);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    border: 0;
   }
 
   .switch-container.dark {
@@ -44,10 +48,13 @@ const StyledWrapper = styled.div`
     height: 26px;
     background: #2563eb;
     border-radius: 24px;
-    transition: left 0.3s ease;
+    transition:
+      left 0.2s ease,
+      background-color 0.2s ease;
     left: 2px;
     z-index: 1;
     box-shadow: 0px 8px 18px rgba(37, 99, 235, 0.28);
+    will-change: left;
   }
 
   .switch-container.dark .switch-track {
@@ -66,7 +73,7 @@ const StyledWrapper = styled.div`
     width: 50%;
     height: 100%;
     text-align: center;
-    transition: color 0.3s ease;
+    transition: color 0.2s ease;
     color: #111827;
     user-select: none;
     pointer-events: none;
@@ -95,15 +102,48 @@ const StyledWrapper = styled.div`
   .label-text.active {
     color: #fff;
   }
-
-  input[type='checkbox'] {
-    display: none;
-  }
 `;
 
 export default function PublicThemeToggle({ mobile = false, className = '' }: PublicThemeToggleProps) {
-  const { theme, mounted, toggleTheme } = useAdminTheme();
-  const resolvedTheme = mounted ? theme : 'light';
+  const { theme, mounted, toggleTheme } = useRoleTheme();
+  const [domTheme, setDomTheme] = useState<'dark' | 'light' | null>(null);
+
+  const applyDomTheme = (nextTheme: 'dark' | 'light') => {
+    const root = document.documentElement;
+    const body = document.body;
+    const isLight = nextTheme === 'light';
+
+    root.classList.remove('app-theme-dark', 'app-theme-light');
+    body.classList.remove('app-theme-dark', 'app-theme-light');
+    root.classList.add(`app-theme-${nextTheme}`);
+    body.classList.add(`app-theme-${nextTheme}`);
+    root.style.setProperty('--background', isLight ? '#ffffff' : '#0a0a0a');
+    root.style.setProperty('--foreground', isLight ? '#0f172a' : '#ededed');
+    body.style.backgroundColor = isLight ? '#ffffff' : '#0a0a0a';
+    body.style.color = isLight ? '#0f172a' : '#ededed';
+    root.style.colorScheme = isLight ? 'light' : 'dark';
+    body.style.colorScheme = isLight ? 'light' : 'dark';
+  };
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const hasAppDarkClass = root.classList.contains('app-theme-dark') || body.classList.contains('app-theme-dark');
+    const hasAppLightClass = root.classList.contains('app-theme-light') || body.classList.contains('app-theme-light');
+    const nextTheme = hasAppDarkClass ? 'dark' : hasAppLightClass ? 'light' : mounted && theme === 'dark' ? 'dark' : 'light';
+
+    applyDomTheme(nextTheme);
+    setDomTheme(nextTheme);
+  }, [mounted, theme]);
+
+  const handleToggleTheme = () => {
+    const nextTheme = (domTheme ?? (mounted && theme === 'dark' ? 'dark' : 'light')) === 'dark' ? 'light' : 'dark';
+    applyDomTheme(nextTheme);
+    setDomTheme(nextTheme);
+    toggleTheme();
+  };
+
+  const resolvedTheme = domTheme ?? (mounted ? theme : 'light');
   const isDarkTheme = resolvedTheme === 'dark';
 
   return (
@@ -119,25 +159,18 @@ export default function PublicThemeToggle({ mobile = false, className = '' }: Pu
       </svg>
 
       {/* Toggle Switch */}
-      <div
+      <button
+        type="button"
         className={`switch-container ${isDarkTheme ? 'dark' : ''}`}
-        onClick={toggleTheme}
+        onClick={handleToggleTheme}
         role="switch"
         aria-checked={isDarkTheme}
         aria-label={`Aktifkan mode ${isDarkTheme ? 'terang' : 'gelap'}`}
       >
         <div className="switch-track" />
-          <span className={`label-text label-left ${!isDarkTheme ? 'active' : ''}`}>Terang</span>
-          <span className={`label-text label-right ${isDarkTheme ? 'active' : ''}`}>Gelap</span>
-        <input
-          type="checkbox"
-          id="color_mode"
-          name="color_mode"
-          checked={isDarkTheme}
-          onChange={toggleTheme}
-          aria-hidden="true"
-        />
-      </div>
+        <span className={`label-text label-left ${!isDarkTheme ? 'active' : ''}`}>Terang</span>
+        <span className={`label-text label-right ${isDarkTheme ? 'active' : ''}`}>Gelap</span>
+      </button>
 
       {/* Moon Icon */}
       <svg

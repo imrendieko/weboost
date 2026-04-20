@@ -54,6 +54,7 @@ export default function SiswaDaftarAsesmenByElemen() {
   const [completedAsesmenIds, setCompletedAsesmenIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
+    // Ambil sesi siswa, lalu muat daftar asesmen dan riwayat attempt siswa.
     const loadData = async () => {
       const rawSession = localStorage.getItem('siswa_session');
       if (!rawSession) {
@@ -96,6 +97,7 @@ export default function SiswaDaftarAsesmenByElemen() {
   }, [router, elemenId]);
 
   const asesmenCards = useMemo(() => {
+    // Status kartu (mulai/ditutup/selesai) dihitung lokal biar update realtime.
     const keyword = search.trim().toLowerCase();
 
     return asesmenList
@@ -136,7 +138,7 @@ export default function SiswaDaftarAsesmenByElemen() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
+    <div className="siswa-asesmen-page min-h-screen bg-black text-white relative overflow-hidden">
       <StarBackground />
       <SiswaNavbar siswaName={siswaSession.nama_siswa} />
 
@@ -184,7 +186,7 @@ export default function SiswaDaftarAsesmenByElemen() {
               {asesmenCards.map((item, index) => (
                 <div
                   key={item.id_asesmen}
-                  className="rounded-2xl border border-white/10 bg-black/30 overflow-hidden"
+                  className="asesmen-card rounded-2xl border border-white/10 bg-black/30 overflow-hidden"
                 >
                   <div className="relative h-40 w-full bg-gray-900">
                     <Image
@@ -201,8 +203,8 @@ export default function SiswaDaftarAsesmenByElemen() {
                     <h3 className="text-xl font-semibold text-white">{item.judul_asesmen}</h3>
                     <p className="mt-2 text-sm text-gray-300">Mulai: {formatDateTime(item.waktu_mulai)}</p>
                     <p className="text-sm text-gray-300">Berakhir: {formatDateTime(item.waktu_terakhir)}</p>
-                    <p className="mt-2 inline-flex items-center gap-2 text-xs text-blue-200">
-                      <FaClock />
+                    <p className="asesmen-duration-badge mt-2 inline-flex items-center gap-2 text-xs text-blue-200">
+                      <FaClock className="asesmen-duration-icon" />
                       Durasi: {item.durasi_asesmen || item.durasi_kuis || 0} menit
                     </p>
 

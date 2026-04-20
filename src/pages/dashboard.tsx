@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
 import SiswaNavbar from '@/components/SiswaNavbar';
-import { FaBook, FaChevronLeft, FaChevronRight, FaClipboardList, FaProjectDiagram, FaTimes, FaCalendar } from 'react-icons/fa';
+import { FaBook, FaChevronLeft, FaChevronRight, FaClipboardList, FaTimes, FaCalendar } from 'react-icons/fa';
 
 interface SiswaData {
   id_siswa: number;
@@ -45,8 +45,14 @@ interface DeadlineItem {
 function getCurrentDate() {
   const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
   const now = new Date();
-  return `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+  const dayName = days[now.getDay()];
+  const day = now.getDate();
+  const month = months[now.getMonth()];
+  const year = now.getFullYear();
+
+  return `${dayName}, ${day} ${month} ${year}`;
 }
 
 function buildCalendarDays(baseDate: Date) {
@@ -88,11 +94,12 @@ export default function DashboardSiswa() {
   const [selectedDateKey, setSelectedDateKey] = useState(toDateKey(new Date()));
 
   useEffect(() => {
+    // Semua data beranda siswa dimuat sekali di awal dari endpoint ringkas.
     const loadData = async () => {
       try {
         const siswaSession = localStorage.getItem('siswa_session');
         if (!siswaSession) {
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -111,7 +118,7 @@ export default function DashboardSiswa() {
       } catch (error) {
         console.error('Error loading siswa dashboard:', error);
         localStorage.removeItem('siswa_session');
-        router.push('/');
+        window.location.replace('/');
       } finally {
         setLoading(false);
       }
@@ -123,6 +130,7 @@ export default function DashboardSiswa() {
   }, [router]);
 
   const deadlineMap = useMemo(() => {
+    // Deadline dipetakan per tanggal agar kalender bisa lookup cepat per hari.
     const map = new Map<string, DeadlineItem[]>();
 
     deadlines.forEach((item) => {
@@ -156,6 +164,7 @@ export default function DashboardSiswa() {
   }, [selectedDateKey]);
 
   const upcomingDeadlines = useMemo(() => {
+    // Ambil deadline ke depan aja, diurutkan paling dekat, lalu batasi biar UI ringkas.
     const now = new Date();
     return [...deadlines]
       .filter((item) => {
@@ -292,7 +301,7 @@ export default function DashboardSiswa() {
                         type="button"
                         key={key}
                         onClick={() => setSelectedDateKey(key)}
-                        className={`relative h-10 rounded-lg border flex items-center justify-center text-sm font-semibold transition ${deadlineClass} ${isToday ? 'ring-2 ring-[#0080FF]' : ''} ${isSelected ? 'ring-2 ring-white' : ''}`}
+                        className={`relative h-10 rounded-lg border flex items-center justify-center text-sm font-semibold transition ${deadlineClass} ${isToday ? 'ring-2 ring-[#0080FF]' : ''} ${isSelected ? 'ring-2 ring-white siswa-calendar-selected-date' : ''}`}
                         title={dayDeadlines.map((item) => `[${item.jenis === 'pbl' ? 'PBL' : 'Asesmen'}] ${item.judul}`).join('\n')}
                       >
                         {cell.date.getDate()}
@@ -442,14 +451,17 @@ export default function DashboardSiswa() {
       </div>
 
       {showModal && selectedElemen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div className="dashboard-menu-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 border border-white/20 rounded-2xl p-8 max-w-md w-full mx-4 relative shadow-2xl">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-4 right-4 text-white hover:text-red-500 transition-colors"
-            >
-              <FaTimes size={24} />
-            </button>
+            <div className="mb-2 flex justify-end">
+              <button
+                onClick={() => setShowModal(false)}
+                aria-label="Tutup popup"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-black/35 text-white transition-all hover:border-red-300 hover:bg-red-500/90 hover:text-white"
+              >
+                <FaTimes size={14} />
+              </button>
+            </div>
 
             <h2 className="text-2xl font-bold mb-2 text-white">{selectedElemen.nama_elemen}</h2>
             <p className="text-gray-400 text-sm mb-4">{selectedElemen.kelas?.nama_kelas || 'Kelas tidak ditemukan'}</p>
@@ -457,19 +469,11 @@ export default function DashboardSiswa() {
 
             <div className="space-y-4">
               <button
-                onClick={() => navigateTo('/siswa/materi')}
+                onClick={() => navigateTo('/siswa/pembelajaran')}
                 className="w-full flex items-center gap-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
                 <FaBook size={24} />
-                <span className="text-lg">Materi</span>
-              </button>
-
-              <button
-                onClick={() => navigateTo('/siswa/pbl')}
-                className="w-full flex items-center gap-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
-              >
-                <FaProjectDiagram size={24} />
-                <span className="text-lg">PBL</span>
+                <span className="text-lg">Pembelajaran</span>
               </button>
 
               <button
@@ -501,6 +505,12 @@ export default function DashboardSiswa() {
       </footer>
 
       <style jsx>{`
+        .dashboard-menu-overlay {
+          background: var(--admin-overlay, rgba(2, 6, 23, 0.62));
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+        }
+
         .card-container {
           perspective: 1000px;
           height: 320px;

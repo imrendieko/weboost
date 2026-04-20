@@ -3,22 +3,22 @@ import supabaseAdmin from '@/lib/supabaseAdmin';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'DELETE') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Metode tidak diizinkan' });
   }
 
   try {
     const { fileUrl } = req.body;
 
     if (!fileUrl) {
-      return res.status(400).json({ error: 'Missing file URL' });
+      return res.status(400).json({ error: 'URL file wajib diisi' });
     }
 
     // Extract file path from URL
     // URL format: https://...supabase.co/storage/v1/object/public/weboost-storage/materi-dokumen/filename.pdf
     const urlParts = fileUrl.split('/weboost-storage/');
     if (urlParts.length < 2) {
-      console.error('❌ Invalid file URL format:', fileUrl);
-      return res.status(400).json({ error: 'Invalid file URL' });
+      console.error('❌ URL file tidak valid format:', fileUrl);
+      return res.status(400).json({ error: 'URL file tidak valid' });
     }
 
     const filePath = urlParts[1]; // e.g., "materi-dokumen/filename.pdf"
@@ -31,25 +31,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (deleteError) {
       console.error('❌ Delete error:', deleteError);
       // Don't fail if file doesn't exist
-      if (!deleteError.message.includes('not found')) {
+      const messageLower = String(deleteError.message || '').toLowerCase();
+      if (!messageLower.includes('not found') && !messageLower.includes('tidak ditemukan')) {
         return res.status(500).json({
-          error: 'Failed to delete file',
+          error: 'Gagal menghapus file',
           details: deleteError.message,
         });
       }
     }
 
-    console.log('✅ File deleted successfully');
+    console.log('✅ File berhasil dihapus successfully');
 
     return res.status(200).json({
       success: true,
-      message: 'File deleted',
+      message: 'File berhasil dihapus',
     });
   } catch (error) {
     console.error('Error in delete-file API:', error);
     return res.status(500).json({
-      error: 'Server error',
-      details: error instanceof Error ? error.message : 'Unknown error',
+      error: 'Terjadi kesalahan server',
+      details: error instanceof Error ? error.message : 'Kesalahan tidak diketahui',
     });
   }
 }

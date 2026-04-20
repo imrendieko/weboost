@@ -4,6 +4,22 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Ensure modal overlays blur the page behind even when a specific utility class is missing. */
+.fixed.inset-0.bg-black\/60,
+.fixed.inset-0.bg-black\/70,
+.fixed.inset-0.bg-black\/80 {
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+/* Delete actions inside modal overlays must keep white contrast in every theme. */
+:is(.fixed.inset-0.bg-black\/60, .fixed.inset-0.bg-black\/70, .fixed.inset-0.bg-black\/80) :is(button, a).bg-red-600,
+:is(.fixed.inset-0.bg-black\/60, .fixed.inset-0.bg-black\/70, .fixed.inset-0.bg-black\/80) :is(button, a).bg-red-700,
+:is(.fixed.inset-0.bg-black\/60, .fixed.inset-0.bg-black\/70, .fixed.inset-0.bg-black\/80) :is(button, a).mana-btn--danger,
+:is(.fixed.inset-0.bg-black\/60, .fixed.inset-0.bg-black\/70, .fixed.inset-0.bg-black\/80) :is(button, a).mana-btn--danger * {
+  color: #ffffff !important;
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -178,6 +194,34 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: 'Inter', 'Poppins', Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+@media (max-width: 1024px) {
+  body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .max-w-7xl,
+  body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .max-w-6xl,
+  body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .max-w-5xl,
+  body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .max-w-4xl {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) table {
+    min-width: 640px;
+  }
 }
 
 .dark {
@@ -238,7 +282,13 @@ body {
   cursor: progress;
 }
 
-.admin-theme-scope {
+/* Ensure filter/grouping controls consistently show hand cursor across all themes and roles */
+:is(select, summary, [role='button'], [role='tab'], [role='switch'], [data-filter], [data-group], [data-grouping], [data-group-by], [aria-pressed='true'], [aria-pressed='false']):not(:disabled):not([aria-disabled='true']) {
+  cursor: pointer;
+}
+
+.admin-theme-scope,
+.guru-theme-scope {
   --admin-accent: #0080ff;
   --admin-accent-soft: rgba(0, 128, 255, 0.14);
   --admin-success-accent: #16a34a;
@@ -262,13 +312,16 @@ body {
 }
 
 .admin-theme-scope,
-.admin-theme-scope * {
+.admin-theme-scope *,
+.guru-theme-scope,
+.guru-theme-scope * {
   transition-property: background-color, border-color, color, box-shadow, fill, stroke;
   transition-duration: 220ms;
   transition-timing-function: ease;
 }
 
-.admin-theme-light {
+.admin-theme-light,
+.guru-theme-light {
   --admin-page-bg: #eef4ff;
   --admin-surface: rgba(255, 255, 255, 0.76);
   --admin-surface-strong: rgba(230, 238, 252, 0.88);
@@ -288,53 +341,136 @@ body {
 }
 
 .admin-theme-scope .bg-\[\#0B0B1F\],
-.admin-theme-scope .bg-black {
+.admin-theme-scope .bg-black,
+.guru-theme-scope .bg-\[\#0B0B1F\],
+.guru-theme-scope .bg-black {
   background-color: var(--admin-page-bg) !important;
 }
 
-.admin-theme-scope .text-white {
+.admin-theme-scope .text-white,
+.guru-theme-scope .text-white {
   color: var(--admin-text-primary) !important;
 }
 
 .admin-theme-scope .text-gray-400,
-.admin-theme-scope .text-gray-500 {
+.admin-theme-scope .text-gray-500,
+.guru-theme-scope .text-gray-400,
+.guru-theme-scope .text-gray-500 {
   color: var(--admin-text-muted) !important;
 }
 
-.admin-theme-scope .text-gray-300 {
+.admin-theme-scope .text-gray-300,
+.guru-theme-scope .text-gray-300 {
   color: var(--admin-text-soft) !important;
 }
 
 .admin-theme-scope .bg-gray-900\/50,
 .admin-theme-scope .bg-gray-900\/95,
-.admin-theme-scope .bg-white\/5 {
+.admin-theme-scope .bg-white\/5,
+.guru-theme-scope .bg-gray-900\/50,
+.guru-theme-scope .bg-gray-900\/95,
+.guru-theme-scope .bg-white\/5 {
   background-color: var(--admin-surface) !important;
 }
 
-.admin-theme-scope .bg-gray-900 {
+.admin-theme-scope .bg-gray-900,
+.guru-theme-scope .bg-gray-900 {
   background-color: var(--admin-surface) !important;
 }
 
-.admin-theme-scope .bg-gray-800\/30 {
+.admin-theme-scope .bg-black\/90,
+.admin-theme-scope .bg-black\/80,
+.admin-theme-scope .bg-black\/70,
+.admin-theme-scope .bg-black\/50,
+.admin-theme-scope .bg-black\/30,
+.admin-theme-scope .bg-black\/20,
+.admin-theme-scope .bg-black\/10,
+.guru-theme-scope .bg-black\/90,
+.guru-theme-scope .bg-black\/80,
+.guru-theme-scope .bg-black\/70,
+.guru-theme-scope .bg-black\/50,
+.guru-theme-scope .bg-black\/30,
+.guru-theme-scope .bg-black\/20,
+.guru-theme-scope .bg-black\/10 {
+  background-color: var(--admin-surface) !important;
+}
+
+.admin-theme-scope .bg-gray-900\/95,
+.admin-theme-scope .bg-gray-900\/90,
+.admin-theme-scope .bg-gray-900\/80,
+.admin-theme-scope .bg-gray-900\/70,
+.admin-theme-scope .bg-gray-900\/60,
+.admin-theme-scope .bg-gray-900\/50,
+.admin-theme-scope .bg-gray-900\/40,
+.admin-theme-scope .bg-gray-900\/30,
+.guru-theme-scope .bg-gray-900\/95,
+.guru-theme-scope .bg-gray-900\/90,
+.guru-theme-scope .bg-gray-900\/80,
+.guru-theme-scope .bg-gray-900\/70,
+.guru-theme-scope .bg-gray-900\/60,
+.guru-theme-scope .bg-gray-900\/50,
+.guru-theme-scope .bg-gray-900\/40,
+.guru-theme-scope .bg-gray-900\/30 {
+  background-color: var(--admin-surface) !important;
+}
+
+.admin-theme-scope .bg-gray-800\/80,
+.admin-theme-scope .bg-gray-800\/70,
+.admin-theme-scope .bg-gray-800\/60,
+.admin-theme-scope .bg-gray-800\/50,
+.admin-theme-scope .bg-gray-800\/40,
+.admin-theme-scope .bg-gray-800\/30,
+.guru-theme-scope .bg-gray-800\/80,
+.guru-theme-scope .bg-gray-800\/70,
+.guru-theme-scope .bg-gray-800\/60,
+.guru-theme-scope .bg-gray-800\/50,
+.guru-theme-scope .bg-gray-800\/40,
+.guru-theme-scope .bg-gray-800\/30 {
+  background-color: var(--admin-surface-strong) !important;
+}
+
+.admin-theme-scope .bg-white\/5,
+.admin-theme-scope .bg-white\/10,
+.admin-theme-scope .bg-white\/15,
+.admin-theme-scope .bg-white\/20,
+.guru-theme-scope .bg-white\/5,
+.guru-theme-scope .bg-white\/10,
+.guru-theme-scope .bg-white\/15,
+.guru-theme-scope .bg-white\/20 {
+  background-color: color-mix(in srgb, var(--admin-surface) 78%, transparent) !important;
+}
+
+.admin-theme-scope .bg-gray-800\/30,
+.guru-theme-scope .bg-gray-800\/30 {
   background-color: color-mix(in srgb, var(--admin-surface) 82%, transparent) !important;
 }
 
 .admin-theme-scope .bg-gray-800,
 .admin-theme-scope .bg-gray-800\/50,
-.admin-theme-scope .bg-gray-800\/70 {
+.admin-theme-scope .bg-gray-800\/70,
+.guru-theme-scope .bg-gray-800,
+.guru-theme-scope .bg-gray-800\/50,
+.guru-theme-scope .bg-gray-800\/70 {
   background-color: var(--admin-surface-strong) !important;
 }
 
 .admin-theme-scope .bg-gray-700,
 .admin-theme-scope .bg-gray-700\/50,
-.admin-theme-scope .bg-gray-600 {
+.admin-theme-scope .bg-gray-600,
+.guru-theme-scope .bg-gray-700,
+.guru-theme-scope .bg-gray-700\/50,
+.guru-theme-scope .bg-gray-600 {
   background-color: var(--admin-surface-muted) !important;
 }
 
 .admin-theme-scope .border-white\/5,
 .admin-theme-scope .border-white\/10,
 .admin-theme-scope .border-white\/20,
-.admin-theme-scope .border-gray-700 {
+.admin-theme-scope .border-gray-700,
+.guru-theme-scope .border-white\/5,
+.guru-theme-scope .border-white\/10,
+.guru-theme-scope .border-white\/20,
+.guru-theme-scope .border-gray-700 {
   border-color: var(--admin-border) !important;
 }
 
@@ -343,29 +479,41 @@ body {
 }
 
 .admin-theme-scope .placeholder-gray-400::placeholder,
-.admin-theme-scope .placeholder-gray-500::placeholder {
+.admin-theme-scope .placeholder-gray-500::placeholder,
+.guru-theme-scope .placeholder-gray-400::placeholder,
+.guru-theme-scope .placeholder-gray-500::placeholder {
   color: var(--admin-text-soft) !important;
 }
 
 .admin-theme-scope .hover\:bg-white\/5:hover,
-.admin-theme-scope .hover\:bg-\[\#0080FF\]\/20:hover {
+.admin-theme-scope .hover\:bg-\[\#0080FF\]\/20:hover,
+.guru-theme-scope .hover\:bg-white\/5:hover,
+.guru-theme-scope .hover\:bg-\[\#0080FF\]\/20:hover {
   background-color: var(--admin-hover) !important;
 }
 
 .admin-theme-scope .hover\:bg-gray-800\/70:hover,
 .admin-theme-scope .hover\:bg-gray-700\/50:hover,
 .admin-theme-scope .hover\:bg-gray-700:hover,
-.admin-theme-scope .hover\:bg-gray-600:hover {
+.admin-theme-scope .hover\:bg-gray-600:hover,
+.guru-theme-scope .hover\:bg-gray-800\/70:hover,
+.guru-theme-scope .hover\:bg-gray-700\/50:hover,
+.guru-theme-scope .hover\:bg-gray-700:hover,
+.guru-theme-scope .hover\:bg-gray-600:hover {
   background-color: var(--admin-hover-strong) !important;
 }
 
 .admin-theme-light .shadow-2xl,
-.admin-theme-light .shadow-lg {
+.admin-theme-light .shadow-lg,
+.guru-theme-light .shadow-2xl,
+.guru-theme-light .shadow-lg {
   box-shadow: var(--admin-card-shadow) !important;
 }
 
 .admin-theme-scope .focus\:border-\[\#0080FF\]\/50:focus,
-.admin-theme-scope .focus\:ring-\[\#0080FF\]:focus {
+.admin-theme-scope .focus\:ring-\[\#0080FF\]:focus,
+.guru-theme-scope .focus\:border-\[\#0080FF\]\/50:focus,
+.guru-theme-scope .focus\:ring-\[\#0080FF\]:focus {
   border-color: rgba(0, 128, 255, 0.5) !important;
   box-shadow: 0 0 0 2px rgba(0, 128, 255, 0.18);
 }
@@ -385,17 +533,21 @@ body {
   color: #0080ff;
 }
 
-.admin-theme-light .admin-nav-link {
+.admin-theme-light .admin-nav-link,
+.guru-theme-light .admin-nav-link {
   color: #0f172a;
 }
 
-.admin-theme-light .admin-nav-link:hover {
+.admin-theme-light .admin-nav-link:hover,
+.guru-theme-light .admin-nav-link:hover {
   color: #0080ff;
 }
 
 /* Shared Mana-style action buttons for admin/guru/siswa pages */
 body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui)
-  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider) {
+  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider):not(.password-toggle-btn):not(
+    .auth-password-toggle
+  ):not(.password-input-toggle) {
   --mana-goo-color: color-mix(in srgb, currentColor 85%, transparent);
   --mana-shadow-color: rgba(15, 23, 42, 0.32);
   border-style: solid;
@@ -415,15 +567,21 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui)
 }
 
 body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui)
-  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider):disabled {
+  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider):not(.password-toggle-btn):not(
+    .auth-password-toggle
+  ):not(.password-input-toggle):disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui)
-  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider)::before,
+  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider):not(.password-toggle-btn):not(
+    .auth-password-toggle
+  ):not(.password-input-toggle)::before,
 body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui)
-  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider)::after {
+  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider):not(.password-toggle-btn):not(
+    .auth-password-toggle
+  ):not(.password-input-toggle)::after {
   content: '';
   position: absolute;
   bottom: -125%;
@@ -438,26 +596,34 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui)
 }
 
 body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui)
-  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider)::before {
+  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider):not(.password-toggle-btn):not(
+    .auth-password-toggle
+  )::before {
   left: -7%;
   box-shadow: 118% 0 0 var(--mana-goo-color);
   transform: translateY(110%);
 }
 
 body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui)
-  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider)::after {
+  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider):not(.password-toggle-btn):not(
+    .auth-password-toggle
+  )::after {
   right: -8%;
   transform: translateY(118%);
 }
 
 body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui)
-  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider):hover {
+  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider):not(.password-toggle-btn):not(
+    .auth-password-toggle
+  ):hover {
   transform: translateY(-1px);
   box-shadow: 0 12px 24px var(--mana-shadow-color);
 }
 
 body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui)
-  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider):focus-visible {
+  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider):not(.password-toggle-btn):not(
+    .auth-password-toggle
+  ):focus-visible {
   outline: 2px solid color-mix(in srgb, currentColor 58%, transparent);
   outline-offset: 2px;
 }
@@ -468,9 +634,13 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) :is(button[class*='px-'][
 }
 
 body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui)
-  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider):hover::before,
+  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider):not(.password-toggle-btn):not(
+    .auth-password-toggle
+  ):hover::before,
 body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui)
-  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider):hover::after {
+  :is(button, a[role='button'], a[class*=' px-'][class*=' py-'], a[class^='px-'][class*=' py-']):not(.admin-theme-toggle):not(.admin-theme-toggle-bb8):not(.admin-nav-link):not(.switch):not(.slider):not(.password-toggle-btn):not(
+    .auth-password-toggle
+  ):hover::after {
   transform: translateY(22%);
 }
 
@@ -586,6 +756,29 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui)
 .mana-btn--neutral:hover {
   background-color: color-mix(in srgb, #374151 86%, transparent);
   color: #fff;
+}
+
+/* Landing login button theme lock: prevent light/dark color inversion. */
+body.app-theme-dark .landing-login-btn {
+  background-color: #cd7640 !important;
+  color: #ffffff !important;
+  border-color: color-mix(in srgb, #e4a073 48%, transparent) !important;
+}
+
+body.app-theme-dark .landing-login-btn:hover {
+  background-color: #b86433 !important;
+  color: #ffffff !important;
+}
+
+body.app-theme-light .landing-login-btn {
+  background-color: #cd7640 !important;
+  color: #ffffff !important;
+  border-color: color-mix(in srgb, #e4a073 48%, transparent) !important;
+}
+
+body.app-theme-light .landing-login-btn:hover {
+  background-color: #b86433 !important;
+  color: #ffffff !important;
 }
 
 /* Keep semantic colors for explicit mana button variants inside role pages. */
@@ -1252,6 +1445,27 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   box-shadow: var(--admin-card-shadow);
 }
 
+.admin-stats-card--dashboard,
+.admin-stats-panel--dashboard {
+  background: linear-gradient(140deg, #0080ff 0%, #0b5fd8 60%, #0646b4 100%) !important;
+  border-color: rgba(191, 219, 254, 0.55) !important;
+}
+
+.admin-stats-card--dashboard .admin-stats-card-header .admin-stats-title,
+.admin-stats-card--dashboard .admin-stats-card-header .admin-stats-icon,
+.admin-stats-panel--dashboard .admin-stats-title,
+.admin-stats-panel--dashboard .admin-stats-icon,
+.admin-stats-panel--dashboard .admin-stats-muted,
+.admin-stats-panel--dashboard .admin-stats-value,
+.admin-stats-panel--dashboard .admin-stats-accent-icon {
+  color: #ffffff !important;
+}
+
+.admin-stats-card--dashboard:hover,
+.admin-stats-panel--dashboard:hover {
+  box-shadow: 0 22px 46px rgba(0, 72, 181, 0.35) !important;
+}
+
 .admin-time-box,
 .admin-stats-panel {
   background: var(--admin-surface-strong);
@@ -1279,6 +1493,126 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 
 .admin-stats-accent-icon {
   color: var(--admin-text-primary);
+}
+
+.admin-stats-subpanel--pending {
+  background: #ca8a04;
+  border-color: rgba(120, 53, 15, 0.38);
+}
+
+.admin-stats-subpanel--verified,
+.admin-stats-panel--registered {
+  background: #15803d;
+  border-color: rgba(20, 83, 45, 0.42);
+}
+
+.admin-stats-subpanel--pending .admin-stats-muted,
+.admin-stats-subpanel--pending .admin-stats-value,
+.admin-stats-subpanel--pending .admin-stats-accent-icon,
+.admin-stats-subpanel--verified .admin-stats-muted,
+.admin-stats-subpanel--verified .admin-stats-value,
+.admin-stats-subpanel--verified .admin-stats-accent-icon,
+.admin-stats-panel--registered .admin-stats-muted,
+.admin-stats-panel--registered .admin-stats-value,
+.admin-stats-panel--registered .admin-stats-accent-icon {
+  color: #ffffff !important;
+}
+
+.admin-theme-light .admin-stats-subpanel--pending,
+.admin-theme-light .admin-stats-subpanel--verified,
+.admin-theme-light .admin-stats-panel--registered,
+.guru-theme-light .admin-stats-subpanel--pending,
+.guru-theme-light .admin-stats-subpanel--verified,
+.guru-theme-light .admin-stats-panel--registered {
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.18);
+}
+
+.password-toggle-btn,
+.auth-password-toggle,
+.password-input-toggle {
+  position: absolute !important;
+  top: 50% !important;
+  right: 1rem !important;
+  left: auto !important;
+  transform: translateY(-50%) !important;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  min-height: 0 !important;
+  border: 0 !important;
+  border-style: none !important;
+  border-width: 0 !important;
+  border-color: transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  isolation: auto !important;
+  overflow: visible !important;
+  outline: none;
+  transition: none !important;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.password-toggle-btn:hover,
+.password-toggle-btn:focus,
+.password-toggle-btn:focus-visible,
+.password-toggle-btn:active,
+.auth-password-toggle:hover,
+.auth-password-toggle:focus,
+.auth-password-toggle:focus-visible,
+.auth-password-toggle:active,
+.password-input-toggle:hover,
+.password-input-toggle:focus,
+.password-input-toggle:focus-visible,
+.password-input-toggle:active {
+  transform: translateY(-50%) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none;
+}
+
+.password-toggle-btn::before,
+.password-toggle-btn::after,
+.auth-password-toggle::before,
+.auth-password-toggle::after,
+.password-input-toggle::before,
+.password-input-toggle::after {
+  content: none !important;
+  display: none !important;
+}
+
+.password-input-wrapper .password-input-toggle,
+.auth-page .password-input-wrapper .auth-password-toggle {
+  top: 0 !important;
+  bottom: 0 !important;
+  margin-top: auto !important;
+  margin-bottom: auto !important;
+  right: 0.95rem !important;
+  transform: none !important;
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.password-input-wrapper .password-input-toggle:hover,
+.password-input-wrapper .password-input-toggle:focus,
+.password-input-wrapper .password-input-toggle:focus-visible,
+.password-input-wrapper .password-input-toggle:active,
+.auth-page .password-input-wrapper .auth-password-toggle:hover,
+.auth-page .password-input-wrapper .auth-password-toggle:focus,
+.auth-page .password-input-wrapper .auth-password-toggle:focus-visible,
+.auth-page .password-input-wrapper .auth-password-toggle:active {
+  transform: none !important;
+}
+
+.password-input-wrapper .password-input-toggle svg,
+.auth-page .password-input-wrapper .auth-password-toggle svg {
+  position: relative;
+  top: 0;
+  display: block;
 }
 
 .admin-theme-scope button.bg-blue-600,
@@ -1379,6 +1713,171 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   color: #334155 !important;
 }
 
+/* Make notification text readable in light mode across admin/guru/siswa pages. */
+.admin-theme-light :is(.fixed.inset-0.bg-black\/60, .fixed.inset-0.bg-black\/70) > div,
+body:is(.guru-theme-light, .app-theme-light) :is(.fixed.inset-0.bg-black\/60, .fixed.inset-0.bg-black\/70) > div {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 250, 252, 0.98)) !important;
+  border-color: rgba(15, 23, 42, 0.18) !important;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.16) !important;
+  color: #0f172a !important;
+}
+
+.admin-theme-light
+  :is(.fixed.inset-0.bg-black\/60, .fixed.inset-0.bg-black\/70, .fixed.inset-0.bg-black\/80)
+  > div
+  :is(.text-gray-200, .text-gray-300, .text-gray-400, .text-white, .text-yellow-50, .text-yellow-100, .text-green-50, .text-green-100, .text-blue-100, .text-blue-200),
+body:is(.guru-theme-light, .app-theme-light)
+  :is(.fixed.inset-0.bg-black\/60, .fixed.inset-0.bg-black\/70, .fixed.inset-0.bg-black\/80)
+  > div
+  :is(.text-gray-200, .text-gray-300, .text-gray-400, .text-white, .text-yellow-50, .text-yellow-100, .text-green-50, .text-green-100, .text-blue-100, .text-blue-200) {
+  color: #0f172a !important;
+}
+
+.admin-theme-light :is(.fixed.inset-0.bg-black\/60, .fixed.inset-0.bg-black\/70) > div :is(.text-red-300, .text-red-400),
+body:is(.guru-theme-light, .app-theme-light) :is(.fixed.inset-0.bg-black\/60, .fixed.inset-0.bg-black\/70) > div :is(.text-red-300, .text-red-400) {
+  color: #b91c1c !important;
+}
+
+.admin-theme-light :is(.fixed.top-24.right-6, .fixed.top-20.right-6, .fixed.top-24.right-4)[class*='bg-'],
+body:is(.guru-theme-light, .app-theme-light) :is(.fixed.top-24.right-6, .fixed.top-20.right-6, .fixed.top-24.right-4)[class*='bg-'] {
+  color: #ffffff !important;
+}
+
+.admin-theme-light :is(.fixed.top-24.right-6, .fixed.top-20.right-6, .fixed.top-24.right-4)[class*='bg-'] *,
+body:is(.guru-theme-light, .app-theme-light) :is(.fixed.top-24.right-6, .fixed.top-20.right-6, .fixed.top-24.right-4)[class*='bg-'] * {
+  color: #ffffff !important;
+}
+
+/* Keep icon + text contrast high for dark notification surfaces across all roles/pages. */
+body :is([class*='toast'], [class*='Toast'], [class*='notification'], [class*='Notification'], [class*='alert'], [class*='Alert'])[class*='bg-'],
+body :is(.auth-alert-error, .auth-alert-success) {
+  color: #ffffff !important;
+}
+
+body :is([class*='toast'], [class*='Toast'], [class*='notification'], [class*='Notification'], [class*='alert'], [class*='Alert'])[class*='bg-'] *,
+body :is(.auth-alert-error, .auth-alert-success) * {
+  color: #ffffff !important;
+}
+
+body :is([class*='toast'], [class*='Toast'], [class*='notification'], [class*='Notification'], [class*='alert'], [class*='Alert'])[class*='bg-'] :is(svg, path),
+body :is(.auth-alert-error, .auth-alert-success) :is(svg, path) {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+/* Siswa asesmen list: make duration badge and icon clearly visible in light mode. */
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-page .asesmen-card {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-page .asesmen-duration-badge {
+  color: #1e3a8a !important;
+  font-weight: 600;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-page .asesmen-duration-icon {
+  color: #1e40af !important;
+}
+
+/* Siswa kerjakan page: ensure text, icons, and key panels stay readable in light mode. */
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-icon,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page :is(.fa-clock, .fa-code, .fa-list-ol, .fa-stopwatch) {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-progress-panel,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-main-panel,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-intro-card,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-info-card {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-question-head,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-code-wrap {
+  background: #f8fafc !important;
+  border-color: rgba(30, 64, 175, 0.28) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-label,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-question-text,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-code-hint,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-textarea {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-textarea {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.16) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-timer-badge {
+  background: #fef3c7 !important;
+  border-color: rgba(217, 119, 6, 0.35) !important;
+  color: #92400e !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-start-countdown {
+  background: #eff6ff !important;
+  border-color: rgba(30, 64, 175, 0.28) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-start-countdown :is(.text-blue-200, .text-gray-200, .text-white) {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-intro-desc,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-countdown-title,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-countdown-number,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-countdown-subtitle,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-submitted-title,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-submitted-date,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-timeout-title,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-timeout-text {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-timeout-box,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-submitted-card,
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .kerjakan-submitted-info {
+  background: #f0fdf4 !important;
+  border-color: rgba(22, 163, 74, 0.26) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .quiz-nav-tab {
+  border: 1px solid rgba(15, 23, 42, 0.2) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .quiz-nav-tab--unanswered {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.35) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .quiz-nav-tab--unanswered:hover {
+  background: #f1f5f9 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .quiz-nav-tab--active {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.4) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-asesmen-kerjakan-page .quiz-nav-tab--answered {
+  background: #10b981 !important;
+  color: #ffffff !important;
+  border-color: #059669 !important;
+}
+
+/* Global low-contrast text guard in light mode across all roles/pages. */
+.admin-theme-light :is(.text-yellow-50, .text-yellow-100, .text-yellow-200, .text-blue-50, .text-blue-100, .text-blue-200, .text-green-50, .text-green-100, .text-green-200, .text-emerald-50, .text-emerald-100, .text-emerald-200),
+body:is(.guru-theme-light, .app-theme-light)
+  :is(.text-yellow-50, .text-yellow-100, .text-yellow-200, .text-blue-50, .text-blue-100, .text-blue-200, .text-green-50, .text-green-100, .text-green-200, .text-emerald-50, .text-emerald-100, .text-emerald-200) {
+  color: #0f172a !important;
+}
+
 .admin-theme-light input.bg-gray-800,
 .admin-theme-light input.bg-gray-800\/50,
 .admin-theme-light select.bg-gray-800,
@@ -1454,6 +1953,973 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 
 .admin-theme-light .max-w-7xl.mx-auto.text-center .text-gray-400 {
   color: #64748b !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .bg-black,
+body:is(.guru-theme-light, .app-theme-light) .bg-black\/90,
+body:is(.guru-theme-light, .app-theme-light) .bg-black\/80,
+body:is(.guru-theme-light, .app-theme-light) .bg-black\/70,
+body:is(.guru-theme-light, .app-theme-light) .bg-black\/60,
+body:is(.guru-theme-light, .app-theme-light) .bg-black\/50,
+body:is(.guru-theme-light, .app-theme-light) .bg-black\/40,
+body:is(.guru-theme-light, .app-theme-light) .bg-black\/30,
+body:is(.guru-theme-light, .app-theme-light) .bg-black\/25,
+body:is(.guru-theme-light, .app-theme-light) .bg-black\/20,
+body:is(.guru-theme-light, .app-theme-light) .bg-black\/10,
+body:is(.guru-theme-light, .app-theme-light) .bg-\[\#0B0B1F\] {
+  background-color: #ffffff !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-900,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-900\/95,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-900\/90,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-900\/80,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-900\/70,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-900\/60,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-900\/50,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-900\/40,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-900\/30 {
+  background-color: #ffffff !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-800,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-800\/80,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-800\/70,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-800\/60,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-800\/50,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-800\/40,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-800\/30,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-800\/20,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-700,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-700\/50,
+body:is(.guru-theme-light, .app-theme-light) .bg-gray-600 {
+  background-color: #f8fafc !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .text-white {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .text-gray-400,
+body:is(.guru-theme-light, .app-theme-light) .text-gray-500 {
+  color: #475569 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .text-gray-300 {
+  color: #334155 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .text-\[\#FFFFFF\],
+body:is(.guru-theme-light, .app-theme-light) .text-white\/90,
+body:is(.guru-theme-light, .app-theme-light) .text-white\/80,
+body:is(.guru-theme-light, .app-theme-light) .text-white\/70 {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .border-white\/5,
+body:is(.guru-theme-light, .app-theme-light) .border-white\/10,
+body:is(.guru-theme-light, .app-theme-light) .border-white\/20,
+body:is(.guru-theme-light, .app-theme-light) .border-gray-700 {
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .card-front .text-white,
+body:is(.guru-theme-light, .app-theme-light) .card-front .text-gray-400,
+body:is(.guru-theme-light, .app-theme-light) .card-front .text-gray-300,
+body:is(.guru-theme-light, .app-theme-light) .card-back .text-white,
+body:is(.guru-theme-light, .app-theme-light) .card-back .text-white\/90,
+body:is(.guru-theme-light, .app-theme-light) .card-back .text-white\/80,
+body:is(.guru-theme-light, .app-theme-light) .card-back .text-white\/70 {
+  color: #f8fafc !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) button.bg-gradient-to-r,
+body:is(.guru-theme-light, .app-theme-light) a.bg-gradient-to-r,
+body:is(.guru-theme-light, .app-theme-light) button.bg-\[\#0E5BFF\],
+body:is(.guru-theme-light, .app-theme-light) a.bg-\[\#0E5BFF\],
+body:is(.guru-theme-light, .app-theme-light) button.bg-\[\#0080FF\],
+body:is(.guru-theme-light, .app-theme-light) a.bg-\[\#0080FF\],
+body:is(.guru-theme-light, .app-theme-light) button.bg-blue-600,
+body:is(.guru-theme-light, .app-theme-light) button.bg-blue-700,
+body:is(.guru-theme-light, .app-theme-light) button.bg-green-600,
+body:is(.guru-theme-light, .app-theme-light) button.bg-green-700,
+body:is(.guru-theme-light, .app-theme-light) button.bg-red-600,
+body:is(.guru-theme-light, .app-theme-light) button.bg-red-700,
+body:is(.guru-theme-light, .app-theme-light) button.bg-purple-600,
+body:is(.guru-theme-light, .app-theme-light) button.bg-purple-700,
+body:is(.guru-theme-light, .app-theme-light) a.bg-blue-600,
+body:is(.guru-theme-light, .app-theme-light) a.bg-blue-700,
+body:is(.guru-theme-light, .app-theme-light) a.bg-green-600,
+body:is(.guru-theme-light, .app-theme-light) a.bg-green-700,
+body:is(.guru-theme-light, .app-theme-light) a.bg-red-600,
+body:is(.guru-theme-light, .app-theme-light) a.bg-red-700,
+body:is(.guru-theme-light, .app-theme-light) a.bg-purple-600,
+body:is(.guru-theme-light, .app-theme-light) a.bg-purple-700 {
+  color: #ffffff !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) button.bg-gradient-to-r *,
+body:is(.guru-theme-light, .app-theme-light) a.bg-gradient-to-r *,
+body:is(.guru-theme-light, .app-theme-light) button.bg-blue-600 *,
+body:is(.guru-theme-light, .app-theme-light) button.bg-blue-700 *,
+body:is(.guru-theme-light, .app-theme-light) button.bg-green-600 *,
+body:is(.guru-theme-light, .app-theme-light) button.bg-green-700 *,
+body:is(.guru-theme-light, .app-theme-light) button.bg-red-600 *,
+body:is(.guru-theme-light, .app-theme-light) button.bg-red-700 *,
+body:is(.guru-theme-light, .app-theme-light) button.bg-purple-600 *,
+body:is(.guru-theme-light, .app-theme-light) button.bg-purple-700 *,
+body:is(.guru-theme-light, .app-theme-light) a.bg-blue-600 *,
+body:is(.guru-theme-light, .app-theme-light) a.bg-blue-700 *,
+body:is(.guru-theme-light, .app-theme-light) a.bg-green-600 *,
+body:is(.guru-theme-light, .app-theme-light) a.bg-green-700 *,
+body:is(.guru-theme-light, .app-theme-light) a.bg-red-600 *,
+body:is(.guru-theme-light, .app-theme-light) a.bg-red-700 *,
+body:is(.guru-theme-light, .app-theme-light) a.bg-purple-600 *,
+body:is(.guru-theme-light, .app-theme-light) a.bg-purple-700 * {
+  color: #ffffff !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .admin-navbar {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08) !important;
+}
+
+.profile-avatar-icon {
+  color: #f8fafc;
+  opacity: 1;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .profile-avatar-shell {
+  background-color: #dbe4f0 !important;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+}
+
+body:is(.guru-theme-light, .app-theme-light) .profile-avatar-icon {
+  color: #0f172a !important;
+}
+
+/* PBL light-mode consistency: readable neutral text, visible icons, and darker semantic red/green tones. */
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .text-gray-100,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .text-gray-200 {
+  color: #1e293b !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .text-red-300,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .text-red-400 {
+  color: #991b1b !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .text-emerald-200,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .text-emerald-300 {
+  color: #065f46 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .bg-red-500\/10,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .bg-red-500\/15,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .bg-red-500\/20 {
+  background-color: #fee2e2 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .border-red-500\/20,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .border-red-500\/30 {
+  border-color: rgba(153, 27, 27, 0.28) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .bg-emerald-500\/15,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .bg-emerald-500\/20 {
+  background-color: #d1fae5 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .bg-yellow-500\/10,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .bg-yellow-500\/15 {
+  background-color: #fef3c7 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .text-yellow-200,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .text-yellow-300 {
+  color: #92400e !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope input::placeholder,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope textarea::placeholder {
+  color: #64748b !important;
+  opacity: 1;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope h1 svg,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope h2 svg,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope h3 svg,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope h4 svg {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-\[\#0E5BFF\],
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-\[\#0B49CB\],
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-\[\#2563EB\],
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-\[\#1D4ED8\],
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-blue-600,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-blue-700,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-red-600,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-red-700,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-green-600,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-green-700,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-\[\#0E5BFF\] *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-\[\#0B49CB\] *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-\[\#2563EB\] *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-\[\#1D4ED8\] *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-blue-600 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-blue-700 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-red-600 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-red-700 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-green-600 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a, label).bg-green-700 * {
+  color: #ffffff !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .asesmen-richtext-editor {
+  background: #f8fafc !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .asesmen-richtext-tool {
+  background: #e2e8f0 !important;
+  border-color: rgba(148, 163, 184, 0.6) !important;
+  color: #334155 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .asesmen-richtext-tool:hover {
+  background: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .bg-red-500\/15,
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .bg-red-500\/20,
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .bg-red-500\/25,
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .bg-red-600\/20 {
+  background-color: #fee2e2 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .text-red-300,
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .text-red-400 {
+  color: #991b1b !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .border-red-400\/40,
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .border-red-500\/50 {
+  border-color: rgba(153, 27, 27, 0.38) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .bg-green-600\/30,
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .bg-emerald-600\/20,
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .bg-emerald-600\/30 {
+  background-color: #dcfce7 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .text-green-300,
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .text-green-400,
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .text-emerald-300,
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .text-emerald-400 {
+  color: #166534 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .border-green-500\/50,
+body:is(.guru-theme-light, .app-theme-light) .asesmen-theme-scope .border-emerald-500\/50 {
+  border-color: rgba(22, 101, 52, 0.38) !important;
+}
+
+/* Siswa materi light-mode readability: strengthen contrast on cards and progress widgets. */
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-progress-card,
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-content-card,
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-subbab-card {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-bab-card,
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-subbab-content,
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-preview-shell,
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-link-shell {
+  background: #f1f5f9 !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-progress-label,
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-progress-meta {
+  color: #334155 !important;
+}
+
+/* Siswa dashboard calendar: keep selected date marker visible in light mode. */
+body:is(.guru-theme-light, .app-theme-light) .siswa-calendar-selected-date {
+  --tw-ring-color: #000000 !important;
+  border-color: #000000 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-progress-value {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-progress-value.is-zero {
+  background: #ffedd5;
+  border: 1px solid #fdba74;
+  border-radius: 9999px;
+  color: #9a3412 !important;
+  padding: 0.125rem 0.6rem;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-progress-track {
+  background: #dbeafe !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-progress-fill {
+  background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-subbab-toggle {
+  background: transparent !important;
+  border: 0 !important;
+  color: #334155 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-subbab-toggle:hover {
+  background: transparent !important;
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .text-gray-400 {
+  color: #334155 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .text-gray-300 {
+  color: #1e293b !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .text-amber-300 {
+  color: #92400e !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .card-front .text-white,
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .card-front .text-gray-400,
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .card-front .text-gray-300,
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .card-back .text-white,
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .card-back .text-white\/90,
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .card-back .text-white\/85,
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .card-back .text-white\/80,
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .card-back .text-gray-400,
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .card-back .text-gray-300 {
+  color: #ffffff !important;
+}
+
+.siswa-materi-page .siswa-materi-back-btn {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.18) !important;
+  color: #0f172a !important;
+}
+
+.siswa-materi-page .siswa-materi-back-btn:hover {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.siswa-materi-page .materi-lock-note,
+.siswa-materi-page .materi-lock-icon {
+  color: #f59e0b !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-lock-note,
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-lock-icon {
+  color: #b45309 !important;
+}
+
+/* Analisis pages: keep all text readable in light mode across admin/guru/siswa. */
+.admin-theme-light .analisis-theme-scope,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope {
+  color: #0f172a !important;
+}
+
+.admin-theme-light .analisis-theme-scope .text-white,
+.admin-theme-light .analisis-theme-scope .text-white\/90,
+.admin-theme-light .analisis-theme-scope .text-white\/80,
+.admin-theme-light .analisis-theme-scope .text-white\/70,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .text-white,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .text-white\/90,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .text-white\/80,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .text-white\/70 {
+  color: #0f172a !important;
+}
+
+.admin-theme-light .analisis-theme-scope .text-gray-200,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .text-gray-200 {
+  color: #334155 !important;
+}
+
+.admin-theme-light .analisis-theme-scope .text-gray-300,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .text-gray-300 {
+  color: #334155 !important;
+}
+
+.admin-theme-light .analisis-theme-scope .text-gray-400,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .text-gray-400 {
+  color: #475569 !important;
+}
+
+.admin-theme-light .analisis-theme-scope .bg-gradient-to-br[class*='from-gray-800/50'][class*='to-gray-900/50'],
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .bg-gradient-to-br[class*='from-gray-800/50'][class*='to-gray-900/50'] {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+}
+
+.admin-theme-light .analisis-theme-scope .bg-white\/5,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .bg-white\/5 {
+  background-color: #f8fafc !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+}
+
+.admin-theme-light .analisis-theme-scope .text-amber-200,
+.admin-theme-light .analisis-theme-scope .text-amber-300,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .text-amber-200,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .text-amber-300 {
+  color: #92400e !important;
+}
+
+.admin-theme-light .analisis-theme-scope .text-emerald-300,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .text-emerald-300 {
+  color: #065f46 !important;
+}
+
+.analisis-theme-scope .kelulusan-badge--pass {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.4), rgba(5, 150, 105, 0.28));
+  border: 1px solid rgba(52, 211, 153, 0.78);
+  color: #d1fae5;
+}
+
+.analisis-theme-scope .kelulusan-badge--fail {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.38), rgba(220, 38, 38, 0.26));
+  border: 1px solid rgba(248, 113, 113, 0.78);
+  color: #fee2e2;
+}
+
+.analisis-theme-scope .kelulusan-badge--pending {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.38), rgba(217, 119, 6, 0.24));
+  border: 1px solid rgba(251, 191, 36, 0.78);
+  color: #fef3c7;
+}
+
+.analisis-theme-scope .kelulusan-badge :is(span, svg) {
+  color: inherit;
+}
+
+.admin-theme-light .analisis-theme-scope .kelulusan-badge--pass,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .kelulusan-badge--pass {
+  background: #dcfce7 !important;
+  border-color: #22c55e !important;
+  color: #166534 !important;
+}
+
+.admin-theme-light .analisis-theme-scope .kelulusan-badge--fail,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .kelulusan-badge--fail {
+  background: #fee2e2 !important;
+  border-color: #ef4444 !important;
+  color: #b91c1c !important;
+}
+
+.admin-theme-light .analisis-theme-scope .kelulusan-badge--pending,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .kelulusan-badge--pending {
+  background: #fef3c7 !important;
+  border-color: #f59e0b !important;
+  color: #92400e !important;
+}
+
+.admin-theme-light .analisis-theme-scope .kelulusan-badge :is(span, svg),
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .kelulusan-badge :is(span, svg) {
+  color: inherit !important;
+}
+
+.progres-asesmen-scope .progres-kelulusan-badge--pass {
+  background: rgba(16, 185, 129, 0.35);
+  border: 1px solid rgba(52, 211, 153, 0.8);
+  color: #d1fae5;
+}
+
+.progres-asesmen-scope .progres-kelulusan-badge--fail {
+  background: rgba(239, 68, 68, 0.35);
+  border: 1px solid rgba(248, 113, 113, 0.8);
+  color: #fee2e2;
+}
+
+.progres-asesmen-scope .progres-kelulusan-badge--pending {
+  background: rgba(245, 158, 11, 0.35);
+  border: 1px solid rgba(251, 191, 36, 0.8);
+  color: #fef3c7;
+}
+
+.progres-asesmen-scope .progres-kelulusan-badge :is(span, svg) {
+  color: inherit;
+}
+
+.admin-theme-light .progres-asesmen-scope .progres-kelulusan-badge--pass,
+body:is(.guru-theme-light, .app-theme-light) .progres-asesmen-scope .progres-kelulusan-badge--pass {
+  background: #dcfce7 !important;
+  border-color: #22c55e !important;
+  color: #166534 !important;
+}
+
+.admin-theme-light .progres-asesmen-scope .progres-kelulusan-badge--fail,
+body:is(.guru-theme-light, .app-theme-light) .progres-asesmen-scope .progres-kelulusan-badge--fail {
+  background: #fee2e2 !important;
+  border-color: #ef4444 !important;
+  color: #b91c1c !important;
+}
+
+.admin-theme-light .progres-asesmen-scope .progres-kelulusan-badge--pending,
+body:is(.guru-theme-light, .app-theme-light) .progres-asesmen-scope .progres-kelulusan-badge--pending {
+  background: #fef3c7 !important;
+  border-color: #f59e0b !important;
+  color: #92400e !important;
+}
+
+.admin-theme-light .progres-asesmen-scope .progres-kelulusan-badge :is(span, svg),
+body:is(.guru-theme-light, .app-theme-light) .progres-asesmen-scope .progres-kelulusan-badge :is(span, svg) {
+  color: inherit !important;
+}
+
+.analisis-theme-scope .analysis-student-cap {
+  color: #ffffff !important;
+}
+
+.admin-theme-light .analisis-theme-scope .analysis-student-cap,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .analysis-student-cap {
+  color: #0f172a !important;
+}
+
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table thead tr,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table thead tr {
+  background: #e2e8f0 !important;
+}
+
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table :is(th, td),
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table :is(th, td) {
+  border-color: rgba(148, 163, 184, 0.35) !important;
+}
+
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table th,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table th {
+  color: #1e293b !important;
+}
+
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table td,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table td {
+  color: #334155 !important;
+}
+
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table tbody tr:hover,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table tbody tr:hover {
+  background: rgba(219, 234, 254, 0.7) !important;
+}
+
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table .jawaban-kunci-cell,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table .jawaban-kunci-cell {
+  color: #0f172a !important;
+}
+
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table .jawaban-aksi-selesai,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table .jawaban-aksi-selesai {
+  color: #166534 !important;
+  font-weight: 700;
+}
+
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table .jawaban-nilai-input,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table .jawaban-nilai-input {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.22) !important;
+}
+
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-blue-600,
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-blue-700,
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-green-600,
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-green-700,
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-red-600,
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-red-700,
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-gray-600,
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-gray-700,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-blue-600,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-blue-700,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-green-600,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-green-700,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-red-600,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-red-700,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-gray-600,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-gray-700 {
+  color: #ffffff !important;
+}
+
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-blue-600 *,
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-blue-700 *,
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-green-600 *,
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-green-700 *,
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-red-600 *,
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-red-700 *,
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-gray-600 *,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table .jawaban-btn-dark,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table .jawaban-btn-dark * {
+  color: #ffffff !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table .jawaban-status-pending,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table .jawaban-status-pending * {
+  color: #ffffff !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-status-validated,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-status-validated * {
+  color: #ffffff !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-btn-dark,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-btn-dark * {
+  color: #ffffff !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-modal-btn-dark,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-modal-btn-dark * {
+  color: #ffffff !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-toast-dark,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-toast-dark * {
+  color: #ffffff !important;
+}
+.admin-theme-light .analisis-theme-scope .jawaban-validasi-table button.bg-gray-700 *,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-blue-600 *,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-blue-700 *,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-green-600 *,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-green-700 *,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-red-600 *,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-red-700 *,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-gray-600 *,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .jawaban-validasi-table button.bg-gray-700 * {
+  color: #ffffff !important;
+}
+
+.admin-theme-light .analisis-theme-scope .nilai-asesmen-filter,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .nilai-asesmen-filter {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.18) !important;
+}
+
+.admin-theme-light .analisis-theme-scope .nilai-asesmen-filter::placeholder,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .nilai-asesmen-filter::placeholder {
+  color: #64748b !important;
+}
+
+.admin-theme-light .analisis-theme-scope .nilai-asesmen-table-wrap,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .nilai-asesmen-table-wrap {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.16) !important;
+}
+
+.admin-theme-light .analisis-theme-scope .nilai-asesmen-table thead tr,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .nilai-asesmen-table thead tr {
+  background: #e2e8f0 !important;
+}
+
+.admin-theme-light .analisis-theme-scope .nilai-asesmen-table :is(th, td),
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .nilai-asesmen-table :is(th, td) {
+  border-color: rgba(148, 163, 184, 0.35) !important;
+}
+
+.admin-theme-light .analisis-theme-scope .nilai-asesmen-table th,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .nilai-asesmen-table th {
+  color: #1e293b !important;
+}
+
+.admin-theme-light .analisis-theme-scope .nilai-asesmen-table td,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .nilai-asesmen-table td {
+  color: #334155 !important;
+}
+
+.admin-theme-light .analisis-theme-scope .nilai-asesmen-table tbody tr:hover,
+body:is(.guru-theme-light, .app-theme-light) .analisis-theme-scope .nilai-asesmen-table tbody tr:hover {
+  background: rgba(219, 234, 254, 0.7) !important;
+}
+
+/* Global light-mode neutral buttons: unify back-button appearance across all roles/pages. */
+.admin-theme-light .mana-btn--neutral:not(.landing-login-btn),
+body:is(.guru-theme-light, .app-theme-light) .mana-btn--neutral:not(.landing-login-btn) {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.18) !important;
+}
+
+.admin-theme-light .mana-btn--neutral:not(.landing-login-btn):hover,
+body:is(.guru-theme-light, .app-theme-light) .mana-btn--neutral:not(.landing-login-btn):hover {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* Final landing-login theme mapping (placed late to beat global overrides). */
+body.app-theme-dark .mana-btn--neutral.landing-login-btn {
+  background-color: #cd7640 !important;
+  color: #ffffff !important;
+  border-color: color-mix(in srgb, #e4a073 48%, transparent) !important;
+}
+
+body.app-theme-dark .mana-btn--neutral.landing-login-btn:hover {
+  background-color: #b86433 !important;
+  color: #ffffff !important;
+}
+
+body.app-theme-light .mana-btn--neutral.landing-login-btn {
+  background-color: #cd7640 !important;
+  color: #ffffff !important;
+  border-color: color-mix(in srgb, #e4a073 48%, transparent) !important;
+}
+
+body.app-theme-light .mana-btn--neutral.landing-login-btn:hover {
+  background-color: #b86433 !important;
+  color: #ffffff !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-complete-modal {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.2) !important;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-complete-modal-title {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-complete-modal-text {
+  color: #334155 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .siswa-materi-page .materi-complete-modal-subject {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.pbl-theme-scope .materi-form-overlay {
+  background: rgba(2, 6, 23, 0.62) !important;
+}
+
+.pbl-theme-scope .materi-form-modal {
+  background: rgba(15, 23, 42, 0.96) !important;
+  border-color: rgba(148, 163, 184, 0.42) !important;
+  color: #f8fafc !important;
+}
+
+.pbl-theme-scope .materi-form-modal :is(h1, h2, h3, h4, label, p, span) {
+  color: #f8fafc;
+}
+
+.pbl-theme-scope .materi-form-modal input,
+.pbl-theme-scope .materi-form-modal textarea,
+.pbl-theme-scope .materi-form-modal select {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border: 1px solid rgba(148, 163, 184, 0.55) !important;
+  color: #ffffff !important;
+}
+
+.pbl-theme-scope .materi-form-modal input::placeholder,
+.pbl-theme-scope .materi-form-modal textarea::placeholder {
+  color: #cbd5e1 !important;
+}
+
+.pbl-theme-scope .materi-form-modal :is(button, a).bg-gray-700 *,
+.pbl-theme-scope .materi-form-modal :is(button, a).bg-blue-600 *,
+.pbl-theme-scope .materi-form-modal :is(button, a).bg-green-700 *,
+.pbl-theme-scope .materi-form-modal :is(button, a).bg-red-600 * {
+  color: #ffffff !important;
+}
+
+.pbl-theme-scope.siswa-materi-page .materi-complete-modal-overlay {
+  background: rgba(2, 6, 23, 0.62) !important;
+}
+
+.pbl-theme-scope.siswa-materi-page .materi-complete-modal {
+  background: rgba(15, 23, 42, 0.96) !important;
+  border-color: rgba(148, 163, 184, 0.42) !important;
+  color: #f8fafc !important;
+}
+
+.pbl-theme-scope.siswa-materi-page .materi-complete-modal-title,
+.pbl-theme-scope.siswa-materi-page .materi-complete-modal-text,
+.pbl-theme-scope.siswa-materi-page .materi-complete-modal-subject {
+  color: #f8fafc !important;
+}
+
+.pbl-theme-scope.siswa-materi-page .materi-complete-modal-subject {
+  background: rgba(15, 23, 42, 0.82) !important;
+  border: 1px solid rgba(148, 163, 184, 0.42) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope.siswa-materi-page .materi-complete-modal {
+  background: rgba(15, 23, 42, 0.96) !important;
+  border-color: rgba(148, 163, 184, 0.42) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope.siswa-materi-page .materi-complete-modal-title,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope.siswa-materi-page .materi-complete-modal-text,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope.siswa-materi-page .materi-complete-modal-subject {
+  color: #f8fafc !important;
+}
+
+/* Final light-mode fixes for materi popups: keep backdrop visible and enforce readable foregrounds. */
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-form-overlay,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope.siswa-materi-page .materi-complete-modal-overlay {
+  background: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-form-modal,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope.siswa-materi-page .materi-complete-modal {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.36) !important;
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-form-modal :is(h1, h2, h3, h4, label, p, span),
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope.siswa-materi-page .materi-complete-modal :is(h1, h2, h3, h4, p, span) {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-form-modal input,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-form-modal textarea,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-form-modal select {
+  background: #ffffff !important;
+  border: 1px solid rgba(148, 163, 184, 0.55) !important;
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-form-modal [contenteditable='true'] {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope.siswa-materi-page .materi-complete-modal-subject {
+  background: #e2e8f0 !important;
+  border: 1px solid rgba(148, 163, 184, 0.5) !important;
+  color: #0f172a !important;
+}
+
+/* White-ish buttons use dark foreground. */
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-white,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-white\/5,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-white\/10,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-gray-100,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-gray-200 {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-white *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-white\/5 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-white\/10 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-gray-100 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-gray-200 * {
+  color: #0f172a !important;
+}
+
+/* Dark buttons keep white foreground. */
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-gray-700,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-blue-600,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-blue-700,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-green-600,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-green-700,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-red-600,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-red-700 {
+  color: #ffffff !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-gray-700 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-blue-600 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-blue-700 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-green-600 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-green-700 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-red-600 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(button, a).bg-red-700 * {
+  color: #ffffff !important;
+}
+
+/* Siswa completion modal final readability: black text on white panel, backdrop still translucent. */
+.pbl-theme-scope.siswa-materi-page .materi-complete-modal-overlay {
+  background: rgba(15, 23, 42, 0.45) !important;
+}
+
+.pbl-theme-scope.siswa-materi-page .materi-complete-modal {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.38) !important;
+  color: #0f172a !important;
+}
+
+.pbl-theme-scope.siswa-materi-page .materi-complete-modal-title,
+.pbl-theme-scope.siswa-materi-page .materi-complete-modal-text,
+.pbl-theme-scope.siswa-materi-page .materi-complete-modal-subject,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope.siswa-materi-page .materi-complete-modal-title,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope.siswa-materi-page .materi-complete-modal-text,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope.siswa-materi-page .materi-complete-modal-subject {
+  color: #0f172a !important;
+}
+
+.pbl-theme-scope.siswa-materi-page .materi-complete-modal-subject,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope.siswa-materi-page .materi-complete-modal-subject {
+  background: #e2e8f0 !important;
+  border: 1px solid rgba(148, 163, 184, 0.5) !important;
+}
+
+/* Absolute final: dark buttons in materi modals must always render white text/icons. */
+.pbl-theme-scope .materi-form-modal :is(button, a):is(.bg-blue-600, .bg-blue-700, .bg-green-600, .bg-green-700, .bg-red-600, .bg-red-700, .bg-gray-700),
+.pbl-theme-scope.siswa-materi-page .materi-complete-modal :is(button, a):is(.bg-blue-600, .bg-blue-700, .bg-green-600, .bg-green-700, .bg-red-600, .bg-red-700, .bg-gray-700),
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-form-modal :is(button, a):is(.bg-blue-600, .bg-blue-700, .bg-green-600, .bg-green-700, .bg-red-600, .bg-red-700, .bg-gray-700),
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope.siswa-materi-page .materi-complete-modal :is(button, a):is(.bg-blue-600, .bg-blue-700, .bg-green-600, .bg-green-700, .bg-red-600, .bg-red-700, .bg-gray-700) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.pbl-theme-scope .materi-form-modal :is(button, a):is(.bg-blue-600, .bg-blue-700, .bg-green-600, .bg-green-700, .bg-red-600, .bg-red-700, .bg-gray-700) *,
+.pbl-theme-scope.siswa-materi-page .materi-complete-modal :is(button, a):is(.bg-blue-600, .bg-blue-700, .bg-green-600, .bg-green-700, .bg-red-600, .bg-red-700, .bg-gray-700) *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-form-modal :is(button, a):is(.bg-blue-600, .bg-blue-700, .bg-green-600, .bg-green-700, .bg-red-600, .bg-red-700, .bg-gray-700) *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope.siswa-materi-page .materi-complete-modal :is(button, a):is(.bg-blue-600, .bg-blue-700, .bg-green-600, .bg-green-700, .bg-red-600, .bg-red-700, .bg-gray-700) * {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+  stroke: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Specific fix: upload "Pilih File" labels are <label>, not <button>. */
+.pbl-theme-scope .materi-form-modal label.bg-blue-600,
+.pbl-theme-scope .materi-form-modal label.hover\:bg-blue-700,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-form-modal label.bg-blue-600,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-form-modal label.hover\:bg-blue-700 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.pbl-theme-scope .materi-form-modal label.bg-blue-600 *,
+.pbl-theme-scope .materi-form-modal label.hover\:bg-blue-700 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-form-modal label.bg-blue-600 *,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-form-modal label.hover\:bg-blue-700 * {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+  stroke: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+@media (max-width: 640px) {
+  .pbl-theme-scope :is(button, a)[class*='gap-'] svg {
+    display: none !important;
+  }
+
+  .pbl-theme-scope :is(button, a)[class*='gap-'] {
+    gap: 0 !important;
+  }
 }
 
 .admin-theme-light .animate-slide-in {
@@ -1615,17 +3081,7 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 }
 
 .auth-page .auth-card::after {
-  content: '';
-  position: absolute;
-  width: 80%;
-  aspect-ratio: 1 / 1;
-  right: -44%;
-  top: 50%;
-  transform: translateY(-50%);
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(157, 173, 203, 0.88) 61%, rgba(99, 122, 159, 0.92) 100%);
-  z-index: 0;
-  pointer-events: none;
+  display: none;
 }
 
 .auth-page .auth-info-pane,
@@ -1656,16 +3112,7 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 }
 
 .auth-page .auth-form::before {
-  content: '';
-  position: absolute;
-  width: 45%;
-  aspect-ratio: 1 / 1;
-  right: -2%;
-  top: 12%;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(102, 124, 187, 0.45) 20%, rgba(126, 148, 220, 0.22) 60%, rgba(126, 148, 220, 0) 100%);
-  filter: blur(50px);
-  pointer-events: none;
+  display: none;
 }
 
 .auth-page .auth-info-title {
@@ -1713,10 +3160,11 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 }
 
 .auth-page .auth-inline-link {
-  color: #60a5fa;
+  color: #0e5bff;
 }
 
 .auth-page .auth-inline-link:hover {
+  color: #0b49cb;
   text-decoration: underline;
 }
 
@@ -1760,16 +3208,34 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 }
 
 .auth-page .auth-alert-error {
-  background: rgba(220, 38, 38, 0.2);
-  border: 1px solid rgba(248, 113, 113, 0.5);
-  color: #fee2e2;
+  background: #b91c1c;
+  border: 1px solid #ef4444;
+  color: #ffffff;
+  box-shadow: 0 10px 24px rgba(127, 29, 29, 0.32);
 }
 
 .auth-page .auth-alert-success {
-  background: rgba(34, 197, 94, 0.2);
-  border: 2px solid rgba(34, 197, 94, 0.8);
+  background: #166534;
+  border: 1px solid #22c55e;
+  color: #ffffff;
+  box-shadow: 0 12px 26px rgba(21, 128, 61, 0.3);
+}
+
+.auth-page .auth-alert-error-icon,
+.auth-page .auth-alert-success-icon {
+  color: #ffffff;
+}
+
+.auth-page .auth-step-badge {
+  background: rgba(59, 130, 246, 0.16);
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  color: #dbeafe;
+}
+
+.auth-page .auth-step-done {
+  background: rgba(34, 197, 94, 0.16);
+  border: 1px solid rgba(74, 222, 128, 0.5);
   color: #dcfce7;
-  box-shadow: 0 12px 26px rgba(34, 197, 94, 0.16);
 }
 
 .admin-theme-dark .auth-page .auth-card::after {
@@ -1781,7 +3247,7 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 }
 
 .admin-theme-light .auth-page .auth-info-title {
-  color: #f8fafc;
+  color: #0f172a;
 }
 
 .admin-theme-light .auth-page .auth-info-subtitle {
@@ -1794,6 +3260,18 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 
 .admin-theme-light .auth-page .auth-inline-note {
   color: #0f172a;
+}
+
+.admin-theme-light .auth-page .auth-step-badge {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(37, 99, 235, 0.35);
+  color: #1e3a8a;
+}
+
+.admin-theme-light .auth-page .auth-step-done {
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(22, 163, 74, 0.4);
+  color: #14532d;
 }
 
 /* Extra small screens (< 375px) */
@@ -1896,6 +3374,67 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
     height: 16px;
     display: none;
   }
+}
+
+/* Final auth password-toggle alignment override (login/register). */
+.auth-page .password-input-wrapper {
+  position: relative;
+}
+
+.auth-page .password-input-wrapper > .password-input-toggle,
+.auth-page .password-input-wrapper > .auth-password-toggle {
+  position: absolute !important;
+  right: 1rem !important;
+  top: 50% !important;
+  bottom: auto !important;
+  left: auto !important;
+  transform: translateY(calc(-50% + 1px)) !important;
+  width: 22px !important;
+  height: 22px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  line-height: 1 !important;
+  z-index: 3 !important;
+}
+
+.auth-page .password-input-wrapper > .password-input-toggle:hover,
+.auth-page .password-input-wrapper > .password-input-toggle:focus,
+.auth-page .password-input-wrapper > .password-input-toggle:focus-visible,
+.auth-page .password-input-wrapper > .password-input-toggle:active,
+.auth-page .password-input-wrapper > .auth-password-toggle:hover,
+.auth-page .password-input-wrapper > .auth-password-toggle:focus,
+.auth-page .password-input-wrapper > .auth-password-toggle:focus-visible,
+.auth-page .password-input-wrapper > .auth-password-toggle:active {
+  transform: translateY(calc(-50% + 1px)) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.auth-page .password-input-wrapper > .password-input-toggle svg,
+.auth-page .password-input-wrapper > .auth-password-toggle svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+/* Keep code editor typography aligned with question list text size. */
+.soal-code-editor .cm-content,
+.soal-code-editor .cm-gutterElement,
+.soal-code-editor .cm-lineNumbers .cm-gutterElement {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.asesmen-delete-overlay {
+  backdrop-filter: blur(16px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(120%) !important;
 }
 
 /* Small screens (375px - 640px) */
@@ -2426,7 +3965,8 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 }
 
 @keyframes auth-bb8-eyes-look {
-  0%, 100% {
+  0%,
+  100% {
     left: 28%;
   }
   25% {
@@ -2441,7 +3981,8 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 }
 
 @keyframes auth-bb8-head-bounce {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate(0, 0) rotate(0deg);
   }
   20% {
@@ -2459,7 +4000,8 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 }
 
 @keyframes auth-bb8-antenna-wiggle {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate(0, 0) rotate(0deg);
   }
   15% {
@@ -2528,7 +4070,8 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
 }
 
 @keyframes auth-bb8-body-sway {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateX(0) scale(1.1);
   }
   25% {
@@ -2562,6 +4105,721 @@ body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mana-btn--neutral:hover 
   background: rgba(15, 23, 42, 0.88);
   color: #e2e8f0;
   border-color: rgba(148, 163, 184, 0.35);
+}
+
+.feature-hover-card {
+  position: relative;
+  min-height: 340px;
+  cursor: default;
+  overflow: visible;
+  border-radius: 1rem;
+}
+
+.feature-slide {
+  position: relative;
+  width: 100%;
+  transition: all 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.feature-slide-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.feature-slide-front {
+  z-index: 2;
+  height: 230px;
+  border-radius: 1rem;
+  border: 1px solid #5aa9ff;
+  background: linear-gradient(140deg, #2b86e6, #0e5bff);
+  box-shadow:
+    0 18px 32px rgba(14, 91, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transform: translateY(0);
+}
+
+.feature-slide-back {
+  z-index: 1;
+  margin-top: 0.85rem;
+  padding: 0 1rem;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid #334155;
+  background: #0f172a;
+  box-shadow: 0 22px 42px rgba(2, 6, 23, 0.5);
+  transform: translateY(-14px);
+}
+
+.feature-hover-card:hover .feature-slide-front {
+  transform: translateY(0);
+}
+
+.feature-hover-card:hover .feature-slide-back {
+  padding: 1.35rem 1rem;
+  max-height: 180px;
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.feature-icon-shell {
+  width: 82px;
+  height: 82px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 0 24px rgba(255, 255, 255, 0.22);
+}
+
+.feature-icon {
+  font-size: 2.3rem;
+  color: #ffffff;
+}
+
+.feature-front-title {
+  margin-top: 0.9rem;
+  margin-bottom: 0;
+  color: #ffffff;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.feature-back-title {
+  margin: 0 0 0.55rem;
+  color: #f8fafc;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.feature-back-description {
+  margin: 0;
+  color: #cbd5e1;
+  line-height: 1.6;
+  font-size: 0.94rem;
+  max-width: 28ch;
+}
+
+.mitra-hover-card {
+  position: relative;
+  width: min(100%, 420px);
+  min-height: 350px;
+  border-radius: 1rem;
+  overflow: visible;
+}
+
+.mitra-slide {
+  position: relative;
+  width: 100%;
+  transition: all 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mitra-slide-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.mitra-slide-front {
+  z-index: 2;
+  height: 245px;
+  border-radius: 1rem;
+  border: 1px solid #5aa9ff;
+  background: linear-gradient(140deg, #2b86e6, #0e5bff);
+  box-shadow:
+    0 18px 32px rgba(14, 91, 255, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.mitra-logo-wrap {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.mitra-front-title {
+  margin: 0.85rem 0 0;
+  color: #ffffff;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.mitra-slide-back {
+  z-index: 1;
+  margin-top: 0.85rem;
+  padding: 0 1rem;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid #334155;
+  background: #0f172a;
+  box-shadow: 0 20px 40px rgba(2, 6, 23, 0.5);
+  transform: translateY(-14px);
+}
+
+.mitra-hover-card:hover .mitra-slide-back {
+  padding: 1.2rem 1rem;
+  max-height: 190px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.mitra-back-title {
+  margin: 0 0 0.45rem;
+  color: #f8fafc;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.mitra-back-description {
+  margin: 0 0 0.9rem;
+  color: #cbd5e1;
+  line-height: 1.6;
+  font-size: 0.94rem;
+}
+
+.mitra-map-link {
+  color: #ffffff;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.mitra-map-link:hover {
+  color: #ffffff;
+}
+
+.feature-slide-back::after {
+  content: '';
+  position: absolute;
+  width: 34px;
+  height: 4px;
+  left: 50%;
+  bottom: 13px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #0e5bff;
+}
+
+.admin-theme-light .feature-slide-front {
+  border-color: #5aa9ff;
+  background: linear-gradient(140deg, #3ea2f2, #0e5bff);
+  box-shadow:
+    0 18px 30px rgba(30, 64, 175, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.admin-theme-light .feature-slide-back {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  box-shadow: 0 20px 35px rgba(15, 23, 42, 0.16);
+}
+
+.admin-theme-light .feature-back-title {
+  color: #0f172a;
+}
+
+.admin-theme-light .feature-back-description {
+  color: #334155;
+}
+
+.admin-theme-light .mitra-slide-front {
+  border-color: #5aa9ff;
+  background: linear-gradient(140deg, #3ea2f2, #0e5bff);
+}
+
+.admin-theme-light .mitra-slide-back {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  box-shadow: 0 20px 35px rgba(15, 23, 42, 0.14);
+}
+
+.admin-theme-light .mitra-back-title {
+  color: #0f172a;
+}
+
+.admin-theme-light .mitra-back-description {
+  color: #334155;
+}
+
+.admin-theme-light .mitra-map-link {
+  color: #0e5bff;
+}
+
+.admin-theme-light .mitra-map-link:hover {
+  color: #0b49cb;
+}
+
+.landing-footer {
+  background: var(--admin-nav-bg);
+  border-top-color: var(--admin-border-strong) !important;
+  box-shadow: var(--admin-nav-shadow);
+}
+
+.admin-theme-light .landing-footer p {
+  color: #334155;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pembelajaran-page {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pembelajaran-page .rounded-2xl {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pembelajaran-page :is(h1, h2) {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pembelajaran-page :is(p, .text-gray-300) {
+  color: #334155 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pembelajaran-page .bg-blue-600,
+body:is(.guru-theme-light, .app-theme-light) .pembelajaran-page .bg-blue-600 *,
+body:is(.guru-theme-light, .app-theme-light) .pembelajaran-page .bg-emerald-600,
+body:is(.guru-theme-light, .app-theme-light) .pembelajaran-page .bg-emerald-600 * {
+  color: #ffffff !important;
+}
+
+.pbl-theme-scope .pembelajaran-bridge-card {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(148, 163, 184, 0.35);
+  color: #e2e8f0;
+}
+
+.pbl-theme-scope .pembelajaran-bridge-card--materi {
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.35);
+}
+
+.pbl-theme-scope .pembelajaran-bridge-card--tugas {
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.35);
+}
+
+.pbl-theme-scope .pembelajaran-bridge-card:hover {
+  transform: translateY(-2px);
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .pembelajaran-bridge-card {
+  background: #cbd5e1 !important;
+  border-color: #64748b !important;
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .pembelajaran-bridge-card--materi {
+  background: #bfdbfe !important;
+  border-color: #1d4ed8 !important;
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .pembelajaran-bridge-card--tugas {
+  background: #bbf7d0 !important;
+  border-color: #047857 !important;
+  color: #052e16 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .pembelajaran-bridge-card p {
+  color: inherit !important;
+}
+
+.pbl-theme-scope .materi-sintak-panel {
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.pbl-theme-scope .materi-sintak-panel .bg-indigo-700,
+.pbl-theme-scope .materi-sintak-panel .bg-blue-700,
+.pbl-theme-scope .materi-sintak-panel .bg-green-700,
+.pbl-theme-scope .materi-sintak-panel .bg-indigo-700 *,
+.pbl-theme-scope .materi-sintak-panel .bg-blue-700 *,
+.pbl-theme-scope .materi-sintak-panel .bg-green-700 * {
+  color: #ffffff !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-sintak-panel {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-sintak-panel :is(h3, h4) {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-sintak-panel :is(p, .text-gray-300) {
+  color: #334155 !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-sintak-panel .bg-black\/25 {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+.pbl-theme-scope .materi-richtext {
+  color: inherit;
+}
+
+.pbl-theme-scope .materi-richtext p {
+  margin: 0.25rem 0;
+}
+
+.pbl-theme-scope .materi-richtext :is(strong, b) {
+  font-weight: 700;
+}
+
+.pbl-theme-scope .materi-richtext :is(em, i) {
+  font-style: italic;
+}
+
+.pbl-theme-scope .materi-richtext ul {
+  list-style: disc;
+  margin: 0.25rem 0 0.25rem 1.25rem;
+}
+
+.pbl-theme-scope .materi-richtext ol {
+  list-style: decimal;
+  margin: 0.25rem 0 0.25rem 1.25rem;
+}
+
+.pbl-theme-scope .materi-lms-panel {
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+}
+
+.pbl-theme-scope .materi-modern-panel {
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.66) 0%, rgba(15, 23, 42, 0.48) 100%);
+  box-shadow:
+    0 20px 45px rgba(2, 6, 23, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.pbl-theme-scope .materi-panel-head {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+}
+
+.pbl-theme-scope .materi-list-stack {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.pbl-theme-scope .materi-bab-card {
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.62) 0%, rgba(30, 41, 59, 0.42) 100%);
+  box-shadow: 0 3px 10px rgba(2, 6, 23, 0.08);
+}
+
+.pbl-theme-scope .materi-bab-toggle {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  border-radius: 0.45rem;
+  padding: 0.35rem 0.5rem;
+  overflow: visible !important;
+  transition: background-color 180ms ease;
+}
+
+.pbl-theme-scope .materi-bab-toggle:hover {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.pbl-theme-scope .materi-subbab-card {
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  background: rgba(15, 23, 42, 0.5);
+  box-shadow: none;
+}
+
+.pbl-theme-scope .materi-subbab-head {
+  border-radius: 0.5rem;
+  background: transparent;
+}
+
+.pbl-theme-scope .materi-subbab-toggle {
+  appearance: none;
+  border: 0 !important;
+  border-style: none !important;
+  border-width: 0 !important;
+  background: transparent !important;
+  border-radius: 0.45rem;
+  padding: 0.25rem 0.35rem;
+  overflow: visible !important;
+  box-shadow: none !important;
+  transition: background-color 180ms ease;
+}
+
+.pbl-theme-scope .materi-subbab-toggle:hover {
+  background: transparent;
+}
+
+.pbl-theme-scope :is(.materi-bab-toggle, .materi-subbab-toggle)::before,
+.pbl-theme-scope :is(.materi-bab-toggle, .materi-subbab-toggle)::after {
+  content: none !important;
+}
+
+.pbl-theme-scope :is(.materi-bab-toggle, .materi-subbab-toggle) {
+  box-shadow: none !important;
+}
+
+.pbl-theme-scope .materi-action-btn:is(.mana-btn--primary, .mana-btn--success, .mana-btn--danger),
+.pbl-theme-scope .materi-action-btn:is(.mana-btn--primary, .mana-btn--success, .mana-btn--danger) * {
+  color: #ffffff !important;
+}
+
+.pbl-theme-scope .materi-empty-state {
+  border-color: rgba(148, 163, 184, 0.3) !important;
+  background: rgba(15, 23, 42, 0.46) !important;
+}
+
+.pbl-theme-scope .materi-progress-card--clean {
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  background: rgba(15, 23, 42, 0.46) !important;
+}
+
+.pbl-theme-scope .materi-action-btn {
+  min-height: 44px;
+}
+
+.pbl-theme-scope .materi-icon-btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.pbl-theme-scope .comment-menu-btn {
+  width: 2rem;
+  height: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0 !important;
+  flex-shrink: 0;
+}
+
+.pbl-theme-scope .comment-menu-btn svg {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.pbl-theme-scope .delete-confirm-overlay {
+  background: rgba(2, 6, 23, 0.38) !important;
+  backdrop-filter: blur(1px);
+}
+
+.pbl-theme-scope .delete-modal-cancel-btn {
+  background: #e5e7eb !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.pbl-theme-scope .delete-modal-cancel-btn:hover {
+  background: #d1d5db !important;
+}
+
+.pbl-theme-scope .delete-modal-cancel-btn,
+.pbl-theme-scope .delete-modal-cancel-btn * {
+  color: #0f172a !important;
+}
+
+.pbl-theme-scope .delete-modal-confirm-btn {
+  background: #dc2626 !important;
+  border: 1px solid #b91c1c !important;
+  color: #ffffff !important;
+}
+
+.pbl-theme-scope .delete-modal-confirm-btn:hover {
+  background: #b91c1c !important;
+}
+
+.pbl-theme-scope .delete-modal-confirm-btn,
+.pbl-theme-scope .delete-modal-confirm-btn * {
+  color: #ffffff !important;
+}
+
+body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mobile-logout-btn,
+body:is(.role-admin-ui, .role-guru-ui, .role-siswa-ui) .mobile-logout-btn * {
+  color: #ffffff !important;
+}
+
+.pbl-theme-scope .materi-cancel-btn {
+  background: rgba(51, 65, 85, 0.92) !important;
+  border-color: rgba(148, 163, 184, 0.52) !important;
+  color: #f8fafc !important;
+}
+
+.pbl-theme-scope .materi-cancel-btn:hover {
+  background: rgba(71, 85, 105, 0.96) !important;
+}
+
+.pbl-theme-scope .materi-cancel-btn,
+.pbl-theme-scope .materi-cancel-btn * {
+  color: inherit !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-lms-panel {
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-modern-panel {
+  background: linear-gradient(165deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-color: rgba(148, 163, 184, 0.34) !important;
+  box-shadow:
+    0 16px 34px rgba(15, 23, 42, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-panel-head {
+  border-bottom-color: rgba(148, 163, 184, 0.34);
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-bab-card {
+  background: linear-gradient(160deg, #f8fafc 0%, #f1f5f9 100%) !important;
+  border-color: rgba(148, 163, 184, 0.34) !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-subbab-card {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+  box-shadow: none;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(.materi-bab-toggle, .materi-subbab-toggle) > span,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope :is(.materi-bab-toggle, .materi-subbab-toggle) > span svg {
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-bab-toggle:hover,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-bab-toggle:hover {
+  background: #eff6ff;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-empty-state,
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-progress-card--clean {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.34) !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-bab-card {
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-cancel-btn {
+  background: #e2e8f0 !important;
+  border-color: rgba(15, 23, 42, 0.2) !important;
+  color: #0f172a !important;
+}
+
+body:is(.guru-theme-light, .app-theme-light) .pbl-theme-scope .materi-cancel-btn:hover {
+  background: #cbd5e1 !important;
+}
+
+@media (max-width: 640px) {
+  .pbl-theme-scope .materi-modern-panel {
+    border-radius: 1.05rem;
+  }
+
+  .pbl-theme-scope section.rounded-3xl {
+    padding: 1rem;
+    border-radius: 1rem;
+  }
+
+  .pbl-theme-scope .materi-panel-head {
+    gap: 0.55rem;
+  }
+
+  .pbl-theme-scope .materi-action-btn,
+  .pbl-theme-scope .materi-icon-btn {
+    min-height: 40px;
+  }
+
+  .pbl-theme-scope .materi-bab-toggle,
+  .pbl-theme-scope .materi-subbab-toggle {
+    border-radius: 0.4rem;
+    padding: 0.25rem 0.35rem;
+  }
+
+  .pbl-theme-scope .comment-menu-btn {
+    width: 1.9rem;
+    height: 1.9rem;
+    min-width: 1.9rem;
+    min-height: 1.9rem;
+  }
+}
+
+.admin-theme-light .feature-slide-back::after {
+  background: #0284c7;
+}
+
+@media (max-width: 1023px) {
+  .feature-hover-card {
+    min-height: 330px;
+  }
+
+  .feature-slide-front {
+    height: 220px;
+  }
+
+  .feature-hover-card:hover .feature-slide-back {
+    max-height: 170px;
+  }
+}
+
+@media (max-width: 639px) {
+  .feature-hover-card {
+    min-height: 312px;
+  }
+
+  .feature-slide-front {
+    height: 208px;
+  }
+
+  .feature-slide-back {
+    padding-inline: 0.9rem;
+  }
+
+  .feature-hover-card:hover .feature-slide-back {
+    padding: 1rem 0.9rem;
+    max-height: 160px;
+  }
+
+  .feature-front-title {
+    font-size: 1.12rem;
+  }
+
+  .feature-back-description {
+    font-size: 0.88rem;
+  }
+
+  .mitra-hover-card {
+    min-height: 330px;
+  }
+
+  .mitra-slide-front {
+    height: 225px;
+  }
+
+  .mitra-logo-wrap {
+    width: 104px;
+    height: 104px;
+  }
+
+  .mitra-hover-card:hover .mitra-slide-back {
+    padding: 1rem 0.9rem;
+    max-height: 180px;
+  }
 }
 /* ============================================
    GURU THEME SYSTEM - Dark & Light Mode

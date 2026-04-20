@@ -48,10 +48,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: error.message });
       }
 
-      return res.status(200).json(data || []);
+      const attempts = data || [];
+
+      if (attempts.length === 0) {
+        return res.status(200).json([]);
+      }
+
+      const { count: totalSoalCount, error: soalCountError } = await supabaseAdmin.from('soal_asesmen').select('id_soal', { count: 'exact', head: true }).eq('id_asesmen', idAsesmen);
+
+      if (soalCountError) {
+        return res.status(500).json({ error: soalCountError.message });
+      }
+
+      const totalSoal = totalSoalCount || 0;
+      const attemptIds = attempts.map((item) => item.id_attempt);
+
+      const { data: validasiRows, error: validasiError } = await supabaseAdmin
+        .from('validasi_nilai')
+        .select('id_attempt, status_validasi')
+        .in('id_attempt', attemptIds)
+        .eq('status_validasi', 'validated');
+
+      if (validasiError) {
+        return res.status(500).json({ error: validasiError.message });
+      }
+
+      const validatedCountByAttempt = (validasiRows || []).reduce(
+        (acc, row) => {
+          acc[row.id_attempt] = (acc[row.id_attempt] || 0) + 1;
+          return acc;
+        },
+        {} as Record<number, number>,
+      );
+
+      const enrichedAttempts = attempts.map((item) => {
+        const validatedCount = validatedCountByAttempt[item.id_attempt] || 0;
+        const isValidated = totalSoal > 0 && validatedCount >= totalSoal;
+
+        return {
+          ...item,
+          validation_status: isValidated ? 'validated' : 'pending',
+        };
+      });
+
+      return res.status(200).json(enrichedAttempts);
     } catch (error) {
       console.error('Error in GET /api/asesmen/progres/[id]:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Terjadi kesalahan server' });
     }
   }
 
@@ -59,7 +102,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const idAttempt = Number(req.body?.id_attempt);
       if (!Number.isFinite(idAttempt)) {
-        return res.status(400).json({ error: 'ID attempt tidak valid' });
+        return res.status(400).json({ error: 'ID pengerjaan tidak valid' });
       }
 
       const { data: attemptData, error: attemptError } = await supabaseAdmin.from('asesmen_attempt').select('id_attempt,id_asesmen').eq('id_attempt', idAttempt).maybeSingle();
@@ -88,10 +131,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ message: 'Pengerjaan siswa berhasil dihapus' });
     } catch (error) {
       console.error('Error in DELETE /api/asesmen/progres/[id]:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Terjadi kesalahan server' });
     }
   }
 
   res.setHeader('Allow', ['GET', 'DELETE']);
-  return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+  return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
 }

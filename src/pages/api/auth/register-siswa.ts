@@ -1,11 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import supabaseAdmin from '@/lib/supabaseAdmin';
 import { hashPasswordIfNeeded } from '@/lib/password';
+import { isValidEmailFormat } from '@/lib/utils';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
-    return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
   }
 
   try {
@@ -24,6 +25,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const emailLower = email.trim().toLowerCase();
     const nisnString = nisn.toString().trim();
     const hashedPassword = await hashPasswordIfNeeded(String(password));
+
+    if (!isValidEmailFormat(emailLower)) {
+      return res.status(400).json({ error: 'Format email tidak valid' });
+    }
+
+    if (!/^\d+$/.test(nisnString)) {
+      return res.status(400).json({ error: 'NISN hanya boleh berisi angka' });
+    }
+
+    if (nisnString.length < 10) {
+      return res.status(400).json({ error: 'NISN tidak boleh kurang dari 10 digit' });
+    }
 
     // Check if email already exists in siswa
     const { data: existingEmail } = await supabaseAdmin.from('siswa').select('email_siswa').eq('email_siswa', emailLower).maybeSingle();
@@ -46,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Pakai NISN yang lain atau konfirmasi ke admin!' });
     }
 
-    // Insert new siswa (no status field based on previous context)
+    // Insert new siswa with status_siswa = false (menunggu validasi admin)
     const { data, error } = await supabaseAdmin
       .from('siswa')
       .insert([
@@ -57,6 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           nisn_siswa: nisnString,
           kelas_siswa: parseInt(kelas),
           lembaga_siswa: parseInt(lembaga),
+          status_siswa: false,
         },
       ])
       .select()
@@ -71,7 +85,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(201).json({
       success: true,
-      message: 'Registrasi berhasil! Silakan login.',
+      message: 'Registrasi berhasil! Akun Anda menunggu validasi admin sebelum bisa login.',
       data: {
         id: data.id_siswa,
         nama: data.nama_siswa,

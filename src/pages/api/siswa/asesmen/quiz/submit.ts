@@ -14,7 +14,7 @@ function parseNumber(value: unknown): number | null {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
-    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+    return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
   }
 
   try {
@@ -25,6 +25,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!idSiswa || !idAsesmen || !startedAt) {
       return res.status(400).json({ error: 'id_siswa, id_asesmen, dan started_at wajib diisi' });
+    }
+
+    const { data: siswaData, error: siswaError } = await supabaseAdmin.from('siswa').select('id_siswa,status_siswa').eq('id_siswa', idSiswa).maybeSingle();
+
+    if (siswaError) {
+      return res.status(500).json({ error: 'Gagal memverifikasi data siswa' });
+    }
+
+    if (!siswaData) {
+      return res.status(401).json({ error: 'Sesi siswa tidak valid. Silakan login ulang.' });
     }
 
     const { data: existingAttempt, error: existingError } = await supabaseAdmin.from('asesmen_attempt').select('id_attempt,status').eq('id_asesmen', idAsesmen).eq('id_siswa', idSiswa).eq('status', 'submitted').limit(1);
@@ -124,7 +134,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           error: 'Tabel asesmen_attempt belum tersedia. Jalankan SQL_CREATE_ASESMEN_ATTEMPT_TABLE.sql terlebih dahulu.',
         });
       }
-      return res.status(500).json({ error: insertError.message });
+
+      if (insertError.message?.toLowerCase().includes('fk_attempt_siswa')) {
+        return res.status(400).json({ error: 'Data siswa tidak ditemukan. Silakan logout lalu login kembali.' });
+      }
+
+      if (insertError.message?.toLowerCase().includes('fk_attempt_asesmen')) {
+        return res.status(400).json({ error: 'Data asesmen tidak ditemukan atau sudah tidak tersedia.' });
+      }
+
+      return res.status(500).json({ error: 'Gagal menyimpan pengumpulan asesmen' });
     }
 
     try {
@@ -140,6 +159,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (error) {
     console.error('Error in POST /api/siswa/asesmen/quiz/submit:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Terjadi kesalahan server' });
   }
 }

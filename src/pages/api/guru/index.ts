@@ -24,12 +24,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         query = query.eq('lembaga_guru', parseInt(lembaga as string));
       }
 
-      // Search by name or NIP
+      // Search by name or NUPTK
       if (search && typeof search === 'string' && search.trim() !== '') {
         const searchTerm = search.trim();
-        // Check if search term is numeric (for NIP search)
+        // Check if search term is numeric (for NUPTK search)
         if (/^\d+$/.test(searchTerm)) {
-          query = query.or(`nama_guru.ilike.%${searchTerm}%,nip_guru.ilike.%${searchTerm}%`);
+          query = query.or(`nama_guru.ilike.%${searchTerm}%,nuptk_guru.ilike.%${searchTerm}%`);
         } else {
           query = query.ilike('nama_guru', `%${searchTerm}%`);
         }
@@ -55,24 +55,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json([]); // Return empty array instead of error
       }
 
-      return res.status(200).json(data || []);
+      const normalized = (data || []).map((guru: any) => ({
+        ...guru,
+        nuptk_guru: String(guru?.nuptk_guru ?? '')
+          .replace(/\D/g, '')
+          .padStart(16, '0'),
+      }));
+
+      return res.status(200).json(normalized);
     } catch (error) {
       console.error('Error:', error);
       return res.status(200).json([]); // Return empty array instead of error
     }
   } else if (req.method === 'POST') {
     try {
-      const { nama_guru, email_guru, password_guru, nip_guru, lembaga_guru } = req.body;
+      const { nama_guru, email_guru, password_guru, nuptk_guru, lembaga_guru } = req.body;
       const emailLower = String(email_guru).trim().toLowerCase();
       const hashedPassword = await hashPasswordIfNeeded(String(password_guru));
 
       // Validate required fields
-      if (!nama_guru || !email_guru || !password_guru || !nip_guru || !lembaga_guru) {
+      if (!nama_guru || !email_guru || !password_guru || !nuptk_guru || !lembaga_guru) {
         return res.status(400).json({ error: 'Semua field harus diisi' });
       }
 
-      // Convert NIP to string to prevent precision loss with large numbers
-      const nipString = String(nip_guru).trim();
+      // Convert NUPTK to string to prevent precision loss with large numbers
+      const nuptkString = String(nuptk_guru).trim();
+
+      if (!/^\d+$/.test(nuptkString)) {
+        return res.status(400).json({ error: 'NUPTK hanya boleh berisi angka' });
+      }
+
+      if (nuptkString.length !== 16) {
+        return res.status(400).json({ error: 'NUPTK harus terdiri dari tepat 16 digit' });
+      }
 
       // Email must be unique in guru and siswa tables.
       const { data: existingGuruEmail } = await supabaseAdmin.from('guru').select('id_guru').eq('email_guru', emailLower).maybeSingle();
@@ -85,7 +100,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Email sudah digunakan oleh akun siswa' });
       }
 
-      // Guru created from admin APIs should be directly validated.
+      // Guru created from admin APIs should still require validation.
       const { data, error } = await supabaseAdmin
         .from('guru')
         .insert([
@@ -93,9 +108,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             nama_guru,
             email_guru: emailLower,
             password_guru: hashedPassword,
-            nip_guru: nipString,
+            nuptk_guru: nuptkString,
             lembaga_guru,
-            status_guru: true,
+            status_guru: false,
           },
         ])
         .select()
@@ -109,10 +124,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(201).json({ message: 'Data guru berhasil ditambahkan', data });
     } catch (error) {
       console.error('Error:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Terjadi kesalahan server' });
     }
   } else {
     res.setHeader('Allow', ['GET', 'POST']);
-    return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    return res.status(405).json({ error: `Metode ${req.method} tidak diizinkan` });
   }
 }
+

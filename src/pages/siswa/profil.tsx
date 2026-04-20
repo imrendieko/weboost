@@ -73,11 +73,12 @@ export default function ProfilSiswa() {
   useEffect(() => {
     if (!router.isReady) return;
 
+    // Ambil profil siswa dari session aktif supaya form selalu sinkron.
     const loadProfile = async () => {
       try {
         const rawSession = localStorage.getItem('siswa_session');
         if (!rawSession) {
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -87,7 +88,7 @@ export default function ProfilSiswa() {
 
         if (siswaError || !siswa) {
           localStorage.removeItem('siswa_session');
-          router.push('/');
+          window.location.replace('/');
           return;
         }
 
@@ -121,6 +122,7 @@ export default function ProfilSiswa() {
       return;
     }
 
+    // Simpan perubahan profile ke API, lalu update session lokal biar navbar ikut berubah.
     setSubmitting(true);
 
     try {
@@ -272,7 +274,7 @@ export default function ProfilSiswa() {
 
               <div>
                 <label className="block text-sm font-medium mb-2">Password</label>
-                <div className="relative">
+                <div className="password-input-wrapper relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password_siswa}
@@ -283,8 +285,20 @@ export default function ProfilSiswa() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((current) => !current)}
-                    className="absolute inset-y-0 right-0 flex items-center justify-center text-gray-400 hover:text-gray-300 transition-colors rounded-r-lg"
-                    style={{ width: '38px' }}
+                    className="password-input-toggle text-gray-500"
+                    aria-label={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                    style={{
+                      position: 'absolute',
+                      right: '1rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      width: '20px',
+                      height: '20px',
+                      padding: 0,
+                      border: 'none',
+                      background: 'transparent',
+                      boxShadow: 'none',
+                    }}
                   >
                     {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
                   </button>

@@ -5,7 +5,19 @@ import Image from 'next/image';
 import { useRouter } from 'next/router';
 import StarBackground from '@/components/StarBackground';
 import AuthBb8Mascot from '@/components/AuthBb8Mascot';
-import { FaEye, FaEyeSlash, FaHome, FaSignInAlt } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaHome, FaSignInAlt, FaExclamationCircle } from 'react-icons/fa';
+
+const ADMIN_SESSION_KEY = 'admin_session';
+const GURU_SESSION_KEY = 'guru_session';
+const SISWA_SESSION_KEY = 'siswa_session';
+const SESSION_LOCK_KEY = 'weboost_active_session';
+const TAB_SESSION_TOKEN_KEY = 'weboost_tab_session_token';
+
+function createSessionToken() {
+  // Token sederhana buat nandain sesi login per tab/browser.
+  const randomPart = Math.random().toString(36).slice(2, 12);
+  return `${Date.now()}_${randomPart}`;
+}
 
 export default function Login() {
   const router = useRouter();
@@ -18,6 +30,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Update field form sesuai input yang lagi diketik user.
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -30,6 +43,7 @@ export default function Login() {
     setLoading(true);
 
     try {
+      // Kirim email + password ke API login.
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -47,18 +61,37 @@ export default function Login() {
         throw new Error(data.error || 'Login gagal');
       }
 
+      // Kalau sukses, siapin token sesi baru dan bersihin sisa role lain.
       // Login successful - store session and redirect based on user type
+      const sessionToken = createSessionToken();
+      localStorage.removeItem(ADMIN_SESSION_KEY);
+      localStorage.removeItem(GURU_SESSION_KEY);
+      localStorage.removeItem(SISWA_SESSION_KEY);
+      sessionStorage.setItem(TAB_SESSION_TOKEN_KEY, sessionToken);
+
       if (data.userType === 'admin') {
+        // Simpan session admin lalu arahkan ke dashboard admin.
         localStorage.setItem(
           'admin_session',
           JSON.stringify({
             id_admin: data.user.id,
             email_admin: data.user.email,
             nama_admin: data.user.nama,
+            __session_token: sessionToken,
+          }),
+        );
+        localStorage.setItem(
+          SESSION_LOCK_KEY,
+          JSON.stringify({
+            role: 'admin',
+            userId: data.user.id,
+            token: sessionToken,
+            createdAt: Date.now(),
           }),
         );
         router.push('/admin');
       } else if (data.userType === 'siswa') {
+        // Simpan session siswa lalu arahkan ke dashboard siswa.
         localStorage.setItem(
           'siswa_session',
           JSON.stringify({
@@ -68,24 +101,46 @@ export default function Login() {
             nisn_siswa: data.user.nisn,
             kelas_siswa: data.user.kelas,
             lembaga_siswa: data.user.lembaga,
+            __session_token: sessionToken,
+          }),
+        );
+        localStorage.setItem(
+          SESSION_LOCK_KEY,
+          JSON.stringify({
+            role: 'siswa',
+            userId: data.user.id,
+            token: sessionToken,
+            createdAt: Date.now(),
           }),
         );
         router.push('/dashboard');
       } else if (data.userType === 'guru') {
+        // Simpan session guru lalu arahkan ke dashboard guru.
         localStorage.setItem(
           'guru_session',
           JSON.stringify({
             id_guru: data.user.id,
             email_guru: data.user.email,
             nama_guru: data.user.nama,
-            nip_guru: data.user.nip,
+            nuptk_guru: data.user.nuptk,
             lembaga_guru: data.user.lembaga,
             status_guru: data.user.status,
+            __session_token: sessionToken,
+          }),
+        );
+        localStorage.setItem(
+          SESSION_LOCK_KEY,
+          JSON.stringify({
+            role: 'guru',
+            userId: data.user.id,
+            token: sessionToken,
+            createdAt: Date.now(),
           }),
         );
         router.push('/dashboard-guru');
       }
     } catch (err: any) {
+      // Kalau gagal, tampilkan pesan error ke user.
       setError(err.message || 'Email atau password salah');
     } finally {
       setLoading(false);
@@ -146,9 +201,10 @@ export default function Login() {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="auth-alert-error px-4 py-3 rounded-lg mb-6"
+                  className="auth-alert-error px-4 py-3 rounded-lg mb-6 flex items-start gap-2"
                 >
-                  {error}
+                  <FaExclamationCircle className="auth-alert-error-icon mt-0.5" />
+                  <span>{error}</span>
                 </motion.div>
               )}
 
@@ -173,7 +229,7 @@ export default function Login() {
                 {/* Password */}
                 <div>
                   <label className="auth-field-label text-lg font-semibold mb-3 block">Password</label>
-                  <div className="relative">
+                  <div className="password-input-wrapper relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       name="password"
@@ -186,10 +242,31 @@ export default function Login() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="auth-password-toggle absolute right-4 top-1/2 -translate-y-1/2 transition-colors"
+                      className="password-input-toggle text-gray-500"
+                      aria-label={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                      style={{
+                        position: 'absolute',
+                        right: '1rem',
+                        top: '50%',
+                        transform: 'translateY(calc(-50% + 1px))',
+                        width: '22px',
+                        height: '22px',
+                        padding: 0,
+                        border: 'none',
+                        background: 'transparent',
+                        boxShadow: 'none',
+                      }}
                     >
-                      {showPassword ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
+                      {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
                     </button>
+                  </div>
+                  <div className="mt-2 text-right">
+                    <Link
+                      href="/forgot-password"
+                      className="auth-inline-link text-sm font-semibold"
+                    >
+                      Lupa password?
+                    </Link>
                   </div>
                 </div>
 
@@ -238,10 +315,3 @@ export default function Login() {
     </div>
   );
 }
-
-export const getStaticProps = async () => {
-  return {
-    props: {},
-    revalidate: 3600,
-  };
-};

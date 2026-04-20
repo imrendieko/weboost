@@ -1,99 +1,151 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { useAdminTheme } from '@/contexts/AdminThemeContext';
+import { motion } from 'framer-motion';
+import React from 'react';
+import { useRoleTheme } from '@/lib/useRoleTheme';
+import { cn } from '@/lib/utils';
 
-interface Star {
-  x: number;
-  y: number;
-  size: number;
-  speed: number;
-  opacity: number;
-  twinkleSpeed: number;
+interface StarBackgroundProps {
+  className?: string;
 }
 
-export default function StarBackground() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { theme, mounted } = useAdminTheme();
+const pathData = [
+  'M-380 -189C-380 -189 -312 216 152 343C616 470 684 875 684 875',
+  'M-358 -213C-358 -213 -290 192 174 319C638 446 706 851 706 851',
+  'M-336 -237C-336 -237 -268 168 196 295C660 422 728 827 728 827',
+  'M-314 -261C-314 -261 -246 144 218 271C682 398 750 803 750 803',
+  'M-292 -285C-292 -285 -224 120 240 247C704 374 772 779 772 779',
+  'M-270 -309C-270 -309 -202 96 262 223C726 350 794 755 794 755',
+  'M-248 -333C-248 -333 -180 72 284 199C748 326 816 731 816 731',
+  'M-226 -357C-226 -357 -158 48 306 175C770 302 838 707 838 707',
+  'M-204 -381C-204 -381 -136 24 328 151C792 278 860 683 860 683',
+  'M-182 -405C-182 -405 -114 0 350 127C814 254 882 659 882 659',
+  'M-160 -429C-160 -429 -92 -24 372 103C836 230 904 635 904 635',
+  'M-138 -453C-138 -453 -70 -48 394 79C858 206 926 611 926 611',
+  'M-116 -477C-116 -477 -48 -72 416 55C880 182 948 587 948 587',
+  'M-94 -501C-94 -501 -26 -96 438 31C902 158 970 563 970 563',
+  'M-72 -525C-72 -525 -4 -120 460 7C924 134 992 539 992 539',
+  'M-50 -549C-50 -549 18 -144 482 -17C946 110 1014 515 1014 515',
+  'M-28 -573C-28 -573 40 -168 504 -41C968 86 1036 491 1036 491',
+  'M-6 -597C-6 -597 62 -192 526 -65C990 62 1058 467 1058 467',
+  'M16 -621C16 -621 84 -216 548 -89C1012 38 1080 443 1080 443',
+  'M38 -645C38 -645 106 -240 570 -113C1034 14 1102 419 1102 419',
+] as const;
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+const animations = pathData.map((_, i) => ({
+  duration: 4 + (i % 5) * 0.8,
+  delay: i * 0.15,
+}));
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Set canvas size
-    const setCanvasSize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    setCanvasSize();
-    window.addEventListener('resize', setCanvasSize);
-
-    // Create stars
-    const stars: Star[] = [];
-    const numStars = 200;
-    const resolvedTheme = mounted ? theme : 'dark';
-    const backgroundColor = resolvedTheme === 'light' ? '#eef4ff' : '#0B0B1F';
-    const starColor = resolvedTheme === 'light' ? '0, 0, 0' : '255, 255, 255';
-
-    for (let i = 0; i < numStars; i++) {
-      stars.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        size: Math.random() * 2 + 0.5,
-        speed: Math.random() * 0.5 + 0.1,
-        opacity: Math.random(),
-        twinkleSpeed: Math.random() * 0.02 + 0.01,
-      });
-    }
-
-    // Animation
-    let animationFrameId: number;
-    const animate = () => {
-      ctx.fillStyle = backgroundColor;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      stars.forEach((star) => {
-        // Twinkle effect
-        star.opacity += star.twinkleSpeed;
-        if (star.opacity > 1 || star.opacity < 0.3) {
-          star.twinkleSpeed = -star.twinkleSpeed;
-        }
-
-        // Draw star
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${starColor}, ${resolvedTheme === 'light' ? Math.min(star.opacity * 0.45, 0.45) : star.opacity})`;
-        ctx.fill();
-
-        // Move star (parallax effect)
-        star.y += star.speed;
-        if (star.y > canvas.height) {
-          star.y = 0;
-          star.x = Math.random() * canvas.width;
-        }
-      });
-
-      animationFrameId = requestAnimationFrame(animate);
-    };
-
-    animate();
-
-    return () => {
-      window.removeEventListener('resize', setCanvasSize);
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [mounted, theme]);
-
+function StarBackground({ className }: StarBackgroundProps) {
+  const { theme, mounted } = useRoleTheme();
   const resolvedTheme = mounted ? theme : 'dark';
+  const isLight = resolvedTheme === 'light';
+
+  const backgroundColor = isLight ? '#eef4ff' : '#0B0B1F';
+  const staticStroke = isLight ? '#0f172a' : '#ffffff';
+
+  const gradientStops = isLight
+    ? {
+        start: '#0284c7',
+        mid: '#0e5bff',
+        end: '#1d4ed8',
+      }
+    : {
+        start: '#18CCFC',
+        mid: '#6344F5',
+        end: '#AE48FF',
+      };
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 -z-10"
-      style={{ background: resolvedTheme === 'light' ? '#eef4ff' : '#0B0B1F' }}
-    />
+    <div
+      className={cn('pointer-events-none fixed inset-0 -z-10 h-full w-full overflow-hidden', className)}
+      style={{ background: backgroundColor }}
+      aria-hidden="true"
+    >
+      <svg
+        className="absolute inset-0 h-full w-full"
+        fill="none"
+        viewBox="0 0 696 316"
+        xmlns="http://www.w3.org/2000/svg"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <g opacity={isLight ? 0.03 : 0.018}>
+          {pathData.map((d, i) => (
+            <path
+              key={`static-${i}`}
+              d={d}
+              stroke={staticStroke}
+              strokeWidth="0.5"
+            />
+          ))}
+        </g>
+
+        {pathData.map((d, i) => (
+          <motion.path
+            key={`beam-${i}`}
+            d={d}
+            stroke={`url(#gradient-${i})`}
+            strokeWidth="0.9"
+            strokeLinecap="round"
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{
+              pathLength: [0, 1],
+              opacity: isLight ? [0, 0.22, 0.22, 0] : [0, 0.28, 0.28, 0],
+            }}
+            transition={{
+              duration: animations[i].duration,
+              delay: animations[i].delay,
+              repeat: Number.POSITIVE_INFINITY,
+              ease: 'easeInOut',
+            }}
+          />
+        ))}
+
+        <defs>
+          {pathData.map((_, i) => (
+            <linearGradient
+              key={`gradient-${i}`}
+              id={`gradient-${i}`}
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
+              <stop
+                offset="0%"
+                stopColor={gradientStops.start}
+                stopOpacity="0"
+              />
+              <stop
+                offset="20%"
+                stopColor={gradientStops.start}
+                stopOpacity="0.55"
+              />
+              <stop
+                offset="50%"
+                stopColor={gradientStops.mid}
+                stopOpacity="0.55"
+              />
+              <stop
+                offset="80%"
+                stopColor={gradientStops.end}
+                stopOpacity="0.55"
+              />
+              <stop
+                offset="100%"
+                stopColor={gradientStops.end}
+                stopOpacity="0"
+              />
+            </linearGradient>
+          ))}
+        </defs>
+      </svg>
+    </div>
   );
 }
+
+const MemoizedStarBackground = React.memo(StarBackground);
+MemoizedStarBackground.displayName = 'StarBackground';
+
+export default MemoizedStarBackground;
