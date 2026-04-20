@@ -120,6 +120,49 @@ export default function ProgresMateri() {
 
       console.log('✅ Materi data:', materiData);
 
+      // Step 3b: Hitung total sub-bab lintas semua sintak pada elemen yang sama.
+      const elemenId = Number(materiData.elemen?.id_elemen ?? NaN);
+      let materiIdsForElemen: number[] = [Number(babData.nama_materi)];
+
+      if (Number.isFinite(elemenId) && elemenId > 0) {
+        const { data: materiByElemen, error: materiByElemenError } = await supabase
+          .from('materi')
+          .select('id_materi')
+          .eq('id_elemen', elemenId);
+
+        if (materiByElemenError) {
+          console.error('❌ Error fetching materi by elemen for progress denominator:', materiByElemenError);
+        } else {
+          materiIdsForElemen = [
+            ...new Set([
+              ...materiIdsForElemen,
+              ...((materiByElemen || []).map((item: any) => Number(item.id_materi)).filter((value: number) => Number.isFinite(value) && value > 0) as number[]),
+            ]),
+          ];
+        }
+      }
+
+      const { data: babRowsForElemen, error: babRowsForElemenError } = await supabase.from('bab_materi').select('id_bab').in('nama_materi', materiIdsForElemen);
+
+      if (babRowsForElemenError) {
+        console.error('❌ Error fetching bab_materi for progress denominator:', babRowsForElemenError);
+      }
+
+      const babIdsForElemen = ((babRowsForElemen || []).map((item: any) => Number(item.id_bab)).filter((value: number) => Number.isFinite(value) && value > 0) as number[]);
+
+      let totalSubBabAcrossSintak = 0;
+      if (babIdsForElemen.length > 0) {
+        const { data: subBabRowsForElemen, error: subBabRowsForElemenError } = await supabase.from('sub_bab').select('id_sub_bab').in('nama_bab', babIdsForElemen);
+
+        if (subBabRowsForElemenError) {
+          console.error('❌ Error fetching sub_bab for progress denominator:', subBabRowsForElemenError);
+        } else {
+          totalSubBabAcrossSintak = (subBabRowsForElemen || []).length;
+        }
+      }
+
+      console.log('✅ Total sub-bab lintas sintak:', totalSubBabAcrossSintak);
+
       // Get kelas_id from elemen
       const kelasId = materiData.elemen?.kelas_elemen;
 
@@ -171,12 +214,8 @@ export default function ProgresMateri() {
             console.error(`❌ Error fetching progres_materi siswa ${siswa.id_siswa}:`, progresError);
           }
 
-          const persentaseValue =
-            typeof progresData?.persentase_progres === 'number'
-              ? progresData.persentase_progres
-              : typeof progresData?.sub_bab_selesai === 'number' && typeof progresData?.total_sub_bab === 'number' && progresData.total_sub_bab > 0
-                ? Math.round((progresData.sub_bab_selesai / progresData.total_sub_bab) * 100)
-                : 0;
+          const subBabSelesai = typeof progresData?.sub_bab_selesai === 'number' ? progresData.sub_bab_selesai : 0;
+          const persentaseValue = totalSubBabAcrossSintak > 0 ? Math.round((Math.min(subBabSelesai, totalSubBabAcrossSintak) / totalSubBabAcrossSintak) * 100) : 0;
 
           return {
             id_siswa: siswa.id_siswa,
