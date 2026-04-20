@@ -590,7 +590,16 @@ export default function PBLGuru() {
       const materiList = await materiListResponse.json();
       const materiByElemen = ((materiList as Array<any>) || []).filter((item) => item.id_elemen === currentElemenId || item.elemen?.id_elemen === currentElemenId || item.kelas_materi === currentElemenId);
       const taggedMateri = materiByElemen.filter((item) => hasSintakMateriTag(getMateriTagSource(item), sintakOrder));
-      let selectedMateri = taggedMateri[0] || null;
+      let selectedMateri = null as any;
+
+      // Prioritaskan data legacy Sintak 1 agar materi/progres lama tetap tampil.
+      if (sintakOrder === 1) {
+        selectedMateri = materiByElemen.find((item) => !/\[SINTAK-\d+\]/i.test(String(getMateriTagSource(item) || ''))) || null;
+      }
+
+      if (!selectedMateri) {
+        selectedMateri = taggedMateri[0] || null;
+      }
 
       // Backward compatibility: old data without sintak tag is treated as Sintak 1.
       if (!selectedMateri && sintakOrder === 1) {
