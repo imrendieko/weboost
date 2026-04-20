@@ -619,7 +619,9 @@ export default function PBLGuru() {
       }
 
       const targetSintakId = sintakState.find((item) => item.order === sintakOrder)?.id_sintak;
-      const materiDetailUrl = targetSintakId ? `/api/materi/${selectedMateri.id_materi}?sintak_materi=${targetSintakId}` : `/api/materi/${selectedMateri.id_materi}`;
+      const materiDetailUrl = targetSintakId
+        ? `/api/materi/${selectedMateri.id_materi}?sintak_materi=${targetSintakId}&sintak_order=${sintakOrder}`
+        : `/api/materi/${selectedMateri.id_materi}`;
       const materiDetailResponse = await fetch(materiDetailUrl);
       if (!materiDetailResponse.ok) {
         setMateriOverview({

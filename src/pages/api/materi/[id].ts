@@ -11,6 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'GET') {
     try {
       const sintakMateriQuery = typeof req.query.sintak_materi === 'string' ? Number(req.query.sintak_materi) : NaN;
+      const sintakOrderQuery = typeof req.query.sintak_order === 'string' ? Number(req.query.sintak_order) : NaN;
       const hasSintakFilter = Number.isFinite(sintakMateriQuery) && sintakMateriQuery > 0;
 
       // Fetch single materi dengan bab dan sub-bab
@@ -46,7 +47,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let babQuery = supabaseAdmin.from('bab_materi').select('*').eq('nama_materi', id).order('id_bab', { ascending: true });
 
       if (hasSintakFilter) {
-        babQuery = babQuery.eq('sintak_materi', sintakMateriQuery);
+        if (Number.isFinite(sintakOrderQuery) && sintakOrderQuery > 0) {
+          // Kompatibilitas data lama: beberapa baris menyimpan nomor urut sintak, bukan id_sintak.
+          babQuery = babQuery.or(`sintak_materi.eq.${sintakMateriQuery},sintak_materi.eq.${sintakOrderQuery}`);
+        } else {
+          babQuery = babQuery.eq('sintak_materi', sintakMateriQuery);
+        }
       }
 
       const { data: babData, error: babError } = await babQuery;
