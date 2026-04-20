@@ -627,9 +627,24 @@ export default function PBLSiswa() {
     return (materiOverview?.bab || []).flatMap((bab) => bab.sub_bab || []);
   }, [materiOverview]);
 
-  const completedCount = useMemo(() => {
-    return allSubBab.filter((item) => completedMap[item.id_sub_bab]).length;
-  }, [allSubBab, completedMap]);
+  const globalBabSequenceMap = useMemo(() => {
+    const orderedBab = [1, 2, 3, 4, 5]
+      .flatMap((order) => (materiBySintak[order]?.bab || []).map((bab) => ({ order, bab })))
+      .sort((left, right) => {
+        if (left.order !== right.order) {
+          return left.order - right.order;
+        }
+
+        return Number(left.bab.id_bab) - Number(right.bab.id_bab);
+      });
+
+    const map: Record<number, number> = {};
+    orderedBab.forEach((item, index) => {
+      map[item.bab.id_bab] = index + 1;
+    });
+
+    return map;
+  }, [materiBySintak]);
 
   const subBabUnlockMap = useMemo(() => {
     const unlockedMap: Record<number, boolean> = {};
@@ -650,13 +665,6 @@ export default function PBLSiswa() {
       {} as Record<number, string>,
     );
   }, [allSubBab]);
-
-  const progressPercent = useMemo(() => {
-    if (allSubBab.length === 0) {
-      return 0;
-    }
-    return Math.round((completedCount / allSubBab.length) * 100);
-  }, [allSubBab.length, completedCount]);
 
   const allSubBabAcrossSintak = useMemo(() => {
     const merged: Array<{ id_sub_bab: number }> = [];
@@ -688,6 +696,13 @@ export default function PBLSiswa() {
 
     return allSubBabAcrossSintak.filter((item) => completedIds.has(item.id_sub_bab)).length;
   }, [completedBySintak, allSubBabAcrossSintak]);
+
+  const progressPercent = useMemo(() => {
+    if (allSubBabAcrossSintak.length === 0) {
+      return 0;
+    }
+    return Math.round((completedCountAcrossSintak / allSubBabAcrossSintak.length) * 100);
+  }, [completedCountAcrossSintak, allSubBabAcrossSintak.length]);
 
   const hasMateriHydrated = useMemo(() => {
     return [1, 2, 3, 4, 5].every((order) => Object.prototype.hasOwnProperty.call(materiBySintak, order));
@@ -1570,7 +1585,7 @@ export default function PBLSiswa() {
                       />
                     </div>
                     <p className="materi-progress-meta mt-2 text-sm text-gray-400">
-                      {completedCount} dari {allSubBab.length} sub-bab selesai
+                      {completedCountAcrossSintak} dari {allSubBabAcrossSintak.length} sub-bab selesai
                     </p>
                   </div>
 
@@ -1602,7 +1617,7 @@ export default function PBLSiswa() {
                                 <span className="mt-0.5 shrink-0 text-white">{!isBabUnlocked ? <FaLock className="text-amber-300" /> : isExpanded ? <FaChevronUp className="text-white" /> : <FaChevronDown className="text-white" />}</span>
                                 <div className="min-w-0">
                                   <h4 className="text-base font-bold text-white break-words sm:text-xl sm:truncate">
-                                    Bab {index + 1}: {bab.judul_bab}
+                                    Bab {globalBabSequenceMap[bab.id_bab] || index + 1}: {bab.judul_bab}
                                   </h4>
                                   {bab.deskripsi_bab ? (
                                     <div

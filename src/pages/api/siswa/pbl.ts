@@ -44,6 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         `
         id_elemen,
         nama_elemen,
+        guru_pengampu,
         kelas:kelas_elemen (
           id_kelas,
           nama_kelas
@@ -57,7 +58,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: 'Elemen tidak ditemukan' });
     }
 
-    const { data: pblData, error: pblError } = await supabaseAdmin.from('pbl').select('*').eq('id_elemen', elemenId).order('id_pbl', { ascending: false }).limit(1).maybeSingle();
+    let pblQuery = supabaseAdmin.from('pbl').select('*').eq('id_elemen', elemenId);
+    if (Number.isFinite(Number((elemen as any).guru_pengampu)) && Number((elemen as any).guru_pengampu) > 0) {
+      pblQuery = pblQuery.eq('guru_pbl', Number((elemen as any).guru_pengampu));
+    }
+
+    const { data: pblData, error: pblError } = await pblQuery.order('id_pbl', { ascending: false }).limit(1).maybeSingle();
 
     if (pblError) {
       console.error('Error fetching pbl for siswa:', pblError);
