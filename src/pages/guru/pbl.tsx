@@ -585,21 +585,10 @@ export default function PBLGuru() {
         return sameElemen || sameKelas;
       });
       const taggedMateri = materiByElemen.filter((item) => hasSintakMateriTag(getMateriTitle(item), sintakOrder));
-      let selectedMateri = null as any;
+      const legacyMateri = materiByElemen.find((item) => !/\[SINTAK-\d+\]/i.test(String(getMateriTitle(item) || ''))) || null;
 
-      // Jaga kompatibilitas data lama: Sintak 1 harus memprioritaskan materi tanpa tag.
-      if (sintakOrder === 1) {
-        selectedMateri = materiByElemen.find((item) => !/\[SINTAK-\d+\]/i.test(String(getMateriTitle(item) || ''))) || null;
-      }
-
-      if (!selectedMateri) {
-        selectedMateri = taggedMateri[0] || null;
-      }
-
-      // Backward compatibility: old data without sintak tag is treated as Sintak 1.
-      if (!selectedMateri && sintakOrder === 1) {
-        selectedMateri = materiByElemen.find((item) => !/\[SINTAK-\d+\]/i.test(String(getMateriTitle(item) || ''))) || null;
-      }
+      // Untuk elemen yang sama, pakai materi legacy (Sintak 1) bila tersedia.
+      let selectedMateri = legacyMateri || taggedMateri[0] || null;
 
       // Ensure every sintak has its own materi container.
       if (!selectedMateri?.id_materi) {
