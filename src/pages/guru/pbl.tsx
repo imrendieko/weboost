@@ -73,35 +73,6 @@ function stripSintakMateriTag(judulMateri: unknown) {
     .trim();
 }
 
-function getMateriTitle(item: any) {
-  if (!item || typeof item !== 'object') {
-    return '';
-  }
-
-  if (typeof item.judul_materi === 'string' && item.judul_materi.trim().length > 0) {
-    return item.judul_materi;
-  }
-
-  if (typeof item.nama_materi === 'string' && item.nama_materi.trim().length > 0) {
-    return item.nama_materi;
-  }
-
-  return '';
-}
-
-function getMateriTagSource(item: any) {
-  const title = getMateriTitle(item);
-  if (title) {
-    return title;
-  }
-
-  if (item && typeof item.deskripsi_materi === 'string') {
-    return item.deskripsi_materi;
-  }
-
-  return '';
-}
-
 interface GuruData {
   id_guru: number;
   nama_guru: string;
@@ -113,7 +84,6 @@ interface ElemenOption {
   nama_elemen: string;
   sampul_elemen?: string;
   kelas?: {
-    id_kelas: number;
     nama_kelas: string;
   } | null;
 }
@@ -579,31 +549,22 @@ export default function PBLGuru() {
     );
   };
 
-  const fetchMateriOverview = async (guruId: number, currentElemenId: number, sintakOrder: number): Promise<MateriOverview | null> => {
+  const fetchMateriOverview = async (guruId: number, currentElemenId: number, sintakOrder: number) => {
     try {
       const materiListResponse = await fetch(`/api/materi?id_guru=${guruId}`);
       if (!materiListResponse.ok) {
         setMateriOverview(null);
-        return null;
+        return;
       }
 
       const materiList = await materiListResponse.json();
-      const materiByElemen = ((materiList as Array<any>) || []).filter((item) => item.id_elemen === currentElemenId || item.elemen?.id_elemen === currentElemenId || item.kelas_materi === currentElemenId);
-      const taggedMateri = materiByElemen.filter((item) => hasSintakMateriTag(getMateriTagSource(item), sintakOrder));
-      let selectedMateri = null as any;
-
-      // Prioritaskan data legacy Sintak 1 agar materi/progres lama tetap tampil.
-      if (sintakOrder === 1) {
-        selectedMateri = materiByElemen.find((item) => !/\[SINTAK-\d+\]/i.test(String(getMateriTagSource(item) || ''))) || null;
-      }
-
-      if (!selectedMateri) {
-        selectedMateri = taggedMateri[0] || null;
-      }
+      const materiByElemen = ((materiList as Array<any>) || []).filter((item) => item.kelas_materi === currentElemenId || item.id_elemen === currentElemenId || item.elemen?.id_elemen === currentElemenId);
+      const taggedMateri = materiByElemen.filter((item) => hasSintakMateriTag(item.judul_materi, sintakOrder));
+      let selectedMateri = taggedMateri[0] || null;
 
       // Backward compatibility: old data without sintak tag is treated as Sintak 1.
       if (!selectedMateri && sintakOrder === 1) {
-        selectedMateri = materiByElemen.find((item) => !/\[SINTAK-\d+\]/i.test(String(getMateriTagSource(item) || ''))) || null;
+        selectedMateri = materiByElemen.find((item) => !/\[SINTAK-\d+\]/i.test(String(item.judul_materi || ''))) || null;
       }
 
       // Ensure every sintak has its own materi container.
@@ -611,56 +572,46 @@ export default function PBLGuru() {
         const elemen = elemenOptions.find((item) => item.id_elemen === currentElemenId);
         const sintakTag = buildSintakMateriTag(sintakOrder);
         const elemenLabel = elemen?.nama_elemen ? `Materi ${elemen.nama_elemen}` : 'Materi Pembelajaran';
-        const kelasId = elemen?.kelas?.id_kelas;
         const createResponse = await fetch('/api/materi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             judul_materi: `${sintakTag} ${elemenLabel}`,
-            nama_materi: `${sintakTag} ${elemenLabel}`,
-            deskripsi_materi: `${sintakTag} ${elemenLabel} untuk sintak ${sintakOrder}`,
-            kelas_materi: kelasId || currentElemenId,
-            id_elemen: currentElemenId,
+            deskripsi_materi: `${elemenLabel} untuk sintak ${sintakOrder}`,
+            kelas_materi: currentElemenId,
             guru_materi: guruId,
           }),
         });
 
         if (createResponse.ok) {
           selectedMateri = await createResponse.json();
-        } else {
-          const createResult = await createResponse.json().catch(() => null);
-          throw new Error(createResult?.error || 'Gagal membuat materi untuk sintak ini.');
         }
       }
 
       if (!selectedMateri?.id_materi) {
         setMateriOverview(null);
-        return null;
+        return;
       }
 
       const materiDetailResponse = await fetch(`/api/materi/${selectedMateri.id_materi}`);
       if (!materiDetailResponse.ok) {
-        const fallbackOverview = {
+        setMateriOverview({
           id_materi: selectedMateri.id_materi,
-          judul_materi: stripSintakMateriTag(getMateriTagSource(selectedMateri)),
+          judul_materi: stripSintakMateriTag(selectedMateri.judul_materi),
           bab: [],
-        };
-        setMateriOverview(fallbackOverview);
-        return fallbackOverview;
+        });
+        return;
       }
 
       const materiDetail = await materiDetailResponse.json();
-      const nextOverview = {
+      setMateriOverview({
         id_materi: materiDetail.id_materi,
-        judul_materi: stripSintakMateriTag(getMateriTagSource(materiDetail)),
+        judul_materi: stripSintakMateriTag(materiDetail.judul_materi),
         bab: Array.isArray(materiDetail.bab) ? materiDetail.bab : [],
-      };
-      setMateriOverview(nextOverview);
-      return nextOverview;
+      });
     } catch (error) {
       console.error('Error fetching materi overview:', error);
       setMateriOverview(null);
-      return null;
     }
   };
 
@@ -752,7 +703,6 @@ export default function PBLGuru() {
             nama_elemen,
             sampul_elemen,
             kelas:kelas_elemen (
-              id_kelas,
               nama_kelas
             )
           `,
@@ -1715,13 +1665,7 @@ export default function PBLGuru() {
     e.preventDefault();
     setAddBabFormError('');
 
-    let materiId = materiOverview?.id_materi || null;
-    if (!materiId && guruData && elemenId) {
-      const refreshedMateriOverview = await fetchMateriOverview(guruData.id_guru, elemenId, activeSintak);
-      materiId = refreshedMateriOverview?.id_materi || null;
-    }
-
-    if (!materiId) {
+    if (!materiOverview?.id_materi) {
       setAddBabFormError('Data materi belum tersedia untuk elemen ini.');
       return;
     }
@@ -1737,7 +1681,7 @@ export default function PBLGuru() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nama_materi: materiId,
+          nama_materi: materiOverview.id_materi,
           judul_bab: babForm.judul_bab.trim(),
           deskripsi_bab: babForm.deskripsi_bab.trim(),
         }),
