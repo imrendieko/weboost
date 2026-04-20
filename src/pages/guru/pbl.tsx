@@ -618,7 +618,9 @@ export default function PBLGuru() {
         return;
       }
 
-      const materiDetailResponse = await fetch(`/api/materi/${selectedMateri.id_materi}`);
+      const targetSintakId = sintakState.find((item) => item.order === sintakOrder)?.id_sintak;
+      const materiDetailUrl = targetSintakId ? `/api/materi/${selectedMateri.id_materi}?sintak_materi=${targetSintakId}` : `/api/materi/${selectedMateri.id_materi}`;
+      const materiDetailResponse = await fetch(materiDetailUrl);
       if (!materiDetailResponse.ok) {
         setMateriOverview({
           id_materi: selectedMateri.id_materi,
@@ -1720,8 +1722,15 @@ export default function PBLGuru() {
       }
     }
 
+    const targetSintakMateri = activeSintakState?.id_sintak || null;
+
     if (!targetMateriId) {
       setAddBabFormError('Data materi belum tersedia untuk elemen ini.');
+      return;
+    }
+
+    if (!targetSintakMateri) {
+      setAddBabFormError('Data sintak belum tersedia. Simpan sintak terlebih dahulu.');
       return;
     }
 
@@ -1737,6 +1746,7 @@ export default function PBLGuru() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nama_materi: targetMateriId,
+          sintak_materi: targetSintakMateri,
           judul_bab: babForm.judul_bab.trim(),
           deskripsi_bab: babForm.deskripsi_bab.trim(),
         }),

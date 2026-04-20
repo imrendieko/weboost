@@ -4,14 +4,20 @@ import supabaseAdmin from '@/lib/supabaseAdmin';
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     try {
-      const { id_materi } = req.query;
+      const { id_materi, sintak_materi } = req.query;
 
       if (!id_materi) {
         return res.status(400).json({ error: 'id_materi diperlukan' });
       }
 
-      // Fetch all bab by materi
-      const { data, error } = await supabaseAdmin.from('bab_materi').select('*').eq('nama_materi', id_materi).order('id_bab', { ascending: true });
+      // Fetch all bab by materi (opsional difilter berdasarkan sintak).
+      let query = supabaseAdmin.from('bab_materi').select('*').eq('nama_materi', id_materi).order('id_bab', { ascending: true });
+
+      if (typeof sintak_materi === 'string' && sintak_materi.trim().length > 0) {
+        query = query.eq('sintak_materi', Number(sintak_materi));
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching bab:', error);
@@ -25,9 +31,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === 'POST') {
     try {
-      const { nama_materi, judul_bab, deskripsi_bab } = req.body;
+      const { nama_materi, judul_bab, deskripsi_bab, sintak_materi } = req.body;
 
-      if (!nama_materi || !judul_bab) {
+      if (!nama_materi || !judul_bab || !sintak_materi) {
         return res.status(400).json({ error: 'Data tidak lengkap' });
       }
 
@@ -38,6 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             nama_materi,
             judul_bab,
             deskripsi_bab: deskripsi_bab || '',
+            sintak_materi,
           },
         ])
         .select()

@@ -10,6 +10,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'GET') {
     try {
+      const sintakMateriQuery = typeof req.query.sintak_materi === 'string' ? Number(req.query.sintak_materi) : NaN;
+      const hasSintakFilter = Number.isFinite(sintakMateriQuery) && sintakMateriQuery > 0;
+
       // Fetch single materi dengan bab dan sub-bab
       const { data: materiData, error: materiError } = await supabaseAdmin
         .from('materi')
@@ -39,8 +42,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: materiError.message });
       }
 
-      // Fetch all bab untuk materi ini
-      const { data: babData, error: babError } = await supabaseAdmin.from('bab_materi').select('*').eq('nama_materi', id).order('id_bab', { ascending: true });
+      // Fetch all bab untuk materi ini (opsional sesuai sintak).
+      let babQuery = supabaseAdmin.from('bab_materi').select('*').eq('nama_materi', id).order('id_bab', { ascending: true });
+
+      if (hasSintakFilter) {
+        babQuery = babQuery.eq('sintak_materi', sintakMateriQuery);
+      }
+
+      const { data: babData, error: babError } = await babQuery;
 
       if (babError) {
         console.error('Error fetching bab:', babError);
