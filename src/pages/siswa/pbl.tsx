@@ -1030,14 +1030,12 @@ export default function PBLSiswa() {
 
   const openSubmissionPreview = (rawFile: string) => {
     const parsed = parseSubmissionFile(rawFile);
-    const query = new URLSearchParams({
-      url: parsed.url,
-      type: parsed.type,
-      name: parsed.label || 'File Pengumpulan',
-      back: router.asPath,
-    });
+    if (!parsed.url) {
+      showNotification('URL file pengumpulan tidak valid.', 'error');
+      return;
+    }
 
-    router.push(`/guru/pbl/preview?${query.toString()}`);
+    window.open(parsed.url, '_blank', 'noopener,noreferrer');
   };
 
   const requestCompleteSubBab = (subBabId: number) => {
