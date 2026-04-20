@@ -1,6 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import supabaseAdmin from '@/lib/supabaseAdmin';
 
+function isMissingColumnError(message: string | undefined): boolean {
+  if (!message) {
+    return false;
+  }
+
+  const lowered = message.toLowerCase();
+  return lowered.includes('schema cache') || lowered.includes('could not find') || lowered.includes('column');
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     try {
@@ -58,20 +67,51 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Data tidak lengkap' });
       }
 
-      const { data, error } = await supabaseAdmin
+      let resolvedKelasMateri = Number(kelas_materi);
+      if (!Number.isFinite(resolvedKelasMateri) || resolvedKelasMateri <= 0) {
+        resolvedKelasMateri = NaN;
+      }
+
+      // Fallback ke kelas milik elemen saat kelas_materi dari client tidak valid.
+      if ((!Number.isFinite(resolvedKelasMateri) || resolvedKelasMateri <= 0) && id_elemen) {
+        const { data: elemenData } = await supabaseAdmin.from('elemen').select('kelas_elemen').eq('id_elemen', id_elemen).maybeSingle();
+        const kelasDariElemen = Number(elemenData?.kelas_elemen);
+        if (Number.isFinite(kelasDariElemen) && kelasDariElemen > 0) {
+          resolvedKelasMateri = kelasDariElemen;
+        }
+      }
+
+      if (!Number.isFinite(resolvedKelasMateri) || resolvedKelasMateri <= 0) {
+        return res.status(400).json({ error: 'kelas_materi tidak valid' });
+      }
+
+      const basePayload = {
+        judul_materi,
+        deskripsi_materi: deskripsi_materi || '',
+        file_materi: file_materi || '',
+        kelas_materi: resolvedKelasMateri,
+        guru_materi,
+      };
+
+      let insertQuery = supabaseAdmin
         .from('materi')
         .insert([
           {
-            judul_materi,
-            deskripsi_materi: deskripsi_materi || '',
-            file_materi: file_materi || '',
-            kelas_materi,
-            guru_materi,
+            ...basePayload,
             id_elemen: id_elemen || null,
           },
         ])
         .select()
         .single();
+
+      let { data, error } = await insertQuery;
+
+      // Kompatibilitas schema: bila kolom id_elemen belum ada, ulangi tanpa kolom tsb.
+      if (error && isMissingColumnError(error.message) && id_elemen) {
+        const retry = await supabaseAdmin.from('materi').insert([basePayload]).select().single();
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (error) {
         console.error('Error creating materi:', error);
