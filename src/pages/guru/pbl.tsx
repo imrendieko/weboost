@@ -736,7 +736,7 @@ export default function PBLGuru() {
       await loadSiswaByKelas(kelasRel?.id_kelas || null);
 
       setElemenName(result.elemen?.nama_elemen || '');
-      const nextSintakState = (result.sintaks || []).map((item: any) => ({
+      const nextSintakState: SintakState[] = (result.sintaks || []).map((item: any) => ({
         order: item.order,
         title: item.title,
         id_sintak: item.id_sintak,
