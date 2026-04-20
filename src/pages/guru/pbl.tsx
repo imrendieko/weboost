@@ -585,12 +585,11 @@ export default function PBLGuru() {
         return sameElemen || sameKelas;
       });
       const taggedMateri = materiByElemen.filter((item) => hasSintakMateriTag(getMateriTitle(item), sintakOrder));
-      let selectedMateri = taggedMateri[0] || null;
+      const legacyMateri = materiByElemen.find((item) => !/\[SINTAK-\d+\]/i.test(String(getMateriTitle(item) || ''))) || null;
 
-      // Backward compatibility: old data without sintak tag is treated as Sintak 1 only.
-      if (!selectedMateri && sintakOrder === 1) {
-        selectedMateri = materiByElemen.find((item) => !/\[SINTAK-\d+\]/i.test(String(getMateriTitle(item) || ''))) || null;
-      }
+      // Dengan kolom bab_materi.sintak_materi, pemisahan konten dilakukan lewat id_sintak.
+      // Karena itu materi dasar untuk elemen yang sama diprioritaskan agar nama_materi konsisten.
+      let selectedMateri = legacyMateri || taggedMateri[0] || null;
 
       // Ensure every sintak has its own materi container.
       if (!selectedMateri?.id_materi) {
