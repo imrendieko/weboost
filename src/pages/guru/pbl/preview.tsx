@@ -4,6 +4,7 @@ import GuruNavbar from '@/components/GuruNavbar';
 import CountdownTimer from '@/components/CountdownTimer';
 import StarBackground from '@/components/StarBackground';
 import { FaArrowLeft, FaDownload, FaExternalLinkAlt, FaFileAlt, FaLink, FaVideo } from 'react-icons/fa';
+import { buildDocumentPreviewCandidates, getFileExtensionFromUrl } from '@/lib/documentPreview';
 
 interface GuruData {
   id_guru: number;
@@ -32,62 +33,11 @@ function getCurrentDate() {
   return `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
 }
 
-const OFFICE_VIEWER_EXTENSIONS = new Set(['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']);
-
-function extractGoogleDriveFileId(url: string): string | null {
-  // Pattern 1: /file/d/FILE_ID/view
-  const pattern1 = /\/file\/d\/([a-zA-Z0-9-_]+)/;
-  const match1 = url.match(pattern1);
-  if (match1) return match1[1];
-
-  // Pattern 2: ?id=FILE_ID
-  const pattern2 = /[?&]id=([a-zA-Z0-9-_]+)/;
-  const match2 = url.match(pattern2);
-  if (match2) return match2[1];
-
-  // Pattern 3: /open?id=FILE_ID
-  const pattern3 = /\/open\?id=([a-zA-Z0-9-_]+)/;
-  const match3 = url.match(pattern3);
-  if (match3) return match3[1];
-
-  return null;
-}
-
-function isGoogleDriveUrl(url: string): boolean {
-  return url.includes('drive.google.com') || url.includes('docs.google.com');
-}
-
-function getFileExtensionFromUrl(rawUrl: string): string {
-  const match = rawUrl.toLowerCase().match(/\.([^.?#]+)(?:[?#].*)?$/);
-  return match ? match[1] : '';
-}
-
-function getDocumentPreviewUrl(rawUrl: string): string {
-  // Check if it's a Google Drive URL
-  if (isGoogleDriveUrl(rawUrl)) {
-    const fileId = extractGoogleDriveFileId(rawUrl);
-    if (fileId) {
-      return `https://drive.google.com/file/d/${fileId}/preview`;
-    }
-  }
-
-  const extension = getFileExtensionFromUrl(rawUrl);
-
-  if (extension === 'pdf') {
-    return rawUrl;
-  }
-
-  if (OFFICE_VIEWER_EXTENSIONS.has(extension)) {
-    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(rawUrl)}`;
-  }
-
-  return `https://docs.google.com/viewer?url=${encodeURIComponent(rawUrl)}&embedded=true`;
-}
-
 export default function PblPreviewPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [guruData, setGuruData] = useState<GuruData | null>(null);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   const url = typeof router.query.url === 'string' ? router.query.url : '';
   const fileType = typeof router.query.type === 'string' ? router.query.type : 'dokumen';
@@ -110,6 +60,22 @@ export default function PblPreviewPage() {
   }, [router]);
 
   const extension = useMemo(() => getFileExtensionFromUrl(url), [url]);
+  const documentPreviewCandidates = useMemo(() => buildDocumentPreviewCandidates(url), [url]);
+  const activeDocumentPreview = documentPreviewCandidates[viewerIndex] || null;
+
+  useEffect(() => {
+    setViewerIndex(0);
+  }, [url]);
+
+  const switchToNextViewer = () => {
+    setViewerIndex((current) => {
+      if (documentPreviewCandidates.length <= 1) {
+        return current;
+      }
+
+      return (current + 1) % documentPreviewCandidates.length;
+    });
+  };
 
   const handleDownload = async () => {
     const response = await fetch(url);
@@ -163,6 +129,9 @@ export default function PblPreviewPage() {
                 <div>
                   <h2 className="text-2xl font-bold">{fileName}</h2>
                   <p className="text-sm text-gray-400">Tipe file: {fileType}</p>
+                  {fileType !== 'video' && fileType !== 'tautan' && activeDocumentPreview && (
+                    <p className="text-xs text-gray-400">Viewer aktif: {activeDocumentPreview.label}</p>
+                  )}
                 </div>
               </div>
 
@@ -184,6 +153,15 @@ export default function PblPreviewPage() {
                   <FaExternalLinkAlt />
                   Buka Tab Baru
                 </a>
+                {fileType !== 'video' && fileType !== 'tautan' && documentPreviewCandidates.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={switchToNextViewer}
+                    className="mana-btn mana-btn--neutral inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold transition"
+                  >
+                    Coba Viewer Lain
+                  </button>
+                )}
               </div>
             </div>
 
@@ -225,16 +203,18 @@ export default function PblPreviewPage() {
                 </div>
               ) : extension === 'pdf' ? (
                 <iframe
-                  src={url}
+                  src={activeDocumentPreview?.url || url}
                   className="h-[780px] w-full"
                   title={fileName}
+                  onError={switchToNextViewer}
                   sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
                 />
               ) : (
                 <iframe
-                  src={getDocumentPreviewUrl(url)}
+                  src={activeDocumentPreview?.url || url}
                   className="h-[780px] w-full"
                   title={fileName}
+                  onError={switchToNextViewer}
                   sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-presentation"
                 />
               )}

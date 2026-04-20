@@ -7,6 +7,7 @@ import SiswaNavbar from '@/components/SiswaNavbar';
 import DataTablePagination from '@/components/DataTablePagination';
 import supabase from '@/lib/db';
 import { LampiranType, parseLampiran, serializeLampiran } from '@/lib/pbl';
+import { buildDocumentPreviewCandidates, getFileExtensionFromUrl } from '@/lib/documentPreview';
 import {
   FaArrowLeft,
   FaBook,
@@ -1107,6 +1108,7 @@ export default function PBLSiswa() {
 
   const InlineFilePreview = ({ subBab }: { subBab: MateriSubBab }) => {
     const [previewHeight, setPreviewHeight] = useState('400px');
+    const [viewerIndex, setViewerIndex] = useState(0);
 
     useEffect(() => {
       const handleResize = () => {
@@ -1128,11 +1130,6 @@ export default function PBLSiswa() {
     const fileUrl = getFileUrlFromContent(subBab.tautan_konten);
     const description = getDescriptionFromContent(subBab.tautan_konten);
 
-    const getFileExtension = (url: string): string => {
-      const match = url.match(/\.([^.]+)$/);
-      return match ? match[1].toLowerCase() : '';
-    };
-
     const getFileName = (url: string): string => {
       try {
         const urlObj = new URL(url);
@@ -1140,28 +1137,26 @@ export default function PBLSiswa() {
         const fileName = pathname.split('/').pop() || 'file';
         return decodeURIComponent(fileName);
       } catch {
-        return `${subBab.judul_sub_bab}.${getFileExtension(url)}`;
+        return `${subBab.judul_sub_bab}.${getFileExtensionFromUrl(url)}`;
       }
     };
 
-    const extension = getFileExtension(fileUrl);
-    const isOfficeDocument = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension);
+    const documentPreviewCandidates = useMemo(() => buildDocumentPreviewCandidates(fileUrl), [fileUrl]);
+    const previewUrl = documentPreviewCandidates[viewerIndex]?.url || fileUrl;
 
-    let previewUrl: string;
-    if (fileUrl.includes('drive.google.com') || fileUrl.includes('docs.google.com')) {
-      const fileIdMatch = fileUrl.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
-      if (fileIdMatch) {
-        previewUrl = `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
-      } else {
-        previewUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
-      }
-    } else if (extension === 'pdf') {
-      previewUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
-    } else if (isOfficeDocument) {
-      previewUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
-    } else {
-      previewUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
-    }
+    useEffect(() => {
+      setViewerIndex(0);
+    }, [fileUrl]);
+
+    const switchToNextViewer = () => {
+      setViewerIndex((current) => {
+        if (documentPreviewCandidates.length <= 1) {
+          return current;
+        }
+
+        return (current + 1) % documentPreviewCandidates.length;
+      });
+    };
 
     return (
       <div className="mt-3 border-t border-white/10 pt-3">
@@ -1173,17 +1168,32 @@ export default function PBLSiswa() {
         )}
         <div className="overflow-hidden rounded-lg bg-gray-800">
           {fileType === 'dokumen' && (
-            <div
-              className="w-full bg-black/70"
-              style={{ height: previewHeight }}
-            >
-              <iframe
-                src={previewUrl}
-                className="h-full w-full"
-                title={subBab.judul_sub_bab}
-                sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-presentation allow-top-navigation-by-user-activation"
-              />
-            </div>
+            <>
+              <div className="mb-2 flex items-center justify-between px-1">
+                <p className="text-xs text-gray-400">Viewer aktif: {documentPreviewCandidates[viewerIndex]?.label || 'Direct File URL'}</p>
+                {documentPreviewCandidates.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={switchToNextViewer}
+                    className="text-xs font-medium text-blue-300 hover:text-blue-200"
+                  >
+                    Coba Viewer Lain
+                  </button>
+                )}
+              </div>
+              <div
+                className="w-full bg-black/70"
+                style={{ height: previewHeight }}
+              >
+                <iframe
+                  src={previewUrl}
+                  className="h-full w-full"
+                  title={subBab.judul_sub_bab}
+                  onError={switchToNextViewer}
+                  sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-presentation allow-top-navigation-by-user-activation"
+                />
+              </div>
+            </>
           )}
           {fileType === 'video' && (
             <div
