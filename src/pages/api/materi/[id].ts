@@ -1,6 +1,23 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import supabaseAdmin from '@/lib/supabaseAdmin';
 
+function isMissingColumnError(message: string | undefined): boolean {
+  if (!message) {
+    return false;
+  }
+
+  const lowered = message.toLowerCase();
+  return lowered.includes('schema cache') || lowered.includes('could not find') || lowered.includes('column');
+}
+
+function normalizeMateriRow(row: any) {
+  const judulMateri = typeof row?.judul_materi === 'string' && row.judul_materi.trim().length > 0 ? row.judul_materi : typeof row?.nama_materi === 'string' ? row.nama_materi : '';
+  return {
+    ...row,
+    judul_materi: judulMateri,
+  };
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
 
@@ -63,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       );
 
       return res.status(200).json({
-        ...materiData,
+        ...normalizeMateriRow(materiData),
         bab: babWithSubBab,
       });
     } catch (error) {
@@ -72,22 +89,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === 'PUT') {
     try {
-      const { judul_materi, deskripsi_materi, file_materi, kelas_materi } = req.body;
+      const { judul_materi, nama_materi, deskripsi_materi, file_materi, kelas_materi } = req.body;
+      const materiTitle = typeof judul_materi === 'string' && judul_materi.trim().length > 0 ? judul_materi : typeof nama_materi === 'string' ? nama_materi : undefined;
 
       const updateData: any = {};
-      if (judul_materi !== undefined) updateData.judul_materi = judul_materi;
       if (deskripsi_materi !== undefined) updateData.deskripsi_materi = deskripsi_materi;
       if (file_materi !== undefined) updateData.file_materi = file_materi;
       if (kelas_materi !== undefined) updateData.kelas_materi = kelas_materi;
 
-      const { data, error } = await supabaseAdmin.from('materi').update(updateData).eq('id_materi', id).select().single();
+      let data: any = null;
+      let error: any = null;
+
+      if (materiTitle !== undefined) {
+        const updateWithJudul = await supabaseAdmin
+          .from('materi')
+          .update({ ...updateData, judul_materi: materiTitle })
+          .eq('id_materi', id)
+          .select()
+          .single();
+
+        data = updateWithJudul.data;
+        error = updateWithJudul.error;
+
+        if (error && isMissingColumnError(error.message)) {
+          const updateWithNama = await supabaseAdmin
+            .from('materi')
+            .update({ ...updateData, nama_materi: materiTitle })
+            .eq('id_materi', id)
+            .select()
+            .single();
+          data = updateWithNama.data;
+          error = updateWithNama.error;
+        }
+      } else {
+        const updateBase = await supabaseAdmin.from('materi').update(updateData).eq('id_materi', id).select().single();
+        data = updateBase.data;
+        error = updateBase.error;
+      }
 
       if (error) {
         console.error('Error updating materi:', error);
         return res.status(500).json({ error: error.message });
       }
 
-      return res.status(200).json(data);
+      return res.status(200).json(normalizeMateriRow(data));
     } catch (error) {
       console.error('Error in PUT /api/materi/[id]:', error);
       return res.status(500).json({ error: 'Terjadi kesalahan server' });

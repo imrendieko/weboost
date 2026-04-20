@@ -10,6 +10,14 @@ function isMissingColumnError(message: string | undefined): boolean {
   return lowered.includes('schema cache') || lowered.includes('could not find') || lowered.includes('column');
 }
 
+function normalizeMateriRow(row: any) {
+  const judulMateri = typeof row?.judul_materi === 'string' && row.judul_materi.trim().length > 0 ? row.judul_materi : typeof row?.nama_materi === 'string' ? row.nama_materi : '';
+  return {
+    ...row,
+    judul_materi: judulMateri,
+  };
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     try {
@@ -53,17 +61,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
-      console.log('✅ Materi fetched successfully:', data?.length, 'items');
-      return res.status(200).json(data || []);
+      const normalized = ((data as Array<any>) || []).map((item) => normalizeMateriRow(item));
+
+      console.log('✅ Materi fetched successfully:', normalized.length, 'items');
+      return res.status(200).json(normalized);
     } catch (error) {
       console.error('Error in GET /api/materi:', error);
       return res.status(500).json({ error: 'Terjadi kesalahan server' });
     }
   } else if (req.method === 'POST') {
     try {
-      const { judul_materi, deskripsi_materi, file_materi, kelas_materi, guru_materi, id_elemen } = req.body;
+      const { judul_materi, nama_materi, deskripsi_materi, file_materi, kelas_materi, guru_materi, id_elemen } = req.body;
+      const materiTitle = typeof judul_materi === 'string' && judul_materi.trim().length > 0 ? judul_materi.trim() : typeof nama_materi === 'string' ? nama_materi.trim() : '';
 
-      if (!judul_materi || !kelas_materi || !guru_materi) {
+      if (!materiTitle || !kelas_materi || !guru_materi) {
         return res.status(400).json({ error: 'Data tidak lengkap' });
       }
 
@@ -86,31 +97,45 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const basePayload = {
-        judul_materi,
         deskripsi_materi: deskripsi_materi || '',
         file_materi: file_materi || '',
         kelas_materi: resolvedKelasMateri,
         guru_materi,
       };
 
-      let insertQuery = supabaseAdmin
-        .from('materi')
-        .insert([
-          {
-            ...basePayload,
-            id_elemen: id_elemen || null,
-          },
-        ])
-        .select()
-        .single();
+      const candidatePayloads: Array<Record<string, any>> = [];
 
-      let { data, error } = await insertQuery;
+      candidatePayloads.push({
+        ...basePayload,
+        judul_materi: materiTitle,
+        ...(id_elemen ? { id_elemen } : {}),
+      });
+      candidatePayloads.push({
+        ...basePayload,
+        nama_materi: materiTitle,
+        ...(id_elemen ? { id_elemen } : {}),
+      });
 
-      // Kompatibilitas schema: bila kolom id_elemen belum ada, ulangi tanpa kolom tsb.
-      if (error && isMissingColumnError(error.message) && id_elemen) {
-        const retry = await supabaseAdmin.from('materi').insert([basePayload]).select().single();
-        data = retry.data;
-        error = retry.error;
+      if (id_elemen) {
+        candidatePayloads.push({ ...basePayload, judul_materi: materiTitle });
+        candidatePayloads.push({ ...basePayload, nama_materi: materiTitle });
+      }
+
+      let data: any = null;
+      let error: any = null;
+
+      for (const payload of candidatePayloads) {
+        const result = await supabaseAdmin.from('materi').insert([payload]).select().single();
+        data = result.data;
+        error = result.error;
+
+        if (!error) {
+          break;
+        }
+
+        if (!isMissingColumnError(error.message)) {
+          break;
+        }
       }
 
       if (error) {
@@ -118,7 +143,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: error.message });
       }
 
-      return res.status(201).json(data);
+      return res.status(201).json(normalizeMateriRow(data));
     } catch (error) {
       console.error('Error in POST /api/materi:', error);
       return res.status(500).json({ error: 'Terjadi kesalahan server' });
