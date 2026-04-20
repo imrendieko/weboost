@@ -468,6 +468,7 @@ export default function PBLGuru() {
   const [selectedSubBabForEdit, setSelectedSubBabForEdit] = useState<MateriSubBab | null>(null);
   const [selectedBabForSubBab, setSelectedBabForSubBab] = useState<MateriBab | null>(null);
   const [expandedMateriBabs, setExpandedMateriBabs] = useState<number[]>([]);
+  const [babSequenceMap, setBabSequenceMap] = useState<Record<number, number>>({});
   const [expandedMateriPreviews, setExpandedMateriPreviews] = useState<number[]>([]);
   const [savingBab, setSavingBab] = useState(false);
   const [savingSubBab, setSavingSubBab] = useState(false);
@@ -584,6 +585,42 @@ export default function PBLGuru() {
         const sameKelas = Number.isFinite(selectedKelasId) && selectedKelasId > 0 && Number.isFinite(itemKelasId) && itemKelasId === selectedKelasId;
         return sameElemen || sameKelas;
       });
+
+      // Nomor BAB global lintas sintak untuk elemen yang sama.
+      const materiIds = [
+        ...new Set(
+          materiByElemen
+            .map((item) => Number(item.id_materi))
+            .filter((value) => Number.isFinite(value) && value > 0),
+        ),
+      ] as number[];
+
+      if (materiIds.length > 0) {
+        const babResponses = await Promise.all(
+          materiIds.map(async (materiId) => {
+            const response = await fetch(`/api/bab?id_materi=${materiId}`);
+            if (!response.ok) {
+              return [] as any[];
+            }
+            const result = await response.json();
+            return Array.isArray(result) ? result : [];
+          }),
+        );
+
+        const allBab = babResponses
+          .flat()
+          .filter((item) => Number.isFinite(Number(item.id_bab)) && Number(item.id_bab) > 0)
+          .sort((left, right) => Number(left.id_bab) - Number(right.id_bab));
+
+        const nextSequenceMap: Record<number, number> = {};
+        allBab.forEach((item, index) => {
+          nextSequenceMap[Number(item.id_bab)] = index + 1;
+        });
+        setBabSequenceMap(nextSequenceMap);
+      } else {
+        setBabSequenceMap({});
+      }
+
       const taggedMateri = materiByElemen.filter((item) => hasSintakMateriTag(getMateriTitle(item), sintakOrder));
       const legacyMateri = materiByElemen.find((item) => !/\[SINTAK-\d+\]/i.test(String(getMateriTitle(item) || ''))) || null;
 
@@ -2356,7 +2393,7 @@ export default function PBLGuru() {
                                 <span className="mt-0.5 shrink-0 text-slate-300">{isExpanded ? <FaChevronUp className="text-slate-300" /> : <FaChevronDown className="text-slate-300" />}</span>
                                 <div className="min-w-0">
                                   <h4 className="text-base font-bold text-white break-words sm:text-xl sm:truncate">
-                                    Bab {index + 1}: {bab.judul_bab}
+                                    Bab {babSequenceMap[bab.id_bab] || index + 1}: {bab.judul_bab}
                                   </h4>
                                   {bab.deskripsi_bab ? (
                                     <div
