@@ -276,6 +276,14 @@ function parseSubmissionFile(rawValue: string) {
   };
 }
 
+function pickMateriContainerBySintak(materiRows: Array<any>, sintakOrder: number) {
+  const taggedMateri = materiRows.filter((item) => hasSintakMateriTag(item.judul_materi, sintakOrder));
+  const legacyMateri = materiRows.find((item) => !/\[SINTAK-\d+\]/i.test(String(item.judul_materi || ''))) || null;
+
+  // Pada skema baru, satu container materi bisa dipakai lintas sintak dan dipisah lewat bab_materi.sintak_materi.
+  return legacyMateri || taggedMateri[0] || materiRows[0] || null;
+}
+
 function stripUnsafeHtml(html: string) {
   const withWhitelistedDecodedTags = html.replace(/&lt;(\/?)(b|strong|i|em|u|ul|ol|li|p|br)&gt;/gi, '<$1$2>').replace(/&lt;(\/?)(span|div)&gt;/gi, '<$1$2>');
 
@@ -390,13 +398,7 @@ export default function PBLSiswa() {
     }
   };
 
-  const fetchMateriOverviewBySintak = async (
-    kelasId: number,
-    currentElemenId: number,
-    sintakOrder: number,
-    guruPengampuId?: number | null,
-    sintakId?: number | null,
-  ): Promise<MateriOverview | null> => {
+  const fetchMateriOverviewBySintak = async (kelasId: number, currentElemenId: number, sintakOrder: number, guruPengampuId?: number | null, sintakId?: number | null): Promise<MateriOverview | null> => {
     try {
       let resolvedMateriRows: Array<any> = [];
 
@@ -404,13 +406,16 @@ export default function PBLSiswa() {
         const materiListResponse = await fetch(`/api/materi?id_guru=${guruPengampuId}`);
         if (materiListResponse.ok) {
           const materiList = await materiListResponse.json();
-          const materiByElemen = ((materiList as Array<any>) || []).filter((item) => item.kelas_materi === currentElemenId || item.id_elemen === currentElemenId || item.elemen?.id_elemen === currentElemenId);
-          resolvedMateriRows = materiByElemen.filter((item) => hasSintakMateriTag(item.judul_materi, sintakOrder));
+          const materiByElemen = ((materiList as Array<any>) || []).filter((item) => {
+            const itemElemenId = Number(item.id_elemen ?? item.elemen?.id_elemen ?? NaN);
+            const itemKelasId = Number(item.kelas_materi ?? NaN);
+            const sameElemen = Number.isFinite(itemElemenId) && itemElemenId === currentElemenId;
+            const sameKelas = Number.isFinite(itemKelasId) && itemKelasId === kelasId;
+            return sameElemen || sameKelas;
+          });
 
-          // Backward compatibility: old untagged materi belongs to Sintak 1.
-          if (resolvedMateriRows.length === 0 && sintakOrder === 1) {
-            resolvedMateriRows = materiByElemen.filter((item) => !/\[SINTAK-\d+\]/i.test(String(item.judul_materi || '')));
-          }
+          const selectedContainer = pickMateriContainerBySintak(materiByElemen, sintakOrder);
+          resolvedMateriRows = selectedContainer ? [selectedContainer] : [];
         }
       }
 
@@ -425,11 +430,8 @@ export default function PBLSiswa() {
         }
 
         const materiByElemen = (materiRows as Array<any>) || [];
-        resolvedMateriRows = materiByElemen.filter((item) => hasSintakMateriTag(item.judul_materi, sintakOrder));
-
-        if (resolvedMateriRows.length === 0 && sintakOrder === 1) {
-          resolvedMateriRows = materiByElemen.filter((item) => !/\[SINTAK-\d+\]/i.test(String(item.judul_materi || '')));
-        }
+        const selectedContainer = pickMateriContainerBySintak(materiByElemen, sintakOrder);
+        resolvedMateriRows = selectedContainer ? [selectedContainer] : [];
       }
 
       if (resolvedMateriRows.length === 0 && guruPengampuId) {
@@ -440,11 +442,8 @@ export default function PBLSiswa() {
         }
 
         const fallbackMateriRows = (fallbackRows as Array<any>) || [];
-        resolvedMateriRows = fallbackMateriRows.filter((item) => hasSintakMateriTag(item.judul_materi, sintakOrder));
-
-        if (resolvedMateriRows.length === 0 && sintakOrder === 1) {
-          resolvedMateriRows = fallbackMateriRows.filter((item) => !/\[SINTAK-\d+\]/i.test(String(item.judul_materi || '')));
-        }
+        const selectedContainer = pickMateriContainerBySintak(fallbackMateriRows, sintakOrder);
+        resolvedMateriRows = selectedContainer ? [selectedContainer] : [];
       }
 
       if (resolvedMateriRows.length === 0) {
@@ -492,12 +491,7 @@ export default function PBLSiswa() {
     }
   };
 
-  const fetchAllMateriBySintak = async (
-    kelasId: number,
-    currentElemenId: number,
-    guruPengampuId?: number | null,
-    sintakReferences?: ApiSintak[],
-  ) => {
+  const fetchAllMateriBySintak = async (kelasId: number, currentElemenId: number, guruPengampuId?: number | null, sintakReferences?: ApiSintak[]) => {
     const entries = await Promise.all(
       [1, 2, 3, 4, 5].map(async (order) => {
         const targetSintak = (sintakReferences || sintakState).find((item) => item.order === order);
@@ -1706,7 +1700,17 @@ export default function PBLSiswa() {
                     ) : (
                       activeSintakState.lampiran.map((attachment) => {
                         const parsed = attachment.parsed || parseLampiran(attachment.file_lampiran);
-                        if (!parsed) {
+                        const fallbackUrl = String(attachment.file_lampiran || '').trim();
+                        const fallbackParsed = parsed
+                          ? parsed
+                          : fallbackUrl
+                            ? {
+                                type: detectFileTypeFromUrl(fallbackUrl),
+                                label: 'Lampiran PBL',
+                                url: fallbackUrl,
+                              }
+                            : null;
+                        if (!fallbackParsed) {
                           return null;
                         }
 
@@ -1716,11 +1720,11 @@ export default function PBLSiswa() {
                             className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-4 lg:flex-row lg:items-center lg:justify-between"
                           >
                             <div>
-                              <p className="font-semibold text-white">{parsed.label || 'Lampiran'}</p>
-                              <p className="mt-1 text-sm capitalize text-gray-400">{parsed.type}</p>
+                              <p className="font-semibold text-white">{fallbackParsed.label || 'Lampiran'}</p>
+                              <p className="mt-1 text-sm capitalize text-gray-400">{fallbackParsed.type}</p>
                             </div>
                             <a
-                              href={parsed.url}
+                              href={fallbackParsed.url}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-2 rounded-lg bg-[#0E5BFF] px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-white transition hover:bg-[#0B49CB]"
