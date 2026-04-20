@@ -1691,7 +1691,34 @@ export default function PBLGuru() {
     e.preventDefault();
     setAddBabFormError('');
 
-    const targetMateriId = materiOverview?.id_materi || null;
+    let targetMateriId = materiOverview?.id_materi || null;
+
+    // Jika materi pada sintak aktif belum ada, fallback ke materi Sintak 1 (legacy) pada elemen yang sama.
+    if (!targetMateriId && guruData && elemenId) {
+      try {
+        const materiListResponse = await fetch(`/api/materi?id_guru=${guruData.id_guru}`);
+        if (materiListResponse.ok) {
+          const materiList = await materiListResponse.json();
+          const selectedElemen = elemenOptions.find((item) => item.id_elemen === elemenId);
+          const selectedKelasId = Number(selectedElemen?.kelas?.id_kelas);
+
+          const materiByElemen = ((materiList as Array<any>) || []).filter((item) => {
+            const itemElemenId = Number(item.id_elemen ?? item.elemen?.id_elemen ?? NaN);
+            const itemKelasId = Number(item.kelas_materi ?? NaN);
+            const sameElemen = Number.isFinite(itemElemenId) && itemElemenId === elemenId;
+            const sameKelas = Number.isFinite(selectedKelasId) && selectedKelasId > 0 && Number.isFinite(itemKelasId) && itemKelasId === selectedKelasId;
+            return sameElemen || sameKelas;
+          });
+
+          const sintakSatuMateri = materiByElemen.find((item) => !/\[SINTAK-\d+\]/i.test(String(getMateriTitle(item) || ''))) || null;
+          if (sintakSatuMateri?.id_materi) {
+            targetMateriId = sintakSatuMateri.id_materi;
+          }
+        }
+      } catch (error) {
+        console.error('Error resolving fallback materi Sintak 1:', error);
+      }
+    }
 
     if (!targetMateriId) {
       setAddBabFormError('Data materi belum tersedia untuk elemen ini.');
