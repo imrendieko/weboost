@@ -15,7 +15,7 @@ interface SaveSintakBody {
   }>;
 }
 
-const LAMPIRAN_COLUMN_CANDIDATES = ['file_lampiran', 'lampiran', 'tautan_lampiran', 'url_lampiran'] as const;
+const LAMPIRAN_COLUMN_CANDIDATES = ['lampiran_tugas', 'file_lampiran', 'lampiran', 'tautan_lampiran', 'url_lampiran'] as const;
 
 function readLampiranValue(row: Record<string, unknown>): string {
   for (const key of LAMPIRAN_COLUMN_CANDIDATES) {
@@ -37,12 +37,43 @@ function isMissingColumnError(message: string | undefined): boolean {
   return lowered.includes('schema cache') || lowered.includes('could not find') || lowered.includes('column');
 }
 
-async function insertLampiranCompat(idSintak: number, lampiran: SaveSintakBody['lampiran']): Promise<{ error: { message: string } | null }> {
+async function insertLampiranCompat(
+  idSintak: number,
+  lampiran: SaveSintakBody['lampiran'],
+  descriptionHtml: string,
+  waktuMulai: string | null,
+  waktuSelesai: string | null,
+): Promise<{ error: { message: string } | null }> {
+  const normalizedLampiran = lampiran.length > 0 ? lampiran : [{ type: 'dokumen' as const, label: '', url: '' }];
+
+  const preferredPayload = normalizedLampiran.map((item) => ({
+    id_sintak: idSintak,
+    lampiran_tugas: item.url ? serializeLampiran(item) : '',
+    deskripsi_tugas: descriptionHtml || '',
+    waktu_mulai: waktuMulai,
+    waktu_terakhir: waktuSelesai,
+  }));
+
+  const preferredInsert = await supabaseAdmin.from('lampiran_pbl').insert(preferredPayload as any[]);
+  if (!preferredInsert.error) {
+    return { error: null };
+  }
+
+  if (!isMissingColumnError(preferredInsert.error.message)) {
+    return { error: preferredInsert.error };
+  }
+
   for (const columnName of LAMPIRAN_COLUMN_CANDIDATES) {
-    const payload = lampiran.map((item) => ({
-      id_sintak: idSintak,
-      [columnName]: serializeLampiran(item),
-    }));
+    const payload = normalizedLampiran
+      .filter((item) => Boolean(item.url))
+      .map((item) => ({
+        id_sintak: idSintak,
+        [columnName]: serializeLampiran(item),
+      }));
+
+    if (payload.length === 0) {
+      continue;
+    }
 
     const { error } = await supabaseAdmin.from('lampiran_pbl').insert(payload);
     if (!error) {
@@ -54,9 +85,7 @@ async function insertLampiranCompat(idSintak: number, lampiran: SaveSintakBody['
     }
   }
 
-  // Keep save successful even when lampiran_pbl schema differs, because lampiran
-  // is also persisted in sintak_pbl JSON content as a fallback.
-  return { error: null };
+  return { error: preferredInsert.error };
 }
 
 function parseNumber(value: string | string[] | undefined): number | null {
@@ -357,12 +386,10 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
 
       await supabaseAdmin.from('lampiran_pbl').delete().eq('id_sintak', upsertResponse.data.id_sintak);
 
-      if (normalizedLampiran.length > 0) {
-        const { error: lampiranError } = await insertLampiranCompat(upsertResponse.data.id_sintak, normalizedLampiran);
-        if (lampiranError) {
-          console.error('Error saving lampiran:', lampiranError);
-          return res.status(500).json({ error: lampiranError.message });
-        }
+      const { error: lampiranError } = await insertLampiranCompat(upsertResponse.data.id_sintak, normalizedLampiran, sintak.descriptionHtml, sintak.waktu_mulai || null, sintak.waktu_selesai || null);
+      if (lampiranError) {
+        console.error('Error saving lampiran:', lampiranError);
+        return res.status(500).json({ error: lampiranError.message });
       }
     }
 

@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import supabaseAdmin from '@/lib/supabaseAdmin';
 import { PBL_SYNTAX_LABELS, parseLampiran, parseSintakContent, serializeLampiran } from '@/lib/pbl';
 
-const LAMPIRAN_COLUMN_CANDIDATES = ['file_lampiran', 'lampiran', 'tautan_lampiran', 'url_lampiran'] as const;
+const LAMPIRAN_COLUMN_CANDIDATES = ['lampiran_tugas', 'file_lampiran', 'lampiran', 'tautan_lampiran', 'url_lampiran'] as const;
 
 function readLampiranValue(row: Record<string, unknown>): string {
   for (const key of LAMPIRAN_COLUMN_CANDIDATES) {
