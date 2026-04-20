@@ -52,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === 'POST') {
     try {
-      const { judul_materi, deskripsi_materi, file_materi, kelas_materi, guru_materi } = req.body;
+      const { judul_materi, deskripsi_materi, file_materi, kelas_materi, guru_materi, id_elemen } = req.body;
 
       if (!judul_materi || !kelas_materi || !guru_materi) {
         return res.status(400).json({ error: 'Data tidak lengkap' });
@@ -67,6 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             file_materi: file_materi || '',
             kelas_materi,
             guru_materi,
+            id_elemen: id_elemen || null,
           },
         ])
         .select()

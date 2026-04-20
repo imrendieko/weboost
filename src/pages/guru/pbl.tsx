@@ -84,6 +84,7 @@ interface ElemenOption {
   nama_elemen: string;
   sampul_elemen?: string;
   kelas?: {
+    id_kelas: number;
     nama_kelas: string;
   } | null;
 }
@@ -558,7 +559,7 @@ export default function PBLGuru() {
       }
 
       const materiList = await materiListResponse.json();
-      const materiByElemen = ((materiList as Array<any>) || []).filter((item) => item.kelas_materi === currentElemenId || item.id_elemen === currentElemenId || item.elemen?.id_elemen === currentElemenId);
+      const materiByElemen = ((materiList as Array<any>) || []).filter((item) => item.id_elemen === currentElemenId || item.elemen?.id_elemen === currentElemenId || item.kelas_materi === currentElemenId);
       const taggedMateri = materiByElemen.filter((item) => hasSintakMateriTag(item.judul_materi, sintakOrder));
       let selectedMateri = taggedMateri[0] || null;
 
@@ -572,13 +573,15 @@ export default function PBLGuru() {
         const elemen = elemenOptions.find((item) => item.id_elemen === currentElemenId);
         const sintakTag = buildSintakMateriTag(sintakOrder);
         const elemenLabel = elemen?.nama_elemen ? `Materi ${elemen.nama_elemen}` : 'Materi Pembelajaran';
+        const kelasId = elemen?.kelas?.id_kelas;
         const createResponse = await fetch('/api/materi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             judul_materi: `${sintakTag} ${elemenLabel}`,
             deskripsi_materi: `${elemenLabel} untuk sintak ${sintakOrder}`,
-            kelas_materi: currentElemenId,
+            kelas_materi: kelasId || currentElemenId,
+            id_elemen: currentElemenId,
             guru_materi: guruId,
           }),
         });
@@ -703,6 +706,7 @@ export default function PBLGuru() {
             nama_elemen,
             sampul_elemen,
             kelas:kelas_elemen (
+              id_kelas,
               nama_kelas
             )
           `,

@@ -47,7 +47,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const { nama_guru, email_guru, password_guru, nuptk_guru, lembaga_guru } = req.body;
       const namaGuruTrimmed = String(nama_guru ?? '').trim();
-      const emailLower = String(email_guru ?? '').trim().toLowerCase();
+      const emailLower = String(email_guru ?? '')
+        .trim()
+        .toLowerCase();
 
       // Validate required fields
       if (!namaGuruTrimmed || !emailLower || !nuptk_guru) {

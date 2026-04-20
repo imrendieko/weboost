@@ -129,9 +129,7 @@ export default function PblPreviewPage() {
                 <div>
                   <h2 className="text-2xl font-bold">{fileName}</h2>
                   <p className="text-sm text-gray-400">Tipe file: {fileType}</p>
-                  {fileType !== 'video' && fileType !== 'tautan' && activeDocumentPreview && (
-                    <p className="text-xs text-gray-400">Viewer aktif: {activeDocumentPreview.label}</p>
-                  )}
+                  {fileType !== 'video' && fileType !== 'tautan' && activeDocumentPreview && <p className="text-xs text-gray-400">Viewer aktif: {activeDocumentPreview.label}</p>}
                 </div>
               </div>
 
