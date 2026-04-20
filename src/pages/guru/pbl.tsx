@@ -567,7 +567,12 @@ export default function PBLGuru() {
     );
   };
 
-  const fetchMateriOverview = async (guruId: number, currentElemenId: number, sintakOrder: number) => {
+  const fetchMateriOverview = async (
+    guruId: number,
+    currentElemenId: number,
+    sintakOrder: number,
+    sintakReference?: Array<{ order: number; id_sintak: number | null }>,
+  ) => {
     try {
       const materiListResponse = await fetch(`/api/materi?id_guru=${guruId}`);
       if (!materiListResponse.ok) {
@@ -587,6 +592,34 @@ export default function PBLGuru() {
       });
 
       // Nomor BAB global lintas sintak untuk elemen yang sama.
+      // Urutan wajib: sintak 1 -> sintak 2 -> ... lalu urutan id_bab di tiap sintak.
+      const normalizedSintakReference =
+        (Array.isArray(sintakReference) && sintakReference.length > 0 ? sintakReference : sintakState)
+          .filter((item) => Number.isFinite(Number(item.order)))
+          .map((item) => ({
+            order: Number(item.order),
+            id_sintak: Number.isFinite(Number(item.id_sintak)) ? Number(item.id_sintak) : null,
+          }));
+
+      const resolveSintakOrder = (value: unknown): number => {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+          return Number.MAX_SAFE_INTEGER;
+        }
+
+        const byId = normalizedSintakReference.find((item) => item.id_sintak === numericValue);
+        if (byId) {
+          return byId.order;
+        }
+
+        const byOrder = normalizedSintakReference.find((item) => item.order === numericValue);
+        if (byOrder) {
+          return byOrder.order;
+        }
+
+        return numericValue > 0 ? numericValue : Number.MAX_SAFE_INTEGER;
+      };
+
       const materiIds = [
         ...new Set(
           materiByElemen
@@ -610,7 +643,16 @@ export default function PBLGuru() {
         const allBab = babResponses
           .flat()
           .filter((item) => Number.isFinite(Number(item.id_bab)) && Number(item.id_bab) > 0)
-          .sort((left, right) => Number(left.id_bab) - Number(right.id_bab));
+          .sort((left, right) => {
+            const leftOrder = resolveSintakOrder(left.sintak_materi);
+            const rightOrder = resolveSintakOrder(right.sintak_materi);
+
+            if (leftOrder !== rightOrder) {
+              return leftOrder - rightOrder;
+            }
+
+            return Number(left.id_bab) - Number(right.id_bab);
+          });
 
         const nextSequenceMap: Record<number, number> = {};
         allBab.forEach((item, index) => {
@@ -694,43 +736,43 @@ export default function PBLGuru() {
       await loadSiswaByKelas(kelasRel?.id_kelas || null);
 
       setElemenName(result.elemen?.nama_elemen || '');
-      setSintakState(
-        (result.sintaks || []).map((item: any) => ({
-          order: item.order,
-          title: item.title,
-          id_sintak: item.id_sintak,
-          descriptionHtml: item.descriptionHtml || '',
-          waktu_mulai: formatDateTimeForInput(item.waktu_mulai),
-          waktu_selesai: formatDateTimeForInput(item.waktu_selesai),
-          allowedSubmissionTypes: item.allowedSubmissionTypes || ['dokumen'],
-          lampiran: ((item.lampiran || []) as ApiLampiran[])
-            .map((lampiran) => {
-              const parsed = parseLampiran(lampiran.file_lampiran);
-              if (!parsed) {
-                return null;
-              }
+      const nextSintakState = (result.sintaks || []).map((item: any) => ({
+        order: item.order,
+        title: item.title,
+        id_sintak: item.id_sintak,
+        descriptionHtml: item.descriptionHtml || '',
+        waktu_mulai: formatDateTimeForInput(item.waktu_mulai),
+        waktu_selesai: formatDateTimeForInput(item.waktu_selesai),
+        allowedSubmissionTypes: item.allowedSubmissionTypes || ['dokumen'],
+        lampiran: ((item.lampiran || []) as ApiLampiran[])
+          .map((lampiran) => {
+            const parsed = parseLampiran(lampiran.file_lampiran);
+            if (!parsed) {
+              return null;
+            }
 
-              return {
-                id: lampiran.id_lampiran,
-                type: parsed.type,
-                label: parsed.label,
-                url: parsed.url,
-                file: null,
-              } as LocalLampiran;
-            })
-            .filter(Boolean) as LocalLampiran[],
-          kelompok: item.kelompok || [],
-          pengumpulan: item.pengumpulan || [],
-          komentar: item.komentar || [],
-          draftType: 'dokumen',
-          draftUrl: '',
-          draftFile: null,
-          groupNameInput: '',
-          selectedMemberIds: [],
-          commentInput: '',
-          replyingTo: null,
-        })),
-      );
+            return {
+              id: lampiran.id_lampiran,
+              type: parsed.type,
+              label: parsed.label,
+              url: parsed.url,
+              file: null,
+            } as LocalLampiran;
+          })
+          .filter(Boolean) as LocalLampiran[],
+        kelompok: item.kelompok || [],
+        pengumpulan: item.pengumpulan || [],
+        komentar: item.komentar || [],
+        draftType: 'dokumen',
+        draftUrl: '',
+        draftFile: null,
+        groupNameInput: '',
+        selectedMemberIds: [],
+        commentInput: '',
+        replyingTo: null,
+      }));
+
+      setSintakState(nextSintakState);
 
       const availableOrders = new Set((result.sintaks || []).map((item: any) => Number(item.order)));
       const sintakQueryValue = router.query.sintak;
@@ -738,7 +780,12 @@ export default function PBLGuru() {
       const requestedOrder = preferredOrder ?? parsedSintakOrder ?? activeSintak;
       const targetOrder = Number.isFinite(requestedOrder) && requestedOrder >= 1 && requestedOrder <= 5 && availableOrders.has(requestedOrder) ? requestedOrder : 1;
       setActiveSintak(targetOrder);
-      await fetchMateriOverview(guruId, currentElemenId, targetOrder);
+      await fetchMateriOverview(
+        guruId,
+        currentElemenId,
+        targetOrder,
+        nextSintakState.map((item) => ({ order: item.order, id_sintak: item.id_sintak })),
+      );
     } catch (error) {
       console.error('Error fetching PBL data:', error);
       showNotification(error instanceof Error ? error.message : 'Gagal memuat halaman PBL', 'error');
