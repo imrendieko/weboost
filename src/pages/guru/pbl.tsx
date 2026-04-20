@@ -281,7 +281,11 @@ function formatDurationIndonesian(totalSeconds: number) {
 function stripUnsafeHtml(html: string) {
   const withWhitelistedDecodedTags = html.replace(/&lt;(\/?)(b|strong|i|em|u|ul|ol|li|p|br)&gt;/gi, '<$1$2>').replace(/&lt;(\/?)(span|div)&gt;/gi, '<$1$2>');
 
-  return withWhitelistedDecodedTags.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '').replace(/on\w+=['"][^'"]*['"]/gi, '');
+  return withWhitelistedDecodedTags
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+    .replace(/on\w+=['"][^'"]*['"]/gi, '')
+    .replace(/\sstyle=['"][^'"]*['"]/gi, '')
+    .replace(/\sclass=['"][^'"]*['"]/gi, '');
 }
 
 function getSubmissionTimingStatus(submissionTime: string | null | undefined, deadlineTime: string | null | undefined) {
