@@ -639,6 +639,37 @@ export default function PBLSiswa() {
     return Math.round((completedCount / allSubBab.length) * 100);
   }, [allSubBab.length, completedCount]);
 
+  const allSubBabAcrossSintak = useMemo(() => {
+    const merged: Array<{ id_sub_bab: number }> = [];
+    [1, 2, 3, 4, 5].forEach((order) => {
+      const materi = materiBySintak[order] || null;
+      const subBabList = (materi?.bab || []).flatMap((bab) => bab.sub_bab || []);
+      subBabList.forEach((subBab) => merged.push({ id_sub_bab: subBab.id_sub_bab }));
+    });
+
+    const unique = new Map<number, { id_sub_bab: number }>();
+    merged.forEach((item) => {
+      if (!unique.has(item.id_sub_bab)) {
+        unique.set(item.id_sub_bab, item);
+      }
+    });
+
+    return Array.from(unique.values());
+  }, [materiBySintak]);
+
+  const completedCountAcrossSintak = useMemo(() => {
+    const completedIds = new Set<number>();
+    Object.values(completedBySintak).forEach((mapBySintak) => {
+      Object.entries(mapBySintak || {}).forEach(([subBabId, done]) => {
+        if (done) {
+          completedIds.add(Number(subBabId));
+        }
+      });
+    });
+
+    return allSubBabAcrossSintak.filter((item) => completedIds.has(item.id_sub_bab)).length;
+  }, [completedBySintak, allSubBabAcrossSintak]);
+
   useEffect(() => {
     if (!siswaSession || !elemenId) {
       return;
@@ -685,11 +716,11 @@ export default function PBLSiswa() {
         id_siswa: siswaSession.id_siswa,
         email_siswa: siswaSession.email_siswa,
         kelas_siswa: siswaSession.kelas_siswa,
-        sub_bab_selesai: completedCount,
-        total_sub_bab: allSubBab.length,
+        sub_bab_selesai: completedCountAcrossSintak,
+        total_sub_bab: allSubBabAcrossSintak.length,
       }),
     }).catch((error) => console.error('Error syncing progres_materi:', error));
-  }, [activeSintak, completedMap, siswaSession, elemenId, completedCount, allSubBab.length]);
+  }, [activeSintak, completedMap, siswaSession, elemenId, completedCountAcrossSintak, allSubBabAcrossSintak.length]);
 
   const openElemenPbl = (idElemen: number, order?: number) => {
     const query = new URLSearchParams({ elemen: String(idElemen) });
