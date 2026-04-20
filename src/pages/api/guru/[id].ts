@@ -110,7 +110,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: 'Gagal memperbarui data guru' });
       }
 
-      return res.status(200).json({ message: 'Data guru berhasil diperbarui', data });
+      return res.status(200).json({
+        message: 'Data guru berhasil diperbarui',
+        data: {
+          ...data,
+          nuptk_guru: String((data as any)?.nuptk_guru ?? '')
+            .replace(/\D/g, '')
+            .padStart(16, '0'),
+        },
+      });
     } catch (error) {
       console.error('Error:', error);
       return res.status(500).json({ error: 'Terjadi kesalahan server' });

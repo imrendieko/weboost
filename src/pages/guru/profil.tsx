@@ -98,7 +98,7 @@ export default function ProfilGuru() {
           email_guru: guru.email_guru,
           // Password tidak diisi otomatis demi keamanan; isi hanya saat ingin mengganti.
           password_guru: '',
-          nuptk_guru: guru.nuptk_guru,
+          nuptk_guru: String(guru.nuptk_guru ?? '').replace(/\D/g, ''),
         });
 
         setLoading(false);
@@ -142,12 +142,13 @@ export default function ProfilGuru() {
 
     if (!guruData) return;
 
-    if (!formData.nama_guru.trim() || !formData.email_guru.trim() || !formData.nuptk_guru.trim()) {
+    const normalizedNUPTK = String(formData.nuptk_guru ?? '').replace(/\D/g, '');
+
+    if (!formData.nama_guru.trim() || !formData.email_guru.trim() || !normalizedNUPTK) {
       showNotification('Semua field harus diisi', 'error');
       return;
     }
 
-    const normalizedNUPTK = formData.nuptk_guru.replace(/\D/g, '');
     if (normalizedNUPTK.length !== 16) {
       showNotification('NUPTK harus terdiri dari tepat 16 digit', 'error');
       return;
@@ -191,7 +192,7 @@ export default function ProfilGuru() {
         nama_guru: result.data.nama_guru,
         email_guru: result.data.email_guru,
         password_guru: '',
-        nuptk_guru: result.data.nuptk_guru,
+        nuptk_guru: String(result.data.nuptk_guru ?? '').replace(/\D/g, ''),
       });
       showNotification('Profil berhasil diperbarui!', 'success');
     } catch (error: unknown) {
