@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import supabaseAdmin from '@/lib/supabaseAdmin';
 import { createOtpChallenge, type ResetUserType } from '@/lib/forgotPasswordToken';
-import { getMissingSmtpEnv, isSmtpConfigured, sendForgotPasswordOtpEmail } from '@/lib/mailer';
+import { getFriendlyMailerError, getMissingSmtpEnv, isSmtpConfigured, sendForgotPasswordOtpEmail } from '@/lib/mailer';
 
 type UserLookupResult = {
   userType: ResetUserType;
@@ -84,7 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (error) {
     console.error('forgot-password/request-otp error:', error);
-    const message = error instanceof Error ? error.message : 'Gagal mengirim OTP. Silakan coba lagi.';
+    const message = getFriendlyMailerError(error);
     return res.status(500).json({ error: message });
   }
 }

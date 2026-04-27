@@ -10,11 +10,10 @@ export function isSmtpConfigured(): boolean {
 }
 
 function buildTransporter() {
-  const host = process.env.SMTP_HOST;
+  const host = String(process.env.SMTP_HOST || '').trim();
   const portRaw = process.env.SMTP_PORT;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  const secure = process.env.SMTP_SECURE === 'true';
+  const user = String(process.env.SMTP_USER || '').trim();
+  const pass = String(process.env.SMTP_PASS || '');
 
   if (!host || !portRaw || !user || !pass) {
     const missing = getMissingSmtpEnv();
@@ -25,6 +24,9 @@ function buildTransporter() {
   if (!Number.isFinite(port)) {
     throw new Error('SMTP_PORT tidak valid.');
   }
+
+  const secureEnv = String(process.env.SMTP_SECURE || '').trim().toLowerCase();
+  const secure = secureEnv ? secureEnv === 'true' : port === 465;
 
   return nodemailer.createTransport({
     host,
@@ -39,7 +41,7 @@ function buildTransporter() {
 
 export async function sendForgotPasswordOtpEmail(params: { to: string; otp: string; expiresMinutes: number }) {
   const transporter = buildTransporter();
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const from = String(process.env.SMTP_FROM || process.env.SMTP_USER || '').trim();
 
   if (!from) {
     throw new Error('Alamat pengirim email belum dikonfigurasi. Set SMTP_FROM atau SMTP_USER.');
@@ -64,4 +66,27 @@ export async function sendForgotPasswordOtpEmail(params: { to: string; otp: stri
     text,
     html,
   });
+}
+
+export function getFriendlyMailerError(error: unknown): string {
+  const raw = error instanceof Error ? `${error.message}` : String(error || '');
+  const lowered = raw.toLowerCase();
+
+  if (lowered.includes('535-5.7.8') || lowered.includes('badcredentials') || lowered.includes('invalid login')) {
+    return 'SMTP login gagal (535). Untuk Gmail, gunakan App Password 16 karakter (bukan password akun biasa), pastikan SMTP_USER benar, lalu simpan juga di env Vercel.';
+  }
+
+  if (lowered.includes('self signed certificate') || lowered.includes('certificate')) {
+    return 'Koneksi SMTP gagal karena masalah sertifikat TLS. Periksa SMTP_HOST, SMTP_PORT, dan SMTP_SECURE.';
+  }
+
+  if (lowered.includes('enotfound') || lowered.includes('getaddrinfo')) {
+    return 'Host SMTP tidak ditemukan. Periksa nilai SMTP_HOST.';
+  }
+
+  if (lowered.includes('econnrefused') || lowered.includes('timeout')) {
+    return 'Koneksi ke server SMTP gagal. Periksa SMTP_PORT/SMTP_SECURE dan pastikan server SMTP aktif.';
+  }
+
+  return raw || 'Gagal mengirim email OTP.';
 }
