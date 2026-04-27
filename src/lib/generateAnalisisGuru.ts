@@ -1,5 +1,6 @@
 import supabaseAdmin from '@/lib/supabaseAdmin';
 import { calculateTPPercentage, getTPStatus, resolveQuestionScore, roundToOneDecimal, type SoalWithTP } from '@/lib/tpAchievement';
+import { buildKunciPilihanMap, computeAttemptScore } from '@/lib/asesmenScore';
 
 type GenerateAnalisisGuruInput = {
   idAsesmen: number;
@@ -31,14 +32,14 @@ export async function generateAnalisisGuru({ idAsesmen }: GenerateAnalisisGuruIn
 
   const soalWithTP = ((allSoal || []) as SoalWithTP[]).filter((soal) => soal.id_tp !== null && soal.id_tp !== undefined);
 
-  const summary = {
-    total_siswa: submittedAttempts.length,
-    rata_rata_skor: submittedAttempts.length > 0 ? Math.round((submittedAttempts.reduce((sum, row) => sum + Number(row.skor_total || 0), 0) / submittedAttempts.length) * 10) / 10 : 0,
-    rata_rata_maksimum: submittedAttempts.length > 0 ? Math.round((submittedAttempts.reduce((sum, row) => sum + Number(row.skor_maksimum || 0), 0) / submittedAttempts.length) * 10) / 10 : 0,
-    rata_rata_durasi_detik: submittedAttempts.length > 0 ? Math.round(submittedAttempts.reduce((sum, row) => sum + Number(row.durasi_detik || 0), 0) / submittedAttempts.length) : 0,
-  };
-
   if (soalWithTP.length === 0) {
+    const summary = {
+      total_siswa: submittedAttempts.length,
+      rata_rata_skor: submittedAttempts.length > 0 ? roundToOneDecimal(submittedAttempts.reduce((sum, row) => sum + Number(row.skor_total || 0), 0) / submittedAttempts.length) : 0,
+      rata_rata_maksimum: submittedAttempts.length > 0 ? roundToOneDecimal(submittedAttempts.reduce((sum, row) => sum + Number(row.skor_maksimum || 0), 0) / submittedAttempts.length) : 0,
+      rata_rata_durasi_detik: submittedAttempts.length > 0 ? Math.round(submittedAttempts.reduce((sum, row) => sum + Number(row.durasi_detik || 0), 0) / submittedAttempts.length) : 0,
+    };
+
     await supabaseAdmin.from('analisis_guru').delete().eq('nama_asesmen', idAsesmen);
     return { analysis: [] as any[], summary, message: 'Tidak ada soal dengan TP' };
   }
@@ -55,19 +56,15 @@ export async function generateAnalisisGuru({ idAsesmen }: GenerateAnalisisGuruIn
     tpMap[tp.id_tp] = tp.nama_tp;
   });
 
-  const soalIds = soalWithTP.map((soal: any) => soal.id_soal);
+  const allSoalList = (allSoal || []) as SoalWithTP[];
+  const soalIds = allSoalList.map((soal: any) => Number(soal.id_soal));
   const { data: pilihanList, error: pilihanError } = soalIds.length ? await supabaseAdmin.from('pilihan_ganda').select('id_soal, opsi_pilgan, kunci_pilgan').in('id_soal', soalIds) : { data: [], error: null };
 
   if (pilihanError) {
     throw new Error(pilihanError.message);
   }
 
-  const kunciPilihanMap: Record<number, string> = {};
-  (pilihanList || []).forEach((pilihan: any) => {
-    if (pilihan.kunci_pilgan === true) {
-      kunciPilihanMap[pilihan.id_soal] = pilihan.opsi_pilgan;
-    }
-  });
+  const kunciPilihanMap = buildKunciPilihanMap((pilihanList || []) as Array<{ id_soal: number; opsi_pilgan: string; kunci_pilgan: boolean }>);
 
   const attemptIds = submittedAttempts.map((attempt) => attempt.id_attempt);
   const { data: validasiRows, error: validasiError } = attemptIds.length ? await supabaseAdmin.from('validasi_nilai').select('id_attempt, id_soal, skor_tervalidasi, skor_asli').in('id_attempt', attemptIds) : { data: [], error: null };
@@ -83,6 +80,36 @@ export async function generateAnalisisGuru({ idAsesmen }: GenerateAnalisisGuruIn
       skor_asli: row.skor_asli,
     };
   });
+
+  const recomputedAttemptScores = submittedAttempts.map((attempt) => {
+    const validasiBySoal: Record<number, { skor_tervalidasi: number | null; skor_asli: number | null }> = {};
+    allSoalList.forEach((soal) => {
+      const key = `${attempt.id_attempt}:${soal.id_soal}`;
+      if (validasiMap[key]) {
+        validasiBySoal[Number(soal.id_soal)] = validasiMap[key];
+      }
+    });
+
+    return computeAttemptScore({
+      answersJson: attempt.answers_json,
+      soalList: allSoalList,
+      validasiBySoal,
+      kunciPilihanMap,
+    });
+  });
+
+  const summary = {
+    total_siswa: submittedAttempts.length,
+    rata_rata_skor:
+      submittedAttempts.length > 0
+        ? roundToOneDecimal(recomputedAttemptScores.reduce((sum, row) => sum + Number(row.skor_total || 0), 0) / submittedAttempts.length)
+        : 0,
+    rata_rata_maksimum:
+      submittedAttempts.length > 0
+        ? roundToOneDecimal(recomputedAttemptScores.reduce((sum, row) => sum + Number(row.skor_maksimum || 0), 0) / submittedAttempts.length)
+        : 0,
+    rata_rata_durasi_detik: submittedAttempts.length > 0 ? Math.round(submittedAttempts.reduce((sum, row) => sum + Number(row.durasi_detik || 0), 0) / submittedAttempts.length) : 0,
+  };
 
   const tpAnalysis: Record<
     number,

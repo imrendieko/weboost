@@ -37,13 +37,7 @@ function isMissingColumnError(message: string | undefined): boolean {
   return lowered.includes('schema cache') || lowered.includes('could not find') || lowered.includes('column');
 }
 
-async function insertLampiranCompat(
-  idSintak: number,
-  lampiran: SaveSintakBody['lampiran'],
-  descriptionHtml: string,
-  waktuMulai: string | null,
-  waktuSelesai: string | null,
-): Promise<{ error: { message: string } | null }> {
+async function insertLampiranCompat(idSintak: number, lampiran: SaveSintakBody['lampiran'], descriptionHtml: string, waktuMulai: string | null, waktuSelesai: string | null): Promise<{ error: { message: string } | null }> {
   const normalizedLampiran = lampiran.length > 0 ? lampiran : [{ type: 'dokumen' as const, label: '', url: '' }];
 
   const preferredPayload = normalizedLampiran.map((item) => ({
