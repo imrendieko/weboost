@@ -13,7 +13,7 @@ function buildTransporter() {
   const host = String(process.env.SMTP_HOST || '').trim();
   const portRaw = process.env.SMTP_PORT;
   const user = String(process.env.SMTP_USER || '').trim();
-  const pass = String(process.env.SMTP_PASS || '');
+  const pass = String(process.env.SMTP_PASS || '').trim();
 
   if (!host || !portRaw || !user || !pass) {
     const missing = getMissingSmtpEnv();
